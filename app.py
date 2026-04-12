@@ -152,7 +152,7 @@ class StockApp:
         
         if 'Movimientos' not in sheet_names:
             self.ws_movimientos = self.wb.create_sheet('Movimientos')
-            headers = ['Fecha', 'Usuario', 'SKU', 'Producto', 'Tipo', 'Cantidad', 'Deposito', 'Nro-Comprobante', 'Nro-Factura', 'Nota']
+            headers = ['Fecha', 'Usuario', 'SKU', 'Producto', 'Tipo', 'Cantidad', 'Deposito', 'Nro-Comprobante', 'Nro-Factura', 'Nota', 'Costo', 'Lote']
             for col, h in enumerate(headers, 1):
                 self.ws_movimientos.cell(1, col).value = h
         else:
@@ -468,7 +468,7 @@ class StockApp:
         
         cantidad_var = tk.StringVar()
         ttk.Entry(buscar_frame, textvariable=cantidad_var, width=10).pack(side=tk.LEFT, padx=5)
-        ttk.Label(buscar_frame, text="Cantidad").pack(side=tk.LEFT)
+        ttk.Label(buscar_frame, text="Cant").pack(side=tk.LEFT)
         
         listbox = tk.Listbox(buscar_frame, height=5, width=35)
         listbox.pack(side=tk.LEFT, padx=5)
@@ -488,27 +488,31 @@ class StockApp:
         def agregar_item():
             sel = listbox.curselection()
             if not sel:
-                messagebox.showwarning("警告", "を選択してください")
                 return
             try:
                 cant = int(cantidad_var.get())
             except ValueError:
-                messagebox.showerror("错误", "Cantidad inválida")
                 return
+            
+            try:
+                costo = float(costo_var.get()) if costo_var.get() else 0
+            except:
+                costo = 0
             
             txt = listbox.get(sel[0])
             sku = txt.split(" - ")[0]
             
             for p in self.products:
                 if p['SKU'] == sku:
-                    items_a_entrar.append({'sku': sku, 'nombre': p['Nombre'], 'cantidad': cant, 'deposito': p.get('deposito', 'Principal')})
+                    items_a_entrar.append({'sku': sku, 'nombre': p['Nombre'], 'cantidad': cant, 'deposito': p.get('deposito', 'Principal'), 'costo': costo})
                     break
             
             actualizar_lista_items()
             buscar_var.set("")
             cantidad_var.set("")
+            costo_var.set("")
         
-        ttk.Button(buscar_frame, text="+ Agregar", command=agregar_item).pack(side=tk.LEFT, padx=5)
+        ttk.Button(buscar_frame, text="+", command=agregar_item).pack(side=tk.LEFT, padx=5)
         
         lista_frame = ttk.LabelFrame(win, text="Items a entrar", padding=10)
         lista_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
@@ -559,13 +563,26 @@ class StockApp:
                     if p['SKU'] == item['sku']:
                         nuevo = p.get('stock', 0) + item['cantidad']
                         self.ws_productos.cell(p['row'], 25).value = nuevo
-                        self.registrar_movimiento(item['sku'], item['nombre'], 'ENTRADA', item['cantidad'], item['deposito'], nota.get(), nro_comp.get(), nro_fact.get())
+                        
+                        row_lote = self.ws_movimientos.max_row + 1
+                        self.ws_movimientos.cell(row_lote, 1).value = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        self.ws_movimientos.cell(row_lote, 2).value = self.usuario_actual['nombre']
+                        self.ws_movimientos.cell(row_lote, 3).value = item['sku']
+                        self.ws_movimientos.cell(row_lote, 4).value = item['nombre']
+                        self.ws_movimientos.cell(row_lote, 5).value = 'ENTRADA'
+                        self.ws_movimientos.cell(row_lote, 6).value = item['cantidad']
+                        self.ws_movimientos.cell(row_lote, 7).value = item['deposito']
+                        self.ws_movimientos.cell(row_lote, 8).value = nro_comp.get()
+                        self.ws_movimientos.cell(row_lote, 9).value = nro_fact.get()
+                        self.ws_movimientos.cell(row_lote, 10).value = nota.get()
+                        self.ws_movimientos.cell(row_lote, 11).value = item.get('costo', 0)
+                        self.ws_movimientos.cell(row_lote, 12).value = item['cantidad']
                         break
             
             self.wb.save(EXCEL_FILE)
             win.destroy()
             self.init_excel()
-            messagebox.showinfo("OK", f"{len(items_a_entrar)} entradas registradas")
+            messagebox.showinfo("OK", f"{len(items_a_entrar)} entradas registradas (FIFO)")
         
         ttk.Button(win, text="Confirmar Todo", command=confirmar).pack(pady=15)
         tk.Label(win, text="Desarrollado por asubelzacg", font=('Arial', 8, 'bold'), fg=theme['watermark'], bg=theme['bg']).pack(pady=5)
