@@ -42,6 +42,7 @@ class StockApp:
         self.dark_mode = False
         self.current_theme = LIGHT_THEME
         self.usuario_actual = None
+        self.status_label = None
         
         self.init_excel()
         self.login()
@@ -49,6 +50,7 @@ class StockApp:
         if self.usuario_actual:
             self.setup_styles()
             self.setup_ui()
+            self.actualizar_status()
             self.filter_products()
     
     def login(self):
@@ -62,11 +64,9 @@ class StockApp:
         win.configure(bg=theme['bg'])
         
         ttk.Label(win, text="Gestion de Stock", font=('Arial', 14, 'bold')).pack(pady=20)
-        
         ttk.Label(win, text="Usuario:").pack(pady=5)
         user_var = tk.StringVar()
         ttk.Entry(win, textvariable=user_var, width=20).pack()
-        
         ttk.Label(win, text="Contrasena:").pack(pady=5)
         pass_var = tk.StringVar()
         ttk.Entry(win, textvariable=pass_var, show="*", width=20).pack()
@@ -74,19 +74,16 @@ class StockApp:
         def entrar():
             user = user_var.get().strip()
             password = pass_var.get().strip()
-            
             usuarios = self.get_usuarios()
             for u in usuarios:
                 if u['user'] == user and u['pass'] == password:
                     self.usuario_actual = u
                     win.destroy()
                     return
-            
             messagebox.showerror("Error", "Usuario o contrasena incorrectos")
         
         ttk.Button(win, text="Ingresar", command=entrar).pack(pady=20)
         tk.Label(win, text="Desarrollado por asubelzacg", font=('Arial', 8), fg=theme['watermark'], bg=theme['bg']).pack()
-        
         win.protocol("WM_DELETE_WINDOW", lambda: self.root.destroy())
         self.root.wait_window(win)
     
@@ -170,10 +167,8 @@ class StockApp:
             if sku or nombre:
                 stock = self.ws_productos.cell(row, 25).value or 0
                 deposito = self.ws_productos.cell(row, 24).value or 'Principal'
-                
                 if deposito not in self.depositos:
                     self.depositos.append(deposito)
-                
                 self.products.append({
                     'row': row, 'Nombre': nombre, 'SKU': sku,
                     'Tipo': self.ws_productos.cell(row, 4).value,
@@ -183,8 +178,10 @@ class StockApp:
                     'stock': stock, 'deposito': deposito,
                     'precio': self.ws_productos.cell(row, 16).value,
                 })
-        
-        self.status.config(text=f"Excel: {EXCEL_FILE} | Usuario: {self.usuario_actual['nombre'] if self.usuario_actual else '?'}")
+    
+    def actualizar_status(self):
+        if self.status_label and self.usuario_actual:
+            self.status_label.config(text=f"Excel: {EXCEL_FILE} | Usuario: {self.usuario_actual['nombre']}")
     
     def setup_ui(self):
         main = ttk.Frame(self.root, padding="10")
@@ -192,11 +189,7 @@ class StockApp:
         
         header = ttk.Frame(main)
         header.pack(fill=tk.X, pady=(0, 10))
-        
         ttk.Label(header, text="Gestion de Inventario", font=('Arial', 16, 'bold')).pack(side=tk.LEFT)
-        
-        user_label = ttk.Label(header, text=f"Usuario: {self.usuario_actual['nombre'] if self.usuario_actual else ''}")
-        user_label.pack(side=tk.RIGHT)
         
         toolbar = ttk.Frame(main)
         toolbar.pack(fill=tk.X, pady=(0, 10))
@@ -225,9 +218,7 @@ class StockApp:
         buscar_entry = ttk.Entry(filters, textvariable=self.buscar_var, width=20)
         buscar_entry.pack(side=tk.LEFT, padx=5)
         buscar_entry.bind('<Return>', self.selectFirstMatch)
-        
-        self.autocomplete_btn = ttk.Button(filters, text="Buscar", command=self.selectFirstMatch, width=6)
-        self.autocomplete_btn.pack(side=tk.LEFT, padx=2)
+        ttk.Button(filters, text="Buscar", command=self.selectFirstMatch, width=6).pack(side=tk.LEFT, padx=2)
         
         ttk.Label(filters, text="Deposito:").pack(side=tk.LEFT, padx=(15, 0))
         self.deposito_var = tk.StringVar(value='Principal')
@@ -263,8 +254,8 @@ class StockApp:
         status_frame = ttk.Frame(main)
         status_frame.pack(fill=tk.X, pady=(10, 0))
         
-        self.status = ttk.Label(status_frame, text="")
-        self.status.pack(side=tk.LEFT)
+        self.status_label = ttk.Label(status_frame, text="")
+        self.status_label.pack(side=tk.LEFT)
         
         ttk.Label(status_frame, text="|").pack(side=tk.LEFT, padx=10)
         ttk.Label(status_frame, text="Total:").pack(side=tk.LEFT)
@@ -293,13 +284,14 @@ class StockApp:
             
             if len(matches) <= 5 and len(matches) > 0:
                 match_text = " | ".join([f"{s}: {n}" for s, n in matches[:5]])
-                self.status.config(text=f"Encontrados: {match_text}")
+                self.status_label.config(text=f"Encontrados: {match_text}")
             elif len(matches) > 5:
-                self.status.config(text=f"Encontrados: {len(matches)} coincidencias")
+                self.status_label.config(text=f"Encontrados: {len(matches)} coincidencias")
             else:
-                self.status.config(text=f"No encontrado: {query}")
+                self.status_label.config(text=f"No encontrado")
         else:
-            self.status.config(text="")
+            if self.status_label and self.usuario_actual:
+                self.actualizar_status()
         
         self.filter_products()
     
@@ -401,7 +393,6 @@ class StockApp:
         for i, (label, col) in enumerate(campos):
             frame = ttk.Frame(win)
             frame.pack(fill=tk.X, padx=10, pady=3)
-            
             ttk.Label(frame, text=label, width=15).pack(side=tk.LEFT)
             entry = ttk.Entry(frame, width=30)
             entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
@@ -474,19 +465,15 @@ class StockApp:
         win.configure(bg=theme['bg'])
         
         ttk.Label(win, text=f"Producto: {item[1]}", font=('', 10, 'bold')).pack(pady=10)
-        
         ttk.Label(win, text="Cantidad:").pack(pady=5)
         cantidad = tk.StringVar()
         ttk.Entry(win, textvariable=cantidad, width=15).pack()
-        
         ttk.Label(win, text="Nro Comprobante:").pack(pady=5)
         nro_comp = tk.StringVar()
         ttk.Entry(win, textvariable=nro_comp, width=15).pack()
-        
         ttk.Label(win, text="Nro Factura:").pack(pady=5)
         nro_fact = tk.StringVar()
         ttk.Entry(win, textvariable=nro_fact, width=15).pack()
-        
         ttk.Label(win, text="Nota:").pack(pady=5)
         nota = tk.StringVar()
         ttk.Entry(win, textvariable=nota, width=25).pack()
@@ -495,7 +482,7 @@ class StockApp:
             try:
                 cant = int(cantidad.get())
             except ValueError:
-                messagebox.showerror("Error", "Cantidad inválida")
+                messagebox.showerror("Error", "Cantidad invalida")
                 return
             
             sku = item[0]
@@ -503,10 +490,7 @@ class StockApp:
                 if p['SKU'] == sku:
                     nuevo = p.get('stock', 0) + cant
                     self.ws_productos.cell(p['row'], 25).value = nuevo
-                    
-                    self.registrar_movimiento(sku, item[1], 'ENTRADA', cant, item[4] or 'Principal', 
-                                           nota.get(), nro_comp.get(), nro_fact.get())
-                    
+                    self.registrar_movimiento(sku, item[1], 'ENTRADA', cant, item[4] or 'Principal', nota.get(), nro_comp.get(), nro_fact.get())
                     self.wb.save(EXCEL_FILE)
                     break
             
@@ -526,22 +510,19 @@ class StockApp:
         item = self.tree.item(sel[0])['values']
         win = tk.Toplevel(self.root)
         win.title("Salida de Stock")
-        win.geometry("350x300")
+        win.geometry("350x280")
         
         theme = self.current_theme
         win.configure(bg=theme['bg'])
         
         ttk.Label(win, text=f"Producto: {item[1]}", font=('', 10, 'bold')).pack(pady=10)
         ttk.Label(win, text=f"Stock actual: {item[2]}").pack()
-        
         ttk.Label(win, text="Cantidad:").pack(pady=5)
         cantidad = tk.StringVar()
         ttk.Entry(win, textvariable=cantidad, width=15).pack()
-        
         ttk.Label(win, text="Nro Comprobante:").pack(pady=5)
         nro_comp = tk.StringVar()
         ttk.Entry(win, textvariable=nro_comp, width=15).pack()
-        
         ttk.Label(win, text="Motivo:").pack(pady=5)
         motivo = tk.StringVar()
         ttk.Combobox(win, textvariable=motivo, values=['Venta', 'Ajuste', 'Devolucion', 'Otro']).pack()
@@ -550,7 +531,7 @@ class StockApp:
             try:
                 cant = int(cantidad.get())
             except ValueError:
-                messagebox.showerror("Error", "Cantidad inválida")
+                messagebox.showerror("Error", "Cantidad invalida")
                 return
             
             if cant > item[2]:
@@ -562,10 +543,7 @@ class StockApp:
                 if p['SKU'] == sku:
                     nuevo = p.get('stock', 0) - cant
                     self.ws_productos.cell(p['row'], 25).value = nuevo
-                    
-                    self.registrar_movimiento(sku, item[1], 'SALIDA', -cant, item[4] or 'Principal', 
-                                           motivo.get(), nro_comp.get(), '')
-                    
+                    self.registrar_movimiento(sku, item[1], 'SALIDA', -cant, item[4] or 'Principal', motivo.get(), nro_comp.get(), '')
                     self.wb.save(EXCEL_FILE)
                     break
             
@@ -584,18 +562,16 @@ class StockApp:
         
         item = self.tree.item(sel[0])['values']
         win = tk.Toplevel(self.root)
-        win.title("Transferir entre Depositos")
+        win.title("Transferir")
         win.geometry("350x220")
         
         theme = self.current_theme
         win.configure(bg=theme['bg'])
         
         ttk.Label(win, text=f"Producto: {item[1]}").pack(pady=10)
-        
         ttk.Label(win, text="Cantidad:").pack(pady=5)
         cantidad = tk.StringVar()
         ttk.Entry(win, textvariable=cantidad, width=15).pack()
-        
         ttk.Label(win, text="Deposito destino:").pack(pady=5)
         destino = tk.StringVar()
         deps = [d for d in self.depositos if d != item[4]]
@@ -616,9 +592,7 @@ class StockApp:
                 if p['SKU'] == sku:
                     nuevo = p.get('stock', 0) - cant
                     self.ws_productos.cell(p['row'], 25).value = nuevo
-                    
                     self.registrar_movimiento(sku, item[1], 'TRANSFERENCIA', cant, destino.get(), f"De {item[4]}")
-                    
                     self.wb.save(EXCEL_FILE)
                     break
             
@@ -631,7 +605,7 @@ class StockApp:
     
     def historial(self):
         win = tk.Toplevel(self.root)
-        win.title("Historial de Movimientos")
+        win.title("Historial")
         win.geometry("900x450")
         
         theme = self.current_theme
