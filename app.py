@@ -118,6 +118,7 @@ class StockApp:
     def buscar_arca(self, cuits):
         import urllib.request
         import json
+        import ssl
         
         cuits = cuits.strip().replace("-", "").replace(" ", "")
         
@@ -125,23 +126,54 @@ class StockApp:
             return None
         
         try:
-            url = f"https://soa.afip.gob.ar/parametros/v1/contribuyentes/{cuits}"
-            headers = {'Accept': 'application/json'}
-            req = urllib.request.Request(url, headers=headers)
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
             
-            with urllib.request.urlopen(req, timeout=10) as response:
-                data = json.loads(response.read().decode())
-                if data.get('success'):
-                    result = data.get('dataResult', {}).get('datos', {})
+            url = f"https://www.afip.gob.ar/rcel/consultaPadron/padron.aspx?cuitEmpresa=&razonSocial=&domicilio=&provincia=&codigo Actividad=&ano=&mes="
+            
+            data = {
+                "cuit": cuits,
+                "token": ""
+            }
+            
+            req = urllib.request.Request(
+                "https://soa.afip.gob.ar/wscthomo/v1/contribuyentes",
+                data=json.dumps(data).encode('utf-8'),
+                headers={'Content-Type': 'application/json', 'Accept': 'application/json'},
+                method='POST'
+            )
+            
+            with urllib.request.urlopen(req, timeout=15, context=ctx) as response:
+                result = json.loads(response.read().decode())
+                if result.get('data'):
+                    d = result['data']
                     return {
                         'cuit': cuits,
-                        'nombre': result.get('razonSocial', ''),
-                        'direccion': f"{result.get('domicilio', {}).get('direccion', '')} {result.get('domicilio', {}).get('numero', '')}",
-                        'telefono': result.get('telefono', ''),
-                        'email': result.get('email', '')
+                        'nombre': d.get('razonSocial', 'Sin nombre'),
+                        'direccion': d.get('domicilio', ''),
+                        'telefono': d.get('telefono', ''),
+                        'email': d.get('email', '')
                     }
         except Exception as e:
             print(f"ARCA error: {e}")
+        
+        try:
+            import requests
+            url = f"https://api-dolar-v1.vercel.app/info/{cuits}"
+            resp = requests.get(url, timeout=10)
+            if resp.status_code == 200:
+                result = resp.json()
+                if result.get('cuit'):
+                    return {
+                        'cuit': cuits,
+                        'nombre': result.get('denominacion', 'Sin nombre'),
+                        'direccion': result.get('domicilio', ''),
+                        'telefono': '',
+                        'email': ''
+                    }
+        except:
+            pass
         
         return None
     
@@ -565,6 +597,8 @@ class StockApp:
         proveedor_entry.pack(side=tk.LEFT, padx=5)
         
         proveedor_nombre_var = tk.StringVar()
+        proveedor_direccion_var = tk.StringVar()
+        proveedor_telefono_var = tk.StringVar()
         
         def buscar_proveedor():
             cuits = proveedor_var.get().strip()
@@ -575,28 +609,51 @@ class StockApp:
             for prov in proveedores:
                 if cuits in (prov['cuit'] or ''):
                     proveedor_nombre_var.set(prov['nombre'])
+                    proveedor_direccion_var.set(prov.get('direccion', ''))
+                    proveedor_telefono_var.set(prov.get('telefono', ''))
+                    btn_guardar.config(command=lambda: guardar_manual(), text="Guardar en BD")
                     return
             
             result = self.buscar_arca(cuits)
             if result:
-                proveedor_nombre_var.set(f"{result['nombre']} (Desde ARCA)")
-                proveedor_data = result
+                proveedor_nombre_var.set(f"{result['nombre']}")
+                proveedor_direccion_var.set(result.get('direccion', ''))
+                proveedor_telefono_var.set(result.get('telefono', ''))
                 
                 def guardar_y_usar():
                     self.guardar_proveedor(result)
                     messagebox.showinfo("OK", "Proveedor guardado")
                 
-                btn_guardar.config(command=guardar_y_usar, text="Guardar en BD")
+                btn_guardar.config(command=guardar_y_usar, text="Guardar de ARCA")
             else:
-                proveedor_nombre_var.set("No encontrado en ARCA ni BD")
+                proveedor_nombre_var.set("No encontrado - Cargar manualmente")
+        
+        def guardar_manual():
+            cuits = proveedor_var.get().strip()
+            if cuits and proveedor_nombre_var.get():
+                self.guardar_proveedor({
+                    'cuit': cuits,
+                    'nombre': proveedor_nombre_var.get(),
+                    'direccion': proveedor_direccion_var.get(),
+                    'telefono': proveedor_telefono_var.get(),
+                    'email': ''
+                })
+                messagebox.showinfo("OK", "Proveedor guardado manualmente")
+        
+        ttk.Label(proveedor_frame, text="CUIT:").pack(side=tk.LEFT)
+        ttk.Entry(proveedor_frame, textvariable=proveedor_var, width=15).pack(side=tk.LEFT, padx=5)
         
         btn_buscar = ttk.Button(proveedor_frame, text="Buscar en ARCA", command=buscar_proveedor)
         btn_buscar.pack(side=tk.LEFT, padx=5)
         
-        btn_guardar = ttk.Button(proveedor_frame, text="Guardar Proveedor", command=lambda: messagebox.showinfo("Info", "Primero busque en ARCA"))
+        btn_guardar = ttk.Button(proveedor_frame, text="Guardar Manual", command=guardar_manual)
         btn_guardar.pack(side=tk.LEFT, padx=5)
         
-        ttk.Label(proveedor_frame, textvariable=proveedor_nombre_var, font=('', 10, 'bold')).pack(side=tk.LEFT, padx=10)
+        ttk.Label(proveedor_frame, text="Nombre:").pack(side=tk.LEFT, padx=(15, 0))
+        ttk.Entry(proveedor_frame, textvariable=proveedor_nombre_var, width=20).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Label(proveedor_frame, text="Direccion:").pack(side=tk.LEFT, padx=(10, 0))
+        ttk.Entry(proveedor_frame, textvariable=proveedor_direccion_var, width=20).pack(side=tk.LEFT, padx=5)
         
         producto_frame = ttk.LabelFrame(win, text="Buscar producto", padding=10)
         producto_frame.pack(fill=tk.X, padx=10, pady=5)
