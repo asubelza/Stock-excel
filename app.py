@@ -452,22 +452,26 @@ class StockApp:
     
     def entrada_stock(self):
         win = tk.Toplevel(self.root)
-        win.title("Entrada de Stock")
-        win.geometry("400x380")
+        win.title("Entrada de Stock - Multiple")
+        win.geometry("500x550")
         
         theme = self.current_theme
         win.configure(bg=theme['bg'])
         
-        ttk.Label(win, text="Buscar producto (SKU o nombre):").pack(pady=5)
+        items_a_entrar = []
+        
+        buscar_frame = ttk.LabelFrame(win, text="Buscar producto", padding=10)
+        buscar_frame.pack(fill=tk.X, padx=10, pady=5)
+        
         buscar_var = tk.StringVar()
-        buscar_entry = ttk.Entry(win, textvariable=buscar_var, width=25)
-        buscar_entry.pack(pady=5)
-        buscar_entry.focus()
+        ttk.Entry(buscar_frame, textvariable=buscar_var, width=25).pack(side=tk.LEFT, padx=5)
         
-        producto_var = tk.StringVar(value="")
+        cantidad_var = tk.StringVar()
+        ttk.Entry(buscar_frame, textvariable=cantidad_var, width=10).pack(side=tk.LEFT, padx=5)
+        ttk.Label(buscar_frame, text="Cantidad").pack(side=tk.LEFT)
         
-        listbox = tk.Listbox(win, height=5, width=40)
-        listbox.pack(pady=5)
+        listbox = tk.Listbox(buscar_frame, height=5, width=35)
+        listbox.pack(side=tk.LEFT, padx=5)
         
         def actualizar_lista(event=None):
             listbox.delete(0, tk.END)
@@ -481,77 +485,113 @@ class StockApp:
         
         buscar_var.trace('w', lambda *a: actualizar_lista())
         
-        def seleccionar(event):
+        def agregar_item():
             sel = listbox.curselection()
-            if sel:
-                txt = listbox.get(sel[0])
-                sku = txt.split(" - ")[0]
-                producto_var.set(sku)
-        
-        listbox.bind('<<ListboxSelect>>', seleccionar)
-        
-        ttk.Label(win, text="Producto seleccionado:").pack(pady=5)
-        label_prod = ttk.Label(win, textvariable=producto_var, font=('', 10, 'bold'))
-        label_prod.pack(pady=5)
-        
-        ttk.Label(win, text="Cantidad:").pack(pady=5)
-        cantidad = tk.StringVar()
-        ttk.Entry(win, textvariable=cantidad, width=15).pack()
-        ttk.Label(win, text="Nro Comprobante:").pack(pady=5)
-        nro_comp = tk.StringVar()
-        ttk.Entry(win, textvariable=nro_comp, width=15).pack()
-        ttk.Label(win, text="Nro Factura:").pack(pady=5)
-        nro_fact = tk.StringVar()
-        ttk.Entry(win, textvariable=nro_fact, width=15).pack()
-        ttk.Label(win, text="Nota:").pack(pady=5)
-        nota = tk.StringVar()
-        ttk.Entry(win, textvariable=nota, width=25).pack()
-        
-        def confirmar():
-            sku = producto_var.get().strip()
-            if not sku:
-                messagebox.showerror("Error", "Selecciona un producto")
+            if not sel:
+                messagebox.showwarning("警告", "を選択してください")
+                return
+            try:
+                cant = int(cantidad_var.get())
+            except ValueError:
+                messagebox.showerror("错误", "Cantidad inválida")
                 return
             
-            try:
-                cant = int(cantidad.get())
-            except ValueError:
-                messagebox.showerror("Error", "Cantidad invalida")
-                return
+            txt = listbox.get(sel[0])
+            sku = txt.split(" - ")[0]
             
             for p in self.products:
                 if p['SKU'] == sku:
-                    nuevo = p.get('stock', 0) + cant
-                    self.ws_productos.cell(p['row'], 25).value = nuevo
-                    self.registrar_movimiento(sku, p['Nombre'], 'ENTRADA', cant, p.get('deposito', 'Principal'), nota.get(), nro_comp.get(), nro_fact.get())
-                    self.wb.save(EXCEL_FILE)
+                    items_a_entrar.append({'sku': sku, 'nombre': p['Nombre'], 'cantidad': cant, 'deposito': p.get('deposito', 'Principal')})
                     break
             
+            actualizar_lista_items()
+            buscar_var.set("")
+            cantidad_var.set("")
+        
+        ttk.Button(buscar_frame, text="+ Agregar", command=agregar_item).pack(side=tk.LEFT, padx=5)
+        
+        lista_frame = ttk.LabelFrame(win, text="Items a entrar", padding=10)
+        lista_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        cols = ('SKU', 'Nombre', 'Cantidad')
+        tree = ttk.Treeview(lista_frame, columns=cols, show='headings', height=8)
+        for col in cols:
+            tree.heading(col, text=col)
+            tree.column(col, width=120 if col != 'Nombre' else 200)
+        tree.pack(fill=tk.BOTH, expand=True)
+        
+        def actualizar_lista_items():
+            tree.delete(*tree.get_children())
+            for item in items_a_entrar:
+                tree.insert('', tk.END, values=(item['sku'], item['nombre'], item['cantidad']))
+        
+        def eliminar_item():
+            sel = tree.selection()
+            if sel:
+                idx = tree.index(sel[0])
+                items_a_entrar.pop(idx)
+                actualizar_lista_items()
+        
+        ttk.Button(lista_frame, text="Eliminar selected", command=eliminar_item).pack(pady=5)
+        
+        datos_frame = ttk.LabelFrame(win, text="Datos del movimiento", padding=10)
+        datos_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        nro_comp = tk.StringVar()
+        ttk.Entry(datos_frame, textvariable=nro_comp, width=15).pack(side=tk.LEFT, padx=5)
+        ttk.Label(datos_frame, text="Nro Comp").pack(side=tk.LEFT)
+        
+        nro_fact = tk.StringVar()
+        ttk.Entry(datos_frame, textvariable=nro_fact, width=15).pack(side=tk.LEFT, padx=5)
+        ttk.Label(datos_frame, text="Nro Fact").pack(side=tk.LEFT)
+        
+        nota = tk.StringVar()
+        ttk.Entry(datos_frame, textvariable=nota, width=15).pack(side=tk.LEFT, padx=5)
+        ttk.Label(datos_frame, text="Nota").pack(side=tk.LEFT)
+        
+        def confirmar():
+            if not items_a_entrar:
+                messagebox.showwarning("警告", "No hay items")
+                return
+            
+            for item in items_a_entrar:
+                for p in self.products:
+                    if p['SKU'] == item['sku']:
+                        nuevo = p.get('stock', 0) + item['cantidad']
+                        self.ws_productos.cell(p['row'], 25).value = nuevo
+                        self.registrar_movimiento(item['sku'], item['nombre'], 'ENTRADA', item['cantidad'], item['deposito'], nota.get(), nro_comp.get(), nro_fact.get())
+                        break
+            
+            self.wb.save(EXCEL_FILE)
             win.destroy()
             self.init_excel()
-            messagebox.showinfo("OK", f"Entrada: {cant} unidades")
+            messagebox.showinfo("OK", f"{len(items_a_entrar)} entradas registradas")
         
-        ttk.Button(win, text="Confirmar", command=confirmar).pack(pady=15)
+        ttk.Button(win, text="Confirmar Todo", command=confirmar).pack(pady=15)
         tk.Label(win, text="Desarrollado por asubelzacg", font=('Arial', 8, 'bold'), fg=theme['watermark'], bg=theme['bg']).pack(pady=5)
     
     def salida_stock(self):
         win = tk.Toplevel(self.root)
-        win.title("Salida de Stock")
-        win.geometry("400x380")
+        win.title("Salida de Stock - Multiple")
+        win.geometry("500x550")
         
         theme = self.current_theme
         win.configure(bg=theme['bg'])
         
-        ttk.Label(win, text="Buscar producto (SKU o nombre):").pack(pady=5)
+        items_a_salir = []
+        
+        buscar_frame = ttk.LabelFrame(win, text="Buscar producto", padding=10)
+        buscar_frame.pack(fill=tk.X, padx=10, pady=5)
+        
         buscar_var = tk.StringVar()
-        buscar_entry = ttk.Entry(win, textvariable=buscar_var, width=25)
-        buscar_entry.pack(pady=5)
-        buscar_entry.focus()
+        ttk.Entry(buscar_frame, textvariable=buscar_var, width=25).pack(side=tk.LEFT, padx=5)
         
-        producto_var = tk.StringVar(value="")
+        cantidad_var = tk.StringVar()
+        ttk.Entry(buscar_frame, textvariable=cantidad_var, width=10).pack(side=tk.LEFT, padx=5)
+        ttk.Label(buscar_frame, text="Cantidad").pack(side=tk.LEFT)
         
-        listbox = tk.Listbox(win, height=5, width=40)
-        listbox.pack(pady=5)
+        listbox = tk.Listbox(buscar_frame, height=5, width=35)
+        listbox.pack(side=tk.LEFT, padx=5)
         
         def actualizar_lista(event=None):
             listbox.delete(0, tk.END)
@@ -565,58 +605,86 @@ class StockApp:
         
         buscar_var.trace('w', lambda *a: actualizar_lista())
         
-        def seleccionar(event):
+        def agregar_item():
             sel = listbox.curselection()
-            if sel:
-                txt = listbox.get(sel[0])
-                sku = txt.split(" - ")[0]
-                producto_var.set(sku)
-        
-        listbox.bind('<<ListboxSelect>>', seleccionar)
-        
-        ttk.Label(win, text="Producto seleccionado:").pack(pady=5)
-        label_prod = ttk.Label(win, textvariable=producto_var, font=('', 10, 'bold'))
-        label_prod.pack(pady=5)
-        
-        ttk.Label(win, text="Cantidad:").pack(pady=5)
-        cantidad = tk.StringVar()
-        ttk.Entry(win, textvariable=cantidad, width=15).pack()
-        ttk.Label(win, text="Nro Comprobante:").pack(pady=5)
-        nro_comp = tk.StringVar()
-        ttk.Entry(win, textvariable=nro_comp, width=15).pack()
-        ttk.Label(win, text="Motivo:").pack(pady=5)
-        motivo = tk.StringVar()
-        ttk.Combobox(win, textvariable=motivo, values=['Venta', 'Ajuste', 'Devolucion', 'Otro']).pack()
-        
-        def confirmar():
-            sku = producto_var.get().strip()
-            if not sku:
-                messagebox.showerror("Error", "Selecciona un producto")
+            if not sel:
+                return
+            try:
+                cant = int(cantidad_var.get())
+            except ValueError:
                 return
             
-            try:
-                cant = int(cantidad.get())
-            except ValueError:
-                messagebox.showerror("Error", "Cantidad invalida")
-                return
+            txt = listbox.get(sel[0])
+            sku = txt.split(" - ")[0]
             
             for p in self.products:
                 if p['SKU'] == sku:
-                    stock_actual = p.get('stock', 0) or 0
-                    if cant > stock_actual:
-                        messagebox.showerror("Error", "Stock insuficiente")
-                        return
-                    nuevo = stock_actual - cant
-                    self.ws_productos.cell(p['row'], 25).value = nuevo
-                    self.registrar_movimiento(sku, p['Nombre'], 'SALIDA', -cant, p.get('deposito', 'Principal'), motivo.get(), nro_comp.get(), '')
-                    self.wb.save(EXCEL_FILE)
+                    items_a_salir.append({'sku': sku, 'nombre': p['Nombre'], 'cantidad': cant, 'deposito': p.get('deposito', 'Principal'), 'stock': p.get('stock', 0)})
                     break
             
+            actualizar_lista_items()
+            buscar_var.set("")
+            cantidad_var.set("")
+        
+        ttk.Button(buscar_frame, text="+ Agregar", command=agregar_item).pack(side=tk.LEFT, padx=5)
+        
+        lista_frame = ttk.LabelFrame(win, text="Items a salir", padding=10)
+        lista_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        cols = ('SKU', 'Nombre', 'Cantidad', 'Stock Disp')
+        tree = ttk.Treeview(lista_frame, columns=cols, show='headings', height=8)
+        for col in cols:
+            tree.heading(col, text=col)
+            tree.column(col, width=100 if col not in ('Nombre',) else 180)
+        tree.pack(fill=tk.BOTH, expand=True)
+        
+        def actualizar_lista_items():
+            tree.delete(*tree.get_children())
+            for item in items_a_salir:
+                tree.insert('', tk.END, values=(item['sku'], item['nombre'], item['cantidad'], item['stock']))
+        
+        def eliminar_item():
+            sel = tree.selection()
+            if sel:
+                idx = tree.index(sel[0])
+                items_a_salir.pop(idx)
+                actualizar_lista_items()
+        
+        ttk.Button(lista_frame, text="Eliminar seleccionado", command=eliminar_item).pack(pady=5)
+        
+        datos_frame = ttk.LabelFrame(win, text="Datos del movimiento", padding=10)
+        datos_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        nro_comp = tk.StringVar()
+        ttk.Entry(datos_frame, textvariable=nro_comp, width=15).pack(side=tk.LEFT, padx=5)
+        ttk.Label(datos_frame, text="Nro Comp").pack(side=tk.LEFT)
+        
+        motivo = tk.StringVar()
+        ttk.Combobox(datos_frame, textvariable=motivo, values=['Venta', 'Ajuste', 'Devolucion', 'Otro'], width=10).pack(side=tk.LEFT, padx=5)
+        
+        def confirmar():
+            if not items_a_salir:
+                return
+            
+            for item in items_a_salir:
+                if item['cantidad'] > item['stock']:
+                    messagebox.showerror("错误", f"Stock insuficiente para {item['sku']}")
+                    return
+            
+            for item in items_a_salir:
+                for p in self.products:
+                    if p['SKU'] == item['sku']:
+                        nuevo = item['stock'] - item['cantidad']
+                        self.ws_productos.cell(p['row'], 25).value = nuevo
+                        self.registrar_movimiento(item['sku'], item['nombre'], 'SALIDA', -item['cantidad'], item['deposito'], motivo.get(), nro_comp.get(), '')
+                        break
+            
+            self.wb.save(EXCEL_FILE)
             win.destroy()
             self.init_excel()
-            messagebox.showinfo("OK", f"Salida: {cant} unidades")
+            messagebox.showinfo("OK", f"{len(items_a_salir)} salidas registradas")
         
-        ttk.Button(win, text="Confirmar", command=confirmar).pack(pady=15)
+        ttk.Button(win, text="Confirmar Todo", command=confirmar).pack(pady=15)
         tk.Label(win, text="Desarrollado por asubelzacg", font=('Arial', 8, 'bold'), fg=theme['watermark'], bg=theme['bg']).pack(pady=5)
     
     def transferir(self):
