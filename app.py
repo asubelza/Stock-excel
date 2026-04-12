@@ -685,24 +685,78 @@ class StockApp:
             
             for item in items_a_salir:
                 if item['cantidad'] > item['stock']:
-                    messagebox.showerror("错误", f"Stock insuficiente para {item['sku']}")
+                    messagebox.showerror("Error", f"Stock insuficiente para {item['sku']}")
                     return
             
             for item in items_a_salir:
+                sku = item['sku']
+                cantidad_necesaria = item['cantidad']
+                
+                lotes = self.get_lotes_fifo(sku)
+                
+                for lote in lotes:
+                    if cantidad_necesaria <= 0:
+                        break
+                    
+                    disponible = lote['disponible']
+                    usar = min(cantidad_necesaria, disponible)
+                    
+                    row_lote = self.ws_movimientos.max_row + 1
+                    self.ws_movimientos.cell(row_lote, 1).value = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    self.ws_movimientos.cell(row_lote, 2).value = self.usuario_actual['nombre']
+                    self.ws_movimientos.cell(row_lote, 3).value = sku
+                    self.ws_movimientos.cell(row_lote, 4).value = item['nombre']
+                    self.ws_movimientos.cell(row_lote, 5).value = 'SALIDA-FIFO'
+                    self.ws_movimientos.cell(row_lote, 6).value = -usar
+                    self.ws_movimientos.cell(row_lote, 7).value = item['deposito']
+                    self.ws_movimientos.cell(row_lote, 8).value = nro_comp.get()
+                    self.ws_movimientos.cell(row_lote, 9).value = ''
+                    self.ws_movimientos.cell(row_lote, 10).value = motivo.get()
+                    self.ws_movimientos.cell(row_lote, 11).value = lote['costo']
+                    self.ws_movimientos.cell(row_lote, 12).value = f"Lote {lote['row']}"
+                    
+                    cantidad_necesaria -= usar
+                
                 for p in self.products:
-                    if p['SKU'] == item['sku']:
-                        nuevo = item['stock'] - item['cantidad']
+                    if p['SKU'] == sku:
+                        nuevo = p.get('stock', 0) - item['cantidad']
                         self.ws_productos.cell(p['row'], 25).value = nuevo
-                        self.registrar_movimiento(item['sku'], item['nombre'], 'SALIDA', -item['cantidad'], item['deposito'], motivo.get(), nro_comp.get(), '')
                         break
             
             self.wb.save(EXCEL_FILE)
             win.destroy()
             self.init_excel()
-            messagebox.showinfo("OK", f"{len(items_a_salir)} salidas registradas")
+            messagebox.showinfo("OK", f"{len(items_a_salir)} salidas (FIFO)")
         
         ttk.Button(win, text="Confirmar Todo", command=confirmar).pack(pady=15)
         tk.Label(win, text="Desarrollado por asubelzacg", font=('Arial', 8, 'bold'), fg=theme['watermark'], bg=theme['bg']).pack(pady=5)
+    
+    def get_lotes_fifo(self, sku):
+        lotes = []
+        entrada_total = 0
+        salida_total = 0
+        
+        for row in range(2, self.ws_movimientos.max_row + 1):
+            row_sku = self.ws_movimientos.cell(row, 3).value
+            if row_sku != sku:
+                continue
+            
+            tipo = self.ws_movimientos.cell(row, 5).value
+            cantidad = self.ws_movimientos.cell(row, 6).value or 0
+            costo = self.ws_movimientos.cell(row, 11).value or 0
+            
+            if tipo == 'ENTRADA':
+                entrada_total += cantidad
+                lotes.append({'row': row, 'cantidad': cantidad, 'costo': costo, 'disponible': cantidad})
+            elif tipo in ('SALIDA', 'SALIDA-FIFO'):
+                salida_total += abs(cantidad)
+        
+        for lote in lotes:
+            resta = min(salida_total, lote['disponible'])
+            lote['disponible'] -= resta
+            salida_total -= resta
+        
+        return [l for l in lotes if l['disponible'] > 0]
     
     def transferir(self):
         sel = self.tree.selection()
