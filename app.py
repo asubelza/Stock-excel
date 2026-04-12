@@ -592,10 +592,6 @@ class StockApp:
         proveedor_frame.pack(fill=tk.X, padx=10, pady=5)
         
         proveedor_var = tk.StringVar()
-        ttk.Label(proveedor_frame, text="CUIT:").pack(side=tk.LEFT)
-        proveedor_entry = ttk.Entry(proveedor_frame, textvariable=proveedor_var, width=15)
-        proveedor_entry.pack(side=tk.LEFT, padx=5)
-        
         proveedor_nombre_var = tk.StringVar()
         proveedor_direccion_var = tk.StringVar()
         proveedor_telefono_var = tk.StringVar()
@@ -639,9 +635,6 @@ class StockApp:
                     'email': ''
                 })
                 messagebox.showinfo("OK", "Proveedor guardado manualmente")
-        
-        ttk.Label(proveedor_frame, text="CUIT:").pack(side=tk.LEFT)
-        ttk.Entry(proveedor_frame, textvariable=proveedor_var, width=15).pack(side=tk.LEFT, padx=5)
         
         btn_buscar = ttk.Button(proveedor_frame, text="Buscar en ARCA", command=buscar_proveedor)
         btn_buscar.pack(side=tk.LEFT, padx=5)
