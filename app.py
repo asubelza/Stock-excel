@@ -37,6 +37,7 @@ class StockApp:
         self.ws_productos = None
         self.ws_movimientos = None
         self.ws_usuarios = None
+        self.ws_proveedores = None
         self.products = []
         self.depositos = ['Principal']
         self.dark_mode = False
@@ -86,6 +87,33 @@ class StockApp:
         tk.Label(win, text="Desarrollado por asubelzacg", font=('Arial', 8), fg=theme['watermark'], bg=theme['bg']).pack()
         win.protocol("WM_DELETE_WINDOW", lambda: self.root.destroy())
         self.root.wait_window(win)
+    
+    def get_proveedores(self):
+        try:
+            sheet_names = self.wb.sheetnames
+            if 'Proveedores' not in sheet_names:
+                self.ws_proveedores = self.wb.create_sheet('Proveedores')
+                headers = ['cuit', 'nombre', 'direccion', 'telefono', 'email']
+                for col, h in enumerate(headers, 1):
+                    self.ws_proveedores.cell(1, col).value = h
+                self.wb.save(EXCEL_FILE)
+            else:
+                self.ws_proveedores = self.wb['Proveedores']
+            
+            proveedores = []
+            for row in range(2, self.ws_proveedores.max_row + 1):
+                cuit = self.ws_proveedores.cell(row, 1).value
+                if cuit:
+                    proveedores.append({
+                        'cuit': str(cuit),
+                        'nombre': self.ws_proveedores.cell(row, 2).value,
+                        'direccion': self.ws_proveedores.cell(row, 3).value,
+                        'telefono': self.ws_proveedores.cell(row, 4).value,
+                        'email': self.ws_proveedores.cell(row, 5).value,
+                    })
+            return proveedores
+        except:
+            return []
     
     def get_usuarios(self):
         try:
@@ -453,29 +481,72 @@ class StockApp:
     def entrada_stock(self):
         win = tk.Toplevel(self.root)
         win.title("Entrada de Stock - Multiple")
-        win.geometry("500x550")
+        win.geometry("550x650")
         
         theme = self.current_theme
         win.configure(bg=theme['bg'])
         
         items_a_entrar = []
         
-        buscar_frame = ttk.LabelFrame(win, text="Buscar producto", padding=10)
-        buscar_frame.pack(fill=tk.X, padx=10, pady=5)
+        datos_comp_frame = ttk.LabelFrame(win, text="Datos del Comprobante", padding=10)
+        datos_comp_frame.pack(fill=tk.X, padx=10, pady=5)
         
-        buscar_var = tk.StringVar()
-        ttk.Entry(buscar_frame, textvariable=buscar_var, width=25).pack(side=tk.LEFT, padx=5)
+        fecha_var = tk.StringVar(value=datetime.now().strftime("%Y-%m-%d"))
+        ttk.Label(datos_comp_frame, text="Fecha:").pack(side=tk.LEFT)
+        ttk.Entry(datos_comp_frame, textvariable=fecha_var, width=12).pack(side=tk.LEFT, padx=5)
+        
+        tipo_comp = tk.StringVar(value="Factura")
+        ttk.Label(datos_comp_frame, text="Tipo:").pack(side=tk.LEFT, padx=(10, 0))
+        ttk.Combobox(datos_comp_frame, textvariable=tipo_comp, values=['Factura', 'Presupuesto', 'Remito'], width=10).pack(side=tk.LEFT, padx=5)
+        
+        nro_comp_var = tk.StringVar()
+        ttk.Label(datos_comp_frame, text="Nro:").pack(side=tk.LEFT, padx=(10, 0))
+        ttk.Entry(datos_comp_frame, textvariable=nro_comp_var, width=15).pack(side=tk.LEFT, padx=5)
+        
+        proveedor_frame = ttk.LabelFrame(win, text="Proveedor", padding=10)
+        proveedor_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        proveedor_var = tk.StringVar()
+        ttk.Label(proveedor_frame, text="CUIT:").pack(side=tk.LEFT)
+        proveedor_entry = ttk.Entry(proveedor_frame, textvariable=proveedor_var, width=15)
+        proveedor_entry.pack(side=tk.LEFT, padx=5)
+        
+        def buscar_proveedor():
+            cuits = proveedor_var.get().strip()
+            proveedores = self.get_proveedores()
+            for prov in proveedores:
+                if cuits in (prov['cuit'] or ''):
+                    proveedor_nombre_var.set(prov['nombre'])
+                    return
+            proveedor_nombre_var.set("NO ENCONTRADO - Click para guardar")
+        
+        proveedor_nombre_var = tk.StringVar()
+        ttk.Button(proveedor_frame, text="Buscar", command=buscar_proveedor).pack(side=tk.LEFT, padx=5)
+        ttk.Label(proveedor_frame, textvariable=proveedor_nombre_var, font=('', 10, 'bold')).pack(side=tk.LEFT, padx=10)
+        
+        producto_frame = ttk.LabelFrame(win, text="Buscar producto", padding=10)
+        producto_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        sku_var = tk.StringVar()
+        ttk.Label(producto_frame, text="SKU:").pack(side=tk.LEFT)
+        sku_entry = ttk.Entry(producto_frame, textvariable=sku_var, width=20)
+        sku_entry.pack(side=tk.LEFT, padx=5)
+        sku_entry.focus()
         
         cantidad_var = tk.StringVar()
-        ttk.Entry(buscar_frame, textvariable=cantidad_var, width=10).pack(side=tk.LEFT, padx=5)
-        ttk.Label(buscar_frame, text="Cant").pack(side=tk.LEFT)
+        ttk.Label(producto_frame, text="Cant:").pack(side=tk.LEFT, padx=(10, 0))
+        ttk.Entry(producto_frame, textvariable=cantidad_var, width=8).pack(side=tk.LEFT, padx=5)
+        
+        costo_var = tk.StringVar()
+        ttk.Label(producto_frame, text="Costo:").pack(side=tk.LEFT, padx=(10, 0))
+        ttk.Entry(producto_frame, textvariable=costo_var, width=10).pack(side=tk.LEFT, padx=5)
         
         listbox = tk.Listbox(buscar_frame, height=5, width=35)
         listbox.pack(side=tk.LEFT, padx=5)
         
         def actualizar_lista(event=None):
             listbox.delete(0, tk.END)
-            query = buscar_var.get().strip().lower()
+            query = sku_var.get().strip().lower()
             if query:
                 for p in self.products:
                     sku = (p['SKU'] or '').lower()
@@ -483,15 +554,25 @@ class StockApp:
                     if query in sku or query in nombre:
                         listbox.insert(tk.END, f"{p['SKU']} - {p['Nombre']} (Stock: {p.get('stock', 0)})")
         
-        buscar_var.trace('w', lambda *a: actualizar_lista())
+        sku_var.trace('w', lambda *a: actualizar_lista())
         
         def agregar_item():
             sel = listbox.curselection()
             if not sel:
-                return
+                sku_check = sku_var.get().strip()
+                for p in self.products:
+                    if (p['SKU'] or '') == sku_check:
+                        listbox.insert(tk.END, f"{p['SKU']} - {p['Nombre']} (Stock: {p.get('stock', 0)})")
+                        sel = (0,)
+                        break
+                if not sel:
+                    messagebox.showinfo("Nuevo SKU", "El SKU no existe. Use '+ Producto' para agregarlo.")
+                    return
+            
             try:
                 cant = int(cantidad_var.get())
             except ValueError:
+                messagebox.showerror("Error", "Cantidad inválida")
                 return
             
             try:
@@ -508,11 +589,12 @@ class StockApp:
                     break
             
             actualizar_lista_items()
-            buscar_var.set("")
+            sku_var.set("")
             cantidad_var.set("")
             costo_var.set("")
         
-        ttk.Button(buscar_frame, text="+", command=agregar_item).pack(side=tk.LEFT, padx=5)
+        ttk.Button(producto_frame, text="+ Agregar", command=agregar_item).pack(side=tk.LEFT, padx=5)
+        ttk.Button(producto_frame, text="+ Nuevo Producto", command=lambda: self.add_product()).pack(side=tk.LEFT, padx=5)
         
         lista_frame = ttk.LabelFrame(win, text="Items a entrar", padding=10)
         lista_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
