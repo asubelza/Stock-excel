@@ -221,8 +221,13 @@ class StockApp:
         
         ttk.Label(filters, text="Buscar:").pack(side=tk.LEFT)
         self.buscar_var = tk.StringVar()
-        self.buscar_var.trace('w', lambda *a: self.filter_products())
-        ttk.Entry(filters, textvariable=self.buscar_var, width=20).pack(side=tk.LEFT, padx=5)
+        self.buscar_var.trace('w', lambda *a: self.on_search_change())
+        buscar_entry = ttk.Entry(filters, textvariable=self.buscar_var, width=20)
+        buscar_entry.pack(side=tk.LEFT, padx=5)
+        buscar_entry.bind('<Return>', self.selectFirstMatch)
+        
+        self.autocomplete_btn = ttk.Button(filters, text="Buscar", command=self.selectFirstMatch, width=6)
+        self.autocomplete_btn.pack(side=tk.LEFT, padx=2)
         
         ttk.Label(filters, text="Deposito:").pack(side=tk.LEFT, padx=(15, 0))
         self.deposito_var = tk.StringVar(value='Principal')
@@ -274,6 +279,50 @@ class StockApp:
         self.watermark = tk.Label(self.root, text="Desarrollado por asubelzacg", font=('Arial', 9, 'bold'),
                             fg=LIGHT_THEME['watermark'], bg=LIGHT_THEME['bg'])
         self.watermark.place(relx=0.5, rely=0.99, anchor='center')
+    
+    def on_search_change(self):
+        query = self.buscar_var.get().strip().lower()
+        
+        if len(query) >= 2:
+            matches = []
+            for p in self.products:
+                sku = (p['SKU'] or '').lower()
+                nombre = (p['Nombre'] or '').lower()
+                if query in sku or query in nombre:
+                    matches.append((p['SKU'], p['Nombre']))
+            
+            if len(matches) <= 5 and len(matches) > 0:
+                match_text = " | ".join([f"{s}: {n}" for s, n in matches[:5]])
+                self.status.config(text=f"Encontrados: {match_text}")
+            elif len(matches) > 5:
+                self.status.config(text=f"Encontrados: {len(matches)} coincidencias")
+            else:
+                self.status.config(text=f"No encontrado: {query}")
+        else:
+            self.status.config(text="")
+        
+        self.filter_products()
+    
+    def selectFirstMatch(self, event=None):
+        query = self.buscar_var.get().strip().lower()
+        if not query:
+            return
+        
+        for p in self.products:
+            sku = (p['SKU'] or '').lower()
+            nombre = (p['Nombre'] or '').lower()
+            if query in sku or query in nombre:
+                self.buscar_var.set(p['SKU'])
+                self.filter_products()
+                children = self.tree.get_children()
+                for i, child in enumerate(children):
+                    if self.tree.item(child)['values'][0] == p['SKU']:
+                        self.tree.selection_remove(*self.tree.selection())
+                        self.tree.selection_add(child)
+                        self.tree.see(child)
+                        return
+        
+        self.filter_products()
     
     def filter_products(self):
         self.tree.delete(*self.tree.get_children())
