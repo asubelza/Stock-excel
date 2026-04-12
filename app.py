@@ -115,6 +115,59 @@ class StockApp:
         except:
             return []
     
+    def buscar_arca(self, cuits):
+        import urllib.request
+        import json
+        
+        cuits = cuits.strip().replace("-", "").replace(" ", "")
+        
+        if len(cuits) < 7:
+            return None
+        
+        try:
+            url = f"https://soa.afip.gob.ar/parametros/v1/contribuyentes/{cuits}"
+            headers = {'Accept': 'application/json'}
+            req = urllib.request.Request(url, headers=headers)
+            
+            with urllib.request.urlopen(req, timeout=10) as response:
+                data = json.loads(response.read().decode())
+                if data.get('success'):
+                    result = data.get('dataResult', {}).get('datos', {})
+                    return {
+                        'cuit': cuits,
+                        'nombre': result.get('razonSocial', ''),
+                        'direccion': f"{result.get('domicilio', {}).get('direccion', '')} {result.get('domicilio', {}).get('numero', '')}",
+                        'telefono': result.get('telefono', ''),
+                        'email': result.get('email', '')
+                    }
+        except Exception as e:
+            print(f"ARCA error: {e}")
+        
+        return None
+    
+    def guardar_proveedor(self, proveedor_data):
+        try:
+            sheet_names = self.wb.sheetnames
+            if 'Proveedores' not in sheet_names:
+                self.ws_proveedores = self.wb.create_sheet('Proveedores')
+                headers = ['cuit', 'nombre', 'direccion', 'telefono', 'email']
+                for col, h in enumerate(headers, 1):
+                    self.ws_proveedores.cell(1, col).value = h
+            else:
+                self.ws_proveedores = self.wb['Proveedores']
+            
+            row = self.ws_proveedores.max_row + 1
+            self.ws_proveedores.cell(row, 1).value = proveedor_data.get('cuit', '')
+            self.ws_proveedores.cell(row, 2).value = proveedor_data.get('nombre', '')
+            self.ws_proveedores.cell(row, 3).value = proveedor_data.get('direccion', '')
+            self.ws_proveedores.cell(row, 4).value = proveedor_data.get('telefono', '')
+            self.ws_proveedores.cell(row, 5).value = proveedor_data.get('email', '')
+            
+            self.wb.save(EXCEL_FILE)
+            return True
+        except:
+            return False
+    
     def get_usuarios(self):
         try:
             sheet_names = self.wb.sheetnames
@@ -511,17 +564,38 @@ class StockApp:
         proveedor_entry = ttk.Entry(proveedor_frame, textvariable=proveedor_var, width=15)
         proveedor_entry.pack(side=tk.LEFT, padx=5)
         
+        proveedor_nombre_var = tk.StringVar()
+        
         def buscar_proveedor():
             cuits = proveedor_var.get().strip()
+            if not cuits:
+                return
+            
             proveedores = self.get_proveedores()
             for prov in proveedores:
                 if cuits in (prov['cuit'] or ''):
                     proveedor_nombre_var.set(prov['nombre'])
                     return
-            proveedor_nombre_var.set("NO ENCONTRADO - Click para guardar")
+            
+            result = self.buscar_arca(cuits)
+            if result:
+                proveedor_nombre_var.set(f"{result['nombre']} (Desde ARCA)")
+                proveedor_data = result
+                
+                def guardar_y_usar():
+                    self.guardar_proveedor(result)
+                    messagebox.showinfo("OK", "Proveedor guardado")
+                
+                btn_guardar.config(command=guardar_y_usar, text="Guardar en BD")
+            else:
+                proveedor_nombre_var.set("No encontrado en ARCA ni BD")
         
-        proveedor_nombre_var = tk.StringVar()
-        ttk.Button(proveedor_frame, text="Buscar", command=buscar_proveedor).pack(side=tk.LEFT, padx=5)
+        btn_buscar = ttk.Button(proveedor_frame, text="Buscar en ARCA", command=buscar_proveedor)
+        btn_buscar.pack(side=tk.LEFT, padx=5)
+        
+        btn_guardar = ttk.Button(proveedor_frame, text="Guardar Proveedor", command=lambda: messagebox.showinfo("Info", "Primero busque en ARCA"))
+        btn_guardar.pack(side=tk.LEFT, padx=5)
+        
         ttk.Label(proveedor_frame, textvariable=proveedor_nombre_var, font=('', 10, 'bold')).pack(side=tk.LEFT, padx=10)
         
         producto_frame = ttk.LabelFrame(win, text="Buscar producto", padding=10)
