@@ -451,20 +451,49 @@ class StockApp:
         self.ws_movimientos.cell(row, 10).value = nota
     
     def entrada_stock(self):
-        sel = self.tree.selection()
-        if not sel:
-            messagebox.showwarning("Seleccionar", "Selecciona un producto")
-            return
-        
-        item = self.tree.item(sel[0])['values']
         win = tk.Toplevel(self.root)
         win.title("Entrada de Stock")
-        win.geometry("350x300")
+        win.geometry("400x380")
         
         theme = self.current_theme
         win.configure(bg=theme['bg'])
         
-        ttk.Label(win, text=f"Producto: {item[1]}", font=('', 10, 'bold')).pack(pady=10)
+        ttk.Label(win, text="Buscar producto (SKU o nombre):").pack(pady=5)
+        buscar_var = tk.StringVar()
+        buscar_entry = ttk.Entry(win, textvariable=buscar_var, width=25)
+        buscar_entry.pack(pady=5)
+        buscar_entry.focus()
+        
+        producto_var = tk.StringVar(value="")
+        
+        listbox = tk.Listbox(win, height=5, width=40)
+        listbox.pack(pady=5)
+        
+        def actualizar_lista(event=None):
+            listbox.delete(0, tk.END)
+            query = buscar_var.get().strip().lower()
+            if query:
+                for p in self.products:
+                    sku = (p['SKU'] or '').lower()
+                    nombre = (p['Nombre'] or '').lower()
+                    if query in sku or query in nombre:
+                        listbox.insert(tk.END, f"{p['SKU']} - {p['Nombre']} (Stock: {p.get('stock', 0)})")
+        
+        buscar_var.trace('w', lambda *a: actualizar_lista())
+        
+        def seleccionar(event):
+            sel = listbox.curselection()
+            if sel:
+                txt = listbox.get(sel[0])
+                sku = txt.split(" - ")[0]
+                producto_var.set(sku)
+        
+        listbox.bind('<<ListboxSelect>>', seleccionar)
+        
+        ttk.Label(win, text="Producto seleccionado:").pack(pady=5)
+        label_prod = ttk.Label(win, textvariable=producto_var, font=('', 10, 'bold'))
+        label_prod.pack(pady=5)
+        
         ttk.Label(win, text="Cantidad:").pack(pady=5)
         cantidad = tk.StringVar()
         ttk.Entry(win, textvariable=cantidad, width=15).pack()
@@ -479,18 +508,22 @@ class StockApp:
         ttk.Entry(win, textvariable=nota, width=25).pack()
         
         def confirmar():
+            sku = producto_var.get().strip()
+            if not sku:
+                messagebox.showerror("Error", "Selecciona un producto")
+                return
+            
             try:
                 cant = int(cantidad.get())
             except ValueError:
                 messagebox.showerror("Error", "Cantidad invalida")
                 return
             
-            sku = item[0]
             for p in self.products:
                 if p['SKU'] == sku:
                     nuevo = p.get('stock', 0) + cant
                     self.ws_productos.cell(p['row'], 25).value = nuevo
-                    self.registrar_movimiento(sku, item[1], 'ENTRADA', cant, item[4] or 'Principal', nota.get(), nro_comp.get(), nro_fact.get())
+                    self.registrar_movimiento(sku, p['Nombre'], 'ENTRADA', cant, p.get('deposito', 'Principal'), nota.get(), nro_comp.get(), nro_fact.get())
                     self.wb.save(EXCEL_FILE)
                     break
             
@@ -502,21 +535,49 @@ class StockApp:
         tk.Label(win, text="Desarrollado por asubelzacg", font=('Arial', 8, 'bold'), fg=theme['watermark'], bg=theme['bg']).pack(pady=5)
     
     def salida_stock(self):
-        sel = self.tree.selection()
-        if not sel:
-            messagebox.showwarning("Seleccionar", "Selecciona un producto")
-            return
-        
-        item = self.tree.item(sel[0])['values']
         win = tk.Toplevel(self.root)
         win.title("Salida de Stock")
-        win.geometry("350x280")
+        win.geometry("400x380")
         
         theme = self.current_theme
         win.configure(bg=theme['bg'])
         
-        ttk.Label(win, text=f"Producto: {item[1]}", font=('', 10, 'bold')).pack(pady=10)
-        ttk.Label(win, text=f"Stock actual: {item[2]}").pack()
+        ttk.Label(win, text="Buscar producto (SKU o nombre):").pack(pady=5)
+        buscar_var = tk.StringVar()
+        buscar_entry = ttk.Entry(win, textvariable=buscar_var, width=25)
+        buscar_entry.pack(pady=5)
+        buscar_entry.focus()
+        
+        producto_var = tk.StringVar(value="")
+        
+        listbox = tk.Listbox(win, height=5, width=40)
+        listbox.pack(pady=5)
+        
+        def actualizar_lista(event=None):
+            listbox.delete(0, tk.END)
+            query = buscar_var.get().strip().lower()
+            if query:
+                for p in self.products:
+                    sku = (p['SKU'] or '').lower()
+                    nombre = (p['Nombre'] or '').lower()
+                    if query in sku or query in nombre:
+                        listbox.insert(tk.END, f"{p['SKU']} - {p['Nombre']} (Stock: {p.get('stock', 0)})")
+        
+        buscar_var.trace('w', lambda *a: actualizar_lista())
+        
+        def seleccionar(event):
+            sel = listbox.curselection()
+            if sel:
+                txt = listbox.get(sel[0])
+                sku = txt.split(" - ")[0]
+                producto_var.set(sku)
+        
+        listbox.bind('<<ListboxSelect>>', seleccionar)
+        
+        ttk.Label(win, text="Producto seleccionado:").pack(pady=5)
+        label_prod = ttk.Label(win, textvariable=producto_var, font=('', 10, 'bold'))
+        label_prod.pack(pady=5)
+        
         ttk.Label(win, text="Cantidad:").pack(pady=5)
         cantidad = tk.StringVar()
         ttk.Entry(win, textvariable=cantidad, width=15).pack()
@@ -528,22 +589,26 @@ class StockApp:
         ttk.Combobox(win, textvariable=motivo, values=['Venta', 'Ajuste', 'Devolucion', 'Otro']).pack()
         
         def confirmar():
+            sku = producto_var.get().strip()
+            if not sku:
+                messagebox.showerror("Error", "Selecciona un producto")
+                return
+            
             try:
                 cant = int(cantidad.get())
             except ValueError:
                 messagebox.showerror("Error", "Cantidad invalida")
                 return
             
-            if cant > item[2]:
-                messagebox.showerror("Error", "Stock insuficiente")
-                return
-            
-            sku = item[0]
             for p in self.products:
                 if p['SKU'] == sku:
-                    nuevo = p.get('stock', 0) - cant
+                    stock_actual = p.get('stock', 0) or 0
+                    if cant > stock_actual:
+                        messagebox.showerror("Error", "Stock insuficiente")
+                        return
+                    nuevo = stock_actual - cant
                     self.ws_productos.cell(p['row'], 25).value = nuevo
-                    self.registrar_movimiento(sku, item[1], 'SALIDA', -cant, item[4] or 'Principal', motivo.get(), nro_comp.get(), '')
+                    self.registrar_movimiento(sku, p['Nombre'], 'SALIDA', -cant, p.get('deposito', 'Principal'), motivo.get(), nro_comp.get(), '')
                     self.wb.save(EXCEL_FILE)
                     break
             
