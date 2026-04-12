@@ -716,7 +716,13 @@ class StockApp:
             
             for p in self.products:
                 if p['SKU'] == sku:
-                    items_a_entrar.append({'sku': sku, 'nombre': p['Nombre'], 'cantidad': cant, 'deposito': p.get('deposito', 'Principal'), 'costo': costo})
+                    items_a_entrar.append({
+                        'sku': sku, 
+                        'nombre': p['Nombre'], 
+                        'cantidad': cant, 
+                        'deposito': p.get('deposito', 'Principal'), 
+                        'costo': costo if costo else 0
+                    })
                     break
             
             actualizar_lista_items()
@@ -739,8 +745,30 @@ class StockApp:
         
         def actualizar_lista_items():
             tree.delete(*tree.get_children())
+            tree_totales.delete(*tree_totales.get_children())
+            
+            total_cantidad = 0
+            total_importe = 0
+            
             for item in items_a_entrar:
                 tree.insert('', tk.END, values=(item['sku'], item['nombre'], item['cantidad']))
+                
+                costo = item.get('costo', 0) or 0
+                cant = item.get('cantidad', 0) or 0
+                item_total = costo * cant
+                
+                total_cantidad += cant
+                total_importe += item_total
+                
+                tree_totales.insert('', tk.END, values=(
+                    item['sku'],
+                    item['nombre'],
+                    cant,
+                    f"${costo:,.0f}",
+                    f"${item_total:,.0f}"
+                ))
+            
+            tree_totales.insert('', tk.END, values=('', 'TOTALES', total_cantidad, '', f"${total_importe:,.0f}"))
         
         def eliminar_item():
             sel = tree.selection()
@@ -751,20 +779,28 @@ class StockApp:
         
         ttk.Button(lista_frame, text="Eliminar selected", command=eliminar_item).pack(pady=5)
         
-        datos_frame = ttk.LabelFrame(win, text="Datos del movimiento", padding=10)
-        datos_frame.pack(fill=tk.X, padx=10, pady=5)
+        cols = ('SKU', 'Nombre', 'Cantidad', 'Costo', 'Total')
+        tree_totales = ttk.Treeview(win, columns=cols, show='headings', height=5)
+        for col in cols:
+            tree_totales.heading(col, text=col)
+            tree_totales.column(col, width=100 if col != 'Nombre' else 180)
+        tree_totales.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         
         nro_comp = tk.StringVar()
-        ttk.Entry(datos_frame, textvariable=nro_comp, width=15).pack(side=tk.LEFT, padx=5)
-        ttk.Label(datos_frame, text="Nro Comp").pack(side=tk.LEFT)
-        
         nro_fact = tk.StringVar()
-        ttk.Entry(datos_frame, textvariable=nro_fact, width=15).pack(side=tk.LEFT, padx=5)
-        ttk.Label(datos_frame, text="Nro Fact").pack(side=tk.LEFT)
-        
         nota = tk.StringVar()
-        ttk.Entry(datos_frame, textvariable=nota, width=15).pack(side=tk.LEFT, padx=5)
-        ttk.Label(datos_frame, text="Nota").pack(side=tk.LEFT)
+        
+        datos_frame = ttk.Frame(win)
+        datos_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        ttk.Label(datos_frame, text="Nro Comp:").pack(side=tk.LEFT)
+        ttk.Entry(datos_frame, textvariable=nro_comp, width=12).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Label(datos_frame, text="Nro Fact:").pack(side=tk.LEFT, padx=(10, 0))
+        ttk.Entry(datos_frame, textvariable=nro_fact, width=12).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Label(datos_frame, text="Nota:").pack(side=tk.LEFT, padx=(10, 0))
+        ttk.Entry(datos_frame, textvariable=nota, width=20).pack(side=tk.LEFT, padx=5)
         
         def confirmar():
             if not items_a_entrar:
