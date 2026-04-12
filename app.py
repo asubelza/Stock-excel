@@ -593,7 +593,8 @@ class StockApp:
         
         proveedor_var = tk.StringVar()
         ttk.Label(proveedor_frame, text="CUIT:").pack(side=tk.LEFT)
-        ttk.Entry(proveedor_frame, textvariable=proveedor_var, width=15).pack(side=tk.LEFT, padx=5)
+        proveedor_cuit_entry = ttk.Entry(proveedor_frame, textvariable=proveedor_var, width=12)
+        proveedor_cuit_entry.pack(side=tk.LEFT, padx=3)
         
         proveedor_nombre_var = tk.StringVar()
         proveedor_direccion_var = tk.StringVar()
@@ -603,6 +604,9 @@ class StockApp:
             cuits = proveedor_var.get().strip()
             if not cuits:
                 return
+            
+            proveedor_cuit_entry.focus()
+            messagebox.showinfo("Buscando", f"Buscando CUIT: {cuits}")
             
             proveedores = self.get_proveedores()
             for prov in proveedores:
@@ -668,8 +672,8 @@ class StockApp:
         ttk.Label(producto_frame, text="Costo:").pack(side=tk.LEFT, padx=(10, 0))
         ttk.Entry(producto_frame, textvariable=costo_var, width=10).pack(side=tk.LEFT, padx=5)
         
-        listbox = tk.Listbox(buscar_frame, height=5, width=35)
-        listbox.pack(side=tk.LEFT, padx=5)
+        listbox = tk.Listbox(producto_frame, height=5, width=40)
+        listbox.pack(pady=5)
         
         def actualizar_lista(event=None):
             listbox.delete(0, tk.END)
