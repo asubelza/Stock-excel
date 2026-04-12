@@ -70,17 +70,21 @@ class StockApp:
         ttk.Entry(win, textvariable=user_var, width=20).pack()
         ttk.Label(win, text="Contrasena:").pack(pady=5)
         pass_var = tk.StringVar()
-        ttk.Entry(win, textvariable=pass_var, show="*", width=20).pack()
+        pass_entry = ttk.Entry(win, textvariable=pass_var, show="*", width=20)
+        pass_entry.pack()
+        pass_entry.bind('<Return>', lambda e: entrar())
         
         def entrar():
             user = user_var.get().strip()
             password = pass_var.get().strip()
+            
             usuarios = self.get_usuarios()
             for u in usuarios:
                 if u['user'] == user and u['pass'] == password:
                     self.usuario_actual = u
                     win.destroy()
                     return
+            
             messagebox.showerror("Error", "Usuario o contrasena incorrectos")
         
         ttk.Button(win, text="Ingresar", command=entrar).pack(pady=20)
@@ -768,7 +772,8 @@ class StockApp:
                     f"${item_total:,.0f}"
                 ))
             
-            tree_totales.insert('', tk.END, values=('', 'TOTALES', total_cantidad, '', f"${total_importe:,.0f}"))
+            self.total_unidades_var.set(str(total_cantidad))
+        self.total_importe_var.set(f"${total_importe:,.0f}")
         
         def eliminar_item():
             sel = tree.selection()
@@ -779,19 +784,20 @@ class StockApp:
         
         ttk.Button(lista_frame, text="Eliminar selected", command=eliminar_item).pack(pady=5)
         
-        cols = ('SKU', 'Nombre', 'Cantidad', 'Costo', 'Total')
-        tree_totales = ttk.Treeview(win, columns=cols, show='headings', height=5)
-        for col in cols:
-            tree_totales.heading(col, text=col)
-            tree_totales.column(col, width=100 if col != 'Nombre' else 180)
-        tree_totales.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        totales_frame = ttk.LabelFrame(win, text="Totales", padding=10)
+        totales_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        ttk.Label(totales_frame, text="Total Unidades:").pack(side=tk.LEFT, padx=10)
+        self.total_unidades_var = tk.StringVar(value="0")
+        ttk.Label(totales_frame, textvariable=self.total_unidades_var, font=('', 12, 'bold')).pack(side=tk.LEFT)
+        
+        ttk.Label(totales_frame, text="Total Importe:").pack(side=tk.LEFT, padx=20)
+        self.total_importe_var = tk.StringVar(value="$0")
+        ttk.Label(totales_frame, textvariable=self.total_importe_var, font=('', 12, 'bold')).pack(side=tk.LEFT)
         
         nro_comp = tk.StringVar()
         nro_fact = tk.StringVar()
         nota = tk.StringVar()
-        
-        datos_frame = ttk.Frame(win)
-        datos_frame.pack(fill=tk.X, padx=10, pady=5)
         
         ttk.Label(datos_frame, text="Nro Comp:").pack(side=tk.LEFT)
         ttk.Entry(datos_frame, textvariable=nro_comp, width=12).pack(side=tk.LEFT, padx=5)
@@ -1171,7 +1177,28 @@ class StockApp:
         self.wb.save(EXCEL_FILE)
         messagebox.showinfo("Guardado", "Excel guardado")
 
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = StockApp(root)
-    root.mainloop()
+def setup_ui(self):
+        main = ttk.Frame(self.root, padding="10")
+        main.pack(fill=tk.BOTH, expand=True)
+        
+        header = ttk.Frame(main)
+        header.pack(fill=tk.X, pady=(0, 10))
+        ttk.Label(header, text="Gestion de Inventario", font=('Arial', 16, 'bold')).pack(side=tk.LEFT)
+        
+        toolbar = ttk.Frame(main)
+        toolbar.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Button(toolbar, text="+ Producto", command=self.add_product).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Editar", command=self.edit_product).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Eliminar", command=self.delete_product).pack(side=tk.LEFT, padx=2)
+        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
+        ttk.Button(toolbar, text="Entrada", command=self.entrada_stock).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Salida", command=self.salida_stock).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Transferir", command=self.transferir).pack(side=tk.LEFT, padx=2)
+        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
+        ttk.Button(toolbar, text="Reportes", command=self.reportes).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Stock Bajo", command=self.stock_bajo).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Historial", command=self.historial).pack(side=tk.LEFT, padx=2)
+        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
+        ttk.Button(toolbar, text="Guardar", command=self.guardar).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Modo Oscuro" if not self.dark_mode else "Modo Claro", command=self.toggle_theme).pack(side=tk.LEFT, padx=2)
