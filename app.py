@@ -8,54 +8,118 @@ from datetime import datetime
 EXCEL_FILE = "planilla_base.xlsx"
 
 LIGHT_THEME = {
-    'bg': '#F5F7FA',
-    'fg': '#2C3E50',
-    'accent': '#3498DB',
-    'toolbar': '#FFFFFF',
-    'tree_bg': '#FFFFFF',
-    'tree_fg': '#2C3E50',
-    'tree_sel': '#3498DB',
-    'entry_bg': '#FFFFFF',
-    'entry_fg': '#2C3E50',
-    'button': '#3498DB',
-    'watermark': '#7F8C8D',
-    'warning': '#E74C3C',
-    'success': '#27AE60'
+    'bg': '#F5F7FA', 'fg': '#2C3E50', 'accent': '#3498DB',
+    'toolbar': '#FFFFFF', 'tree_bg': '#FFFFFF', 'tree_fg': '#2C3E50',
+    'tree_sel': '#3498DB', 'entry_bg': '#FFFFFF', 'entry_fg': '#2C3E50',
+    'button': '#3498DB', 'watermark': '#7F8C8D', 'warning': '#E74C3C', 'success': '#27AE60'
 }
 
 DARK_THEME = {
-    'bg': '#1A1A2E',
-    'fg': '#EAEAEA',
-    'accent': '#4A90D9',
-    'toolbar': '#16213E',
-    'tree_bg': '#16213E',
-    'tree_fg': '#EAEAEA',
-    'tree_sel': '#4A90D9',
-    'entry_bg': '#252545',
-    'entry_fg': '#EAEAEA',
-    'button': '#4A90D9',
-    'watermark': '#6C7A89',
-    'warning': '#E74C3C',
-    'success': '#2ECC71'
+    'bg': '#1A1A2E', 'fg': '#EAEAEA', 'accent': '#4A90D9',
+    'toolbar': '#16213E', 'tree_bg': '#16213E', 'tree_fg': '#EAEAEA',
+    'tree_sel': '#4A90D9', 'entry_bg': '#252545', 'entry_fg': '#EAEAEA',
+    'button': '#4A90D9', 'watermark': '#6C7A89', 'warning': '#E74C3C', 'success': '#2ECC71'
 }
+
+USUARIOS_DEFAULT = [
+    {'user': 'admin', 'pass': 'admin123', 'nombre': 'Administrador', 'rol': 'admin'},
+    {'user': 'deposito', 'pass': 'depo123', 'nombre': 'Deposito', 'rol': 'user'},
+    {'user': 'ventas', 'pass': 'vta123', 'nombre': 'Ventas', 'rol': 'user'},
+]
 
 class StockApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Gestion de Stock - Gestion de Inventario")
+        self.root.title("Gestion de Stock")
         self.root.geometry("1100x750")
         
         self.wb = None
         self.ws_productos = None
         self.ws_movimientos = None
+        self.ws_usuarios = None
         self.products = []
         self.depositos = ['Principal']
         self.dark_mode = False
         self.current_theme = LIGHT_THEME
+        self.usuario_actual = None
         
-        self.setup_styles()
-        self.setup_ui()
         self.init_excel()
+        self.login()
+        
+        if self.usuario_actual:
+            self.setup_styles()
+            self.setup_ui()
+            self.filter_products()
+    
+    def login(self):
+        win = tk.Toplevel(self.root)
+        win.title("Login")
+        win.geometry("300x220")
+        win.transient(self.root)
+        win.grab_set()
+        
+        theme = self.current_theme
+        win.configure(bg=theme['bg'])
+        
+        ttk.Label(win, text="Gestion de Stock", font=('Arial', 14, 'bold')).pack(pady=20)
+        
+        ttk.Label(win, text="Usuario:").pack(pady=5)
+        user_var = tk.StringVar()
+        ttk.Entry(win, textvariable=user_var, width=20).pack()
+        
+        ttk.Label(win, text="Contrasena:").pack(pady=5)
+        pass_var = tk.StringVar()
+        ttk.Entry(win, textvariable=pass_var, show="*", width=20).pack()
+        
+        def entrar():
+            user = user_var.get().strip()
+            password = pass_var.get().strip()
+            
+            usuarios = self.get_usuarios()
+            for u in usuarios:
+                if u['user'] == user and u['pass'] == password:
+                    self.usuario_actual = u
+                    win.destroy()
+                    return
+            
+            messagebox.showerror("Error", "Usuario o contrasena incorrectos")
+        
+        ttk.Button(win, text="Ingresar", command=entrar).pack(pady=20)
+        tk.Label(win, text="Desarrollado por asubelzacg", font=('Arial', 8), fg=theme['watermark'], bg=theme['bg']).pack()
+        
+        win.protocol("WM_DELETE_WINDOW", lambda: self.root.destroy())
+        self.root.wait_window(win)
+    
+    def get_usuarios(self):
+        try:
+            sheet_names = self.wb.sheetnames
+            if 'Usuarios' not in sheet_names:
+                self.ws_usuarios = self.wb.create_sheet('Usuarios')
+                headers = ['user', 'pass', 'nombre', 'rol']
+                for col, h in enumerate(headers, 1):
+                    self.ws_usuarios.cell(1, col).value = h
+                for row, u in enumerate(USUARIOS_DEFAULT, 2):
+                    self.ws_usuarios.cell(row, 1).value = u['user']
+                    self.ws_usuarios.cell(row, 2).value = u['pass']
+                    self.ws_usuarios.cell(row, 3).value = u['nombre']
+                    self.ws_usuarios.cell(row, 4).value = u['rol']
+                self.wb.save(EXCEL_FILE)
+            else:
+                self.ws_usuarios = self.wb['Usuarios']
+            
+            usuarios = []
+            for row in range(2, self.ws_usuarios.max_row + 1):
+                user = self.ws_usuarios.cell(row, 1).value
+                if user:
+                    usuarios.append({
+                        'user': user,
+                        'pass': self.ws_usuarios.cell(row, 2).value,
+                        'nombre': self.ws_usuarios.cell(row, 3).value,
+                        'rol': self.ws_usuarios.cell(row, 4).value,
+                    })
+            return usuarios
+        except:
+            return USUARIOS_DEFAULT
     
     def setup_styles(self):
         self.style = ttk.Style()
@@ -87,16 +151,15 @@ class StockApp:
             return
         
         self.wb = load_workbook(EXCEL_FILE)
-        
         sheet_names = self.wb.sheetnames
         
         if 'Movimientos' not in sheet_names:
             self.ws_movimientos = self.wb.create_sheet('Movimientos')
-            headers = ['Fecha', 'SKU', 'Producto', 'Tipo', 'Cantidad', 'Deposito', 'Nota']
-            for col, header in enumerate(headers, 1):
-                self.ws_movimientos.cell(1, col).value = header
+            headers = ['Fecha', 'Usuario', 'SKU', 'Producto', 'Tipo', 'Cantidad', 'Deposito', 'Nro-Comprobante', 'Nro-Factura', 'Nota']
+            for col, h in enumerate(headers, 1):
+                self.ws_movimientos.cell(1, col).value = h
         else:
-            self.ws_movimientos = self.ws['Movimientos']
+            self.ws_movimientos = self.wb['Movimientos']
         
         self.ws_productos = self.wb.active
         
@@ -112,25 +175,16 @@ class StockApp:
                     self.depositos.append(deposito)
                 
                 self.products.append({
-                    'row': row,
-                    'Nombre': nombre,
-                    'SKU': sku,
+                    'row': row, 'Nombre': nombre, 'SKU': sku,
                     'Tipo': self.ws_productos.cell(row, 4).value,
                     'Estado': self.ws_productos.cell(row, 5).value,
                     'Rubro': self.ws_productos.cell(row, 8).value,
                     'Stock Min': self.ws_productos.cell(row, 21).value or 0,
-                    'stock': stock,
-                    'deposito': deposito,
+                    'stock': stock, 'deposito': deposito,
                     'precio': self.ws_productos.cell(row, 16).value,
                 })
         
-        self.update_combos()
-        self.filter_products()
-        self.status.config(text=f"Excel cargado: {EXCEL_FILE}")
-    
-    def update_combos(self):
-        rubros = sorted(set(p['Rubro'] for p in self.products if p['Rubro']))
-        self.rubro_combo['values'] = ['Todos'] + rubros
+        self.status.config(text=f"Excel: {EXCEL_FILE} | Usuario: {self.usuario_actual['nombre'] if self.usuario_actual else '?'}")
     
     def setup_ui(self):
         main = ttk.Frame(self.root, padding="10")
@@ -140,6 +194,9 @@ class StockApp:
         header.pack(fill=tk.X, pady=(0, 10))
         
         ttk.Label(header, text="Gestion de Inventario", font=('Arial', 16, 'bold')).pack(side=tk.LEFT)
+        
+        user_label = ttk.Label(header, text=f"Usuario: {self.usuario_actual['nombre'] if self.usuario_actual else ''}")
+        user_label.pack(side=tk.RIGHT)
         
         toolbar = ttk.Frame(main)
         toolbar.pack(fill=tk.X, pady=(0, 10))
@@ -154,9 +211,9 @@ class StockApp:
         ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
         ttk.Button(toolbar, text="Reportes", command=self.reportes).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="Stock Bajo", command=self.stock_bajo).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Historial", command=self.historial).pack(side=tk.LEFT, padx=2)
         ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
         ttk.Button(toolbar, text="Guardar", command=self.guardar).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="Actualizar", command=self.init_excel).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="Modo Oscuro" if not self.dark_mode else "Modo Claro", command=self.toggle_theme).pack(side=tk.LEFT, padx=2)
         
         filters = ttk.Frame(main)
@@ -214,13 +271,8 @@ class StockApp:
         self.bajo_label = ttk.Label(status_frame, text="0", foreground=self.current_theme['warning'])
         self.bajo_label.pack(side=tk.LEFT)
         
-        self.watermark = tk.Label(
-            self.root,
-            text="Desarrollado por asubelzacg",
-            font=('Arial', 9, 'bold'),
-            fg=LIGHT_THEME['watermark'],
-            bg=LIGHT_THEME['bg']
-        )
+        self.watermark = tk.Label(self.root, text="Desarrollado por asubelzacg", font=('Arial', 9, 'bold'),
+                            fg=LIGHT_THEME['watermark'], bg=LIGHT_THEME['bg'])
         self.watermark.place(relx=0.5, rely=0.99, anchor='center')
     
     def filter_products(self):
@@ -240,8 +292,14 @@ class StockApp:
             if rubro and rubro != 'Todos' and p['Rubro'] != rubro:
                 continue
             
-            stock = p.get('stock', 0) or 0
-            minimo = p.get('Stock Min', 0) or 0
+            try:
+                stock = int(p.get('stock', 0) or 0)
+            except:
+                stock = 0
+            try:
+                minimo = int(p.get('Stock Min', 0) or 0)
+            except:
+                minimo = 0
             
             tag = 'ok'
             if minimo and stock < minimo:
@@ -249,17 +307,15 @@ class StockApp:
                 tag = 'bajo'
             
             self.tree.insert('', tk.END, values=(
-                p['SKU'] or '',
-                p['Nombre'] or '',
-                stock,
-                minimo,
-                p['deposito'] or '',
-                p['precio'] or '',
-                p['Estado'] or '',
+                p['SKU'] or '', p['Nombre'] or '', stock, minimo,
+                p['deposito'] or '', p['precio'] or '', p['Estado'] or '',
             ), tags=(tag,))
         
         self.total_label.config(text=str(len(self.products)))
         self.bajo_label.config(text=str(bajo_count))
+        
+        rubros = sorted(set(p['Rubro'] for p in self.products if p['Rubro']))
+        self.rubro_combo['values'] = ['Todos'] + rubros
     
     def add_product(self):
         self.open_editor()
@@ -279,7 +335,7 @@ class StockApp:
     def open_editor(self, product=None):
         win = tk.Toplevel(self.root)
         win.title("Editar" if product else "Agregar Producto")
-        win.geometry("500x600")
+        win.geometry("500x550")
         
         theme = self.current_theme
         win.configure(bg=theme['bg'])
@@ -301,11 +357,6 @@ class StockApp:
             entry = ttk.Entry(frame, width=30)
             entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
             entries[col] = entry
-            
-            if product:
-                key_idx = list(product.keys())[0]
-                if col == 2: entry.insert(0, str(product.get('Nombre', '')))
-                elif col == 3: entry.insert(0, str(product.get('SKU', '')))
         
         def save():
             row = self.ws_productos.max_row + 1
@@ -328,7 +379,6 @@ class StockApp:
             messagebox.showinfo("OK", "Producto guardado")
         
         ttk.Button(win, text="Guardar", command=save).pack(pady=15)
-        
         tk.Label(win, text="Desarrollado por asubelzacg", font=('Arial', 8, 'bold'), fg=theme['watermark'], bg=theme['bg']).pack(pady=5)
     
     def delete_product(self):
@@ -347,15 +397,18 @@ class StockApp:
                     messagebox.showinfo("OK", "Eliminado")
                     return
     
-    def registrar_movimiento(self, sku, producto, tipo, cantidad, deposito, nota):
+    def registrar_movimiento(self, sku, producto, tipo, cantidad, deposito, nota, nro_comp='', nro_factura=''):
         row = self.ws_movimientos.max_row + 1
-        self.ws_movimientos.cell(row, 1).value = datetime.now().strftime("%Y-%m-%d %H:%M")
-        self.ws_movimientos.cell(row, 2).value = sku
-        self.ws_movimientos.cell(row, 3).value = producto
-        self.ws_movimientos.cell(row, 4).value = tipo
-        self.ws_movimientos.cell(row, 5).value = cantidad
-        self.ws_movimientos.cell(row, 6).value = deposito
-        self.ws_movimientos.cell(row, 7).value = nota
+        self.ws_movimientos.cell(row, 1).value = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.ws_movimientos.cell(row, 2).value = self.usuario_actual['nombre']
+        self.ws_movimientos.cell(row, 3).value = sku
+        self.ws_movimientos.cell(row, 4).value = producto
+        self.ws_movimientos.cell(row, 5).value = tipo
+        self.ws_movimientos.cell(row, 6).value = cantidad
+        self.ws_movimientos.cell(row, 7).value = deposito
+        self.ws_movimientos.cell(row, 8).value = nro_comp
+        self.ws_movimientos.cell(row, 9).value = nro_factura
+        self.ws_movimientos.cell(row, 10).value = nota
     
     def entrada_stock(self):
         sel = self.tree.selection()
@@ -366,7 +419,7 @@ class StockApp:
         item = self.tree.item(sel[0])['values']
         win = tk.Toplevel(self.root)
         win.title("Entrada de Stock")
-        win.geometry("350x250")
+        win.geometry("350x300")
         
         theme = self.current_theme
         win.configure(bg=theme['bg'])
@@ -376,6 +429,14 @@ class StockApp:
         ttk.Label(win, text="Cantidad:").pack(pady=5)
         cantidad = tk.StringVar()
         ttk.Entry(win, textvariable=cantidad, width=15).pack()
+        
+        ttk.Label(win, text="Nro Comprobante:").pack(pady=5)
+        nro_comp = tk.StringVar()
+        ttk.Entry(win, textvariable=nro_comp, width=15).pack()
+        
+        ttk.Label(win, text="Nro Factura:").pack(pady=5)
+        nro_fact = tk.StringVar()
+        ttk.Entry(win, textvariable=nro_fact, width=15).pack()
         
         ttk.Label(win, text="Nota:").pack(pady=5)
         nota = tk.StringVar()
@@ -394,7 +455,8 @@ class StockApp:
                     nuevo = p.get('stock', 0) + cant
                     self.ws_productos.cell(p['row'], 25).value = nuevo
                     
-                    self.registrar_movimiento(sku, item[1], 'ENTRADA', cant, item[4] or 'Principal', nota.get())
+                    self.registrar_movimiento(sku, item[1], 'ENTRADA', cant, item[4] or 'Principal', 
+                                           nota.get(), nro_comp.get(), nro_fact.get())
                     
                     self.wb.save(EXCEL_FILE)
                     break
@@ -415,7 +477,7 @@ class StockApp:
         item = self.tree.item(sel[0])['values']
         win = tk.Toplevel(self.root)
         win.title("Salida de Stock")
-        win.geometry("350x280")
+        win.geometry("350x300")
         
         theme = self.current_theme
         win.configure(bg=theme['bg'])
@@ -426,6 +488,10 @@ class StockApp:
         ttk.Label(win, text="Cantidad:").pack(pady=5)
         cantidad = tk.StringVar()
         ttk.Entry(win, textvariable=cantidad, width=15).pack()
+        
+        ttk.Label(win, text="Nro Comprobante:").pack(pady=5)
+        nro_comp = tk.StringVar()
+        ttk.Entry(win, textvariable=nro_comp, width=15).pack()
         
         ttk.Label(win, text="Motivo:").pack(pady=5)
         motivo = tk.StringVar()
@@ -448,7 +514,8 @@ class StockApp:
                     nuevo = p.get('stock', 0) - cant
                     self.ws_productos.cell(p['row'], 25).value = nuevo
                     
-                    self.registrar_movimiento(sku, item[1], 'SALIDA', -cant, item[4] or 'Principal', motivo.get())
+                    self.registrar_movimiento(sku, item[1], 'SALIDA', -cant, item[4] or 'Principal', 
+                                           motivo.get(), nro_comp.get(), '')
                     
                     self.wb.save(EXCEL_FILE)
                     break
@@ -469,13 +536,12 @@ class StockApp:
         item = self.tree.item(sel[0])['values']
         win = tk.Toplevel(self.root)
         win.title("Transferir entre Depositos")
-        win.geometry("350x250")
+        win.geometry("350x220")
         
         theme = self.current_theme
         win.configure(bg=theme['bg'])
         
         ttk.Label(win, text=f"Producto: {item[1]}").pack(pady=10)
-        ttk.Label(win, text=f"Stock actual: {item[2]}").pack()
         
         ttk.Label(win, text="Cantidad:").pack(pady=5)
         cantidad = tk.StringVar()
@@ -514,6 +580,42 @@ class StockApp:
         ttk.Button(win, text="Confirmar", command=confirmar).pack(pady=15)
         tk.Label(win, text="Desarrollado por asubelzacg", font=('Arial', 8, 'bold'), fg=theme['watermark'], bg=theme['bg']).pack(pady=5)
     
+    def historial(self):
+        win = tk.Toplevel(self.root)
+        win.title("Historial de Movimientos")
+        win.geometry("900x450")
+        
+        theme = self.current_theme
+        win.configure(bg=theme['bg'])
+        
+        ttk.Label(win, text="Historial de Movimientos", font=('', 14, 'bold')).pack(pady=15)
+        
+        cols = ('Fecha', 'Usuario', 'SKU', 'Producto', 'Tipo', 'Cantidad', 'Deposito', 'NroComp', 'NroFact', 'Nota')
+        tree = ttk.Treeview(win, columns=cols, show='headings')
+        
+        for col in cols:
+            tree.heading(col, text=col)
+            tree.column(col, width=80 if col not in ('Producto', 'Nota') else 150)
+        
+        tree.pack(fill=tk.BOTH, expand=True, padx=10)
+        
+        for row in range(2, self.ws_movimientos.max_row + 1):
+            tree.insert('', tk.END, values=(
+                self.ws_movimientos.cell(row, 1).value or '',
+                self.ws_movimientos.cell(row, 2).value or '',
+                self.ws_movimientos.cell(row, 3).value or '',
+                self.ws_movimientos.cell(row, 4).value or '',
+                self.ws_movimientos.cell(row, 5).value or '',
+                self.ws_movimientos.cell(row, 6).value or '',
+                self.ws_movimientos.cell(row, 7).value or '',
+                self.ws_movimientos.cell(row, 8).value or '',
+                self.ws_movimientos.cell(row, 9).value or '',
+                self.ws_movimientos.cell(row, 10).value or '',
+            ))
+        
+        ttk.Label(win, text=f"Total movimientos: {self.ws_movimientos.max_row - 1}").pack(pady=10)
+        tk.Label(win, text="Desarrollado por asubelzacg", font=('Arial', 8, 'bold'), fg=theme['watermark'], bg=theme['bg']).pack(pady=5)
+    
     def stock_bajo(self):
         win = tk.Toplevel(self.root)
         win.title("Stock Bajo")
@@ -535,14 +637,12 @@ class StockApp:
         
         count = 0
         for p in self.products:
-            stock = p.get('stock', 0)
-            minimo = p.get('Stock Min', 0)
+            stock = int(p.get('stock', 0) or 0)
+            minimo = int(p.get('Stock Min', 0) or 0)
             
             if minimo and stock < minimo:
                 faltante = minimo - stock
-                tree.insert('', tk.END, values=(
-                    p['SKU'], p['Nombre'], stock, minimo, faltante
-                ))
+                tree.insert('', tk.END, values=(p['SKU'], p['Nombre'], stock, minimo, faltante))
                 count += 1
         
         ttk.Label(win, text=f"Total: {count} productos").pack(pady=10)
@@ -574,7 +674,7 @@ class StockApp:
         total_stock = 0
         
         for p in self.products:
-            stock = p.get('stock', 0) or 0
+            stock = int(p.get('stock', 0) or 0)
             costo = p.get('precio', 0) or 0
             total = stock * costo
             
