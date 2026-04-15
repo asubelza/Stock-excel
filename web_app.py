@@ -177,6 +177,9 @@ COLUMNAS_EXCEL = {
 
 with app.app_context():
     db.create_all()
+    db.engine.execute(db.text("ALTER TABLE movimiento ADD COLUMN IF NOT EXISTS eliminado BOOLEAN DEFAULT 0"))
+    db.engine.execute(db.text("ALTER TABLE movimiento ADD COLUMN IF NOT EXISTS eliminado_por VARCHAR(50)"))
+    db.engine.execute(db.text("ALTER TABLE movimiento ADD COLUMN IF NOT EXISTS eliminado_fecha DATETIME"))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
