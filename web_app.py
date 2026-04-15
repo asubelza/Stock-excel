@@ -9,7 +9,6 @@ from functools import wraps
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 app = Flask(__name__)
-app.config['APPLICATION_ROOT'] = '/stock'
 app.secret_key = os.environ.get('SECRET_KEY', 'stock-secret-key-2024')
 
 db_uri = os.environ.get('DATABASE_URL', 'sqlite:///stock.db')
@@ -78,13 +77,13 @@ class Usuario(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
 
 PERMISOS = {
-    'admin': ['/', '/stock/historico', '/stock', '/entrada', '/salida', '/proveedores', '/clientes', 
+    'admin': ['/', '/historico', '/stock', '/entrada', '/salida', '/proveedores', '/clientes', 
               '/nueva_entrada', '/nueva_salida', '/nuevo_producto', '/nuevo_proveedor',
               '/nuevo_cliente', '/importar_excel', '/exportar_excel', '/usuarios', '/logout',
               '/api/movimiento/'],
-    'datainput': ['/', '/stock/historico', '/stock', '/entrada', '/nueva_entrada', '/nuevo_producto', 
+    'datainput': ['/', '/historico', '/stock', '/entrada', '/nueva_entrada', '/nuevo_producto', 
                   '/importar_excel', '/exportar_excel', '/logout', '/api/movimiento/'],
-    'deposito': ['/', '/stock/historico', '/stock', '/salida', '/nueva_salida', '/logout', '/api/movimiento/'],
+    'deposito': ['/', '/historico', '/stock', '/salida', '/nueva_salida', '/logout', '/api/movimiento/'],
 }
 
 def tiene_permiso(ruta):
@@ -96,7 +95,7 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'usuario' not in session:
-            return redirect('/stock/login')
+            return redirect('/login')
         rol = session.get('rol')
         permisos = PERMISOS.get(rol, [])
         ruta = request.path
@@ -108,7 +107,7 @@ def login_required(f):
             if ruta.startswith(p):
                 return f(*args, **kwargs)
         
-        return redirect('/stock/stock')
+        return redirect('/stock')
     return decorated_function
 
 class Producto(db.Model):
@@ -186,14 +185,14 @@ def login():
             session['usuario'] = user
             session['nombre'] = USUARIOS[user]['nombre']
             session['rol'] = USUARIOS[user]['rol']
-            return redirect('/stock/stock')
+            return redirect('/stock')
         
         db_user = Usuario.query.filter_by(username=user, estado='A').first()
         if db_user and db_user.password == password:
             session['usuario'] = db_user.username
             session['nombre'] = f"{db_user.nombre} {db_user.apellido or ''}".strip()
             session['rol'] = db_user.rol
-            return redirect('/stock/stock')
+            return redirect('/stock')
         
         return render_template('login.html', error='Usuario o contraseña incorrectos')
     
@@ -202,10 +201,10 @@ def login():
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect('/stock/login')
+    return redirect('/login')
 
 @app.route('/')
-@app.route('/stock/historico')
+@app.route('/historico')
 @login_required
 def index():
     return render_template('index.html', movimientos=Movimiento.query.order_by(Movimiento.fecha.desc()).limit(100).all(), usuario=session.get('nombre'))
@@ -244,7 +243,7 @@ def clientes():
 @login_required
 def usuarios():
     if session.get('rol') != 'admin':
-        return redirect('/stock/stock')
+        return redirect('/stock')
     usuarios = Usuario.query.order_by(Usuario.apellido, Usuario.nombre).all()
     return render_template('usuarios.html', usuarios=usuarios, usuario=session.get('nombre'))
 
