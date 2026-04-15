@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Clientes</h2>
+        <div>
+            <button class="btn" style="background:#9b59b6; color:white;" onclick="document.getElementById('import_file').click()">Importar Excel</button>
+            <input type="file" id="import_file" accept=".xlsx" style="display:none;" onchange="importar_excel(this)">
+            <button class="btn btn-success" onclick="document.getElementById('form_nuevo').style.display='block'">+ Nuevo Cliente</button>
+        </div>
+    </div>
+    
+    <div id="form_nuevo" style="display:none; background:#f8f9fa; padding:15px; margin-bottom:20px; border-radius:8px;">
+        <h3 style="margin-bottom:15px;">Nuevo Cliente</h3>
+        <div class="row">
+            <div class="col">
+                <div class="form-group">
+                    <label>Nombre *</label>
+                    <input type="text" id="cli_nombre" required>
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label>CUIT</label>
+                    <input type="text" id="cli_cuit">
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label>Telefono</label>
+                    <input type="text" id="cli_telefono">
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="cli_email">
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label>Direccion</label>
+                    <input type="text" id="cli_direccion">
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-success" onclick="guardar_cliente()">Guardar</button>
+        <button class="btn" onclick="document.getElementById('form_nuevo').style.display='none'">Cancelar</button>
+    </div>
+    
+    {% if clientes %}
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>CUIT</th>
+                <th>Telefono</th>
+                <th>Email</th>
+                <th>Direccion</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in clientes %}
+            <tr>
+                <td>{{ c.nombre }}</td>
+                <td>{{ c.cuit or '-' }}</td>
+                <td>{{ c.telefono or '-' }}</td>
+                <td>{{ c.email or '-' }}</td>
+                <td>{{ c.direccion or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">No hay clientes registrados</div>
+    {% endif %}
+</div>
+
+<script>
+function guardar_cliente() {
+    const nombre = document.getElementById('cli_nombre').value.trim();
+    if (!nombre) {
+        alert('El nombre es requerido');
+        return;
+    }
+    
+    fetch('/api/cliente', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            nombre: nombre,
+            cuit: document.getElementById('cli_cuit').value,
+            telefono: document.getElementById('cli_telefono').value,
+            email: document.getElementById('cli_email').value,
+            direccion: document.getElementById('cli_direccion').value
+        })
+    }).then(r => r.json()).then(data => {
+        if (data.ok) {
+            location.reload();
+        } else {
+            alert(data.msg);
+        }
+    });
+}
+
+function importar_excel(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('archivo', file);
+    
+    fetch('/api/importar_clientes', {
+        method: 'POST',
+        body: formData
+    }).then(r => r.json()).then(data => {
+        alert(data.msg);
+        if (data.ok) location.reload();
+    });
+}
+</script>
+{% endblock %}

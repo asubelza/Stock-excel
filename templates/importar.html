@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Importar Productos desde Excel</h2>
+    </div>
+    
+    <div style="background:#f8f9fa; padding:20px; border-radius:8px; margin-bottom:20px;">
+        <h3 style="margin-bottom:15px;">Formato del Excel</h3>
+        <p style="color:#666; margin-bottom:10px;">El archivo Excel debe seguir el formato de la planilla base:</p>
+        <table style="font-size:12px; background:white;">
+            <tr><th>Columna</th><th>Campo</th><th>Ejemplo</th></tr>
+            <tr><td>B</td><td>Nombre</td><td>Zapatillas nb</td></tr>
+            <tr><td>C</td><td>SKU</td><td>NB-574</td></tr>
+            <tr><td>D</td><td>Tipo</td><td>P (Producto), S (Insumo)</td></tr>
+            <tr><td>E</td><td>Estado</td><td>A (Activo)</td></tr>
+            <tr><td>H</td><td>Rubro</td><td>Zapatilla</td></tr>
+            <tr><td>I</td><td>Subrubro</td><td>NB</td></tr>
+            <tr><td>Q</td><td>Precio</td><td>1210</td></tr>
+            <tr><td>R</td><td>Tasa IVA</td><td>21</td></tr>
+            <tr><td>S</td><td>Costo</td><td>1000</td></tr>
+            <tr><td>U</td><td>Cod Barra</td><td>223232</td></tr>
+            <tr><td>V</td><td>Stock Min</td><td>0</td></tr>
+            <tr><td>Y</td><td>Deposito</td><td>Principal</td></tr>
+            <tr><td>Z</td><td>Stock</td><td>10</td></tr>
+        </table>
+        <p style="color:#666; font-size:12px; margin-top:10px;">Los productos se cargan a partir de la fila 4.</p>
+    </div>
+    
+    <form method="post" enctype="multipart/form-data" id="form_import">
+        <div class="form-group">
+            <label>Seleccionar archivo Excel (.xlsx)</label>
+            <input type="file" name="archivo" accept=".xlsx" required>
+        </div>
+        <button type="submit" class="btn btn-success">Importar</button>
+        <a href="/stock" class="btn">Cancelar</a>
+    </form>
+    
+    <div id="resultado" style="margin-top:20px;"></div>
+</div>
+
+<script>
+document.getElementById('form_import').onsubmit = function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    document.getElementById('resultado').innerHTML = '<p>Importando...</p>';
+    
+    fetch('/importar_excel', {
+        method: 'POST',
+        body: formData
+    }).then(r => r.json()).then(data => {
+        const div = document.getElementById('resultado');
+        if (data.ok) {
+            div.innerHTML = '<div class="success">' + data.msg + '</div>';
+        } else {
+            div.innerHTML = '<div class="error">' + data.msg + '</div>';
+        }
+    }).catch(err => {
+        document.getElementById('resultado').innerHTML = '<div class="error">Error: ' + err + '</div>';
+    });
+};
+</script>
+{% endblock %}

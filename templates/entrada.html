@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Entrada de Stock</h2>
+        <a href="/nueva_entrada" class="btn btn-success">+ Nueva Entrada</a>
+    </div>
+    
+    {% if movimientos %}
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Usuario</th>
+                <th>SKU</th>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Costo</th>
+                <th>Tipo Comp</th>
+                <th>Nro Comp</th>
+                <th>Proveedor</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in movimientos %}
+            <tr>
+                <td>{{ m.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                <td>{{ m.usuario }}</td>
+                <td>{{ m.sku }}</td>
+                <td>{{ m.producto }}</td>
+                <td class="entrada">{{ m.cantidad }}</td>
+                <td>${{ "%.2f"|format(m.costo or 0) }}</td>
+                <td>{{ m.tipo_comp or '-' }}</td>
+                <td>{{ m.nro_comp or '-' }}</td>
+                <td>{{ m.proveedor_nombre or '-' }}</td>
+                <td><button class="btn" style="padding:4px 8px; font-size:12px;" onclick="editar_movimiento({{ m.id }}, '{{ m.sku }}', '{{ m.producto }}', {{ m.cantidad }}, {{ m.costo or 0 }}, '{{ m.nro_comp or '' }}', '{{ m.tipo_comp or '' }}', '{{ m.proveedor_cuit or '' }}', '{{ m.proveedor_nombre or '' }}')">Editar</button></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">No hay entradas registradas</div>
+    {% endif %}
+</div>
+
+<div id="modal_editar" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
+    <div style="background:white; max-width:500px; margin:100px auto; padding:20px; border-radius:8px;">
+        <h3>Editar Entrada</h3>
+        <input type="hidden" id="edit_id">
+        <div class="form-group">
+            <label>SKU</label>
+            <input type="text" id="edit_sku" disabled style="background:#eee;">
+        </div>
+        <div class="form-group">
+            <label>Producto</label>
+            <input type="text" id="edit_producto" disabled style="background:#eee;">
+        </div>
+        <div class="form-group">
+            <label>Cantidad</label>
+            <input type="number" id="edit_cantidad" min="1">
+        </div>
+        <div class="form-group">
+            <label>Costo</label>
+            <input type="number" id="edit_costo" step="0.01">
+        </div>
+        <div class="form-group">
+            <label>Nro Comprobante</label>
+            <input type="text" id="edit_nro_comp">
+        </div>
+        <div class="form-group">
+            <label>Tipo Comprobante</label>
+            <select id="edit_tipo_comp" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px;">
+                <option value="Factura">Factura</option>
+                <option value="Remito">Remito</option>
+                <option value="Presupuesto">Presupuesto</option>
+                <option value="Orden de compra">Orden de compra</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Proveedor CUIT</label>
+            <input type="text" id="edit_prov_cuit">
+        </div>
+        <div class="form-group">
+            <label>Proveedor Nombre</label>
+            <input type="text" id="edit_prov_nombre">
+        </div>
+        <button class="btn btn-success" onclick="guardar_edicion()">Guardar</button>
+        <button class="btn" onclick="document.getElementById('modal_editar').style.display='none'">Cancelar</button>
+    </div>
+</div>
+
+<script>
+function editar_movimiento(id, sku, producto, cantidad, costo, nro_comp, tipo_comp, prov_cuit, prov_nombre) {
+    document.getElementById('edit_id').value = id;
+    document.getElementById('edit_sku').value = sku;
+    document.getElementById('edit_producto').value = producto;
+    document.getElementById('edit_cantidad').value = cantidad;
+    document.getElementById('edit_costo').value = costo;
+    document.getElementById('edit_nro_comp').value = nro_comp;
+    document.getElementById('edit_tipo_comp').value = tipo_comp || 'Factura';
+    document.getElementById('edit_prov_cuit').value = prov_cuit;
+    document.getElementById('edit_prov_nombre').value = prov_nombre;
+    document.getElementById('modal_editar').style.display = 'block';
+}
+
+function guardar_edicion() {
+    const id = document.getElementById('edit_id').value;
+    const nueva_cantidad = parseInt(document.getElementById('edit_cantidad').value);
+    const costo = parseFloat(document.getElementById('edit_costo').value) || 0;
+    const nro_comp = document.getElementById('edit_nro_comp').value;
+    const tipo_comp = document.getElementById('edit_tipo_comp').value;
+    const prov_cuit = document.getElementById('edit_prov_cuit').value;
+    const prov_nombre = document.getElementById('edit_prov_nombre').value;
+    
+    fetch('/api/movimiento/' + id, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            cantidad: nueva_cantidad,
+            costo: costo,
+            nro_comp: nro_comp,
+            tipo_comp: tipo_comp,
+            proveedor_cuit: prov_cuit,
+            proveedor_nombre: prov_nombre
+        })
+    }).then(r => r.json()).then(data => {
+        alert(data.msg);
+        if (data.ok) location.reload();
+    });
+}
+</script>
+{% endblock %}

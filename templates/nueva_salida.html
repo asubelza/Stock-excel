@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Nueva Salida de Stock</h2>
+    </div>
+    
+<div class="row" style="margin-bottom:20px;">
+        <div class="col">
+            <div class="form-group">
+                <label>Tipo Comprobante</label>
+                <select id="salida_tipo" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px;">
+                    <option value="Venta">Venta</option>
+                    <option value="Presupuesto">Presupuesto</option>
+                    <option value="Uso interno">Uso interno</option>
+                    <option value="Merma">Merma</option>
+                    <option value="Devolucion">Devolución</option>
+                </select>
+            </div>
+        </div>
+        <div class="col">
+            <div class="form-group">
+                <label>Nro Comprobante</label>
+                <input type="text" id="salida_nro">
+            </div>
+        </div>
+        <div class="col">
+            <div class="form-group">
+                <label>Cliente (CUIT o Nombre)</label>
+                <input type="text" id="cliente_buscar" onkeyup="buscar_clientes()" autocomplete="off" placeholder="Buscar cliente...">
+                <div id="cliente_resultados" class="resultados"></div>
+                <input type="hidden" id="cliente_cuit">
+                <input type="hidden" id="cliente_nombre">
+            </div>
+        </div>
+    </div>
+    
+    <div class="card" style="background:#fff; border:1px solid #ddd;">
+        <h3 style="margin-bottom:15px;">Agregar Productos</h3>
+        <div class="row">
+            <div class="col-2">
+                <div class="form-group">
+                    <label>SKU o Nombre</label>
+                    <input type="text" id="prod_sku" onkeyup="buscar_productos()" autocomplete="off">
+                    <div id="prod_resultados" class="resultados"></div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label>Cantidad</label>
+                    <input type="number" id="prod_cant" value="1" min="1">
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-success" onclick="agregar_item()">+ Agregar</button>
+    </div>
+    
+    <h3 style="margin-top:20px;">Items a Salir</h3>
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th>SKU</th>
+                <th>Nombre</th>
+                <th>Cantidad</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="items_tabla">
+        </tbody>
+    </table>
+    
+    <div class="totales">
+        <strong>Total: </strong><span id="total_cant">0</span> unidades
+    </div>
+    
+    <div style="margin-top:20px;">
+        <button class="btn btn-success" onclick="confirmar_salida()">Confirmar Salida</button>
+        <a href="/" class="btn">Cancelar</a>
+    </div>
+</div>
+
+<script>
+let items = [];
+
+function buscar_productos() {
+    const q = document.getElementById('prod_sku').value;
+    if (q.length < 2) {
+        document.getElementById('prod_resultados').style.display = 'none';
+        return;
+    }
+    
+    fetch('/api/productos?q=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(data => {
+            const div = document.getElementById('prod_resultados');
+            if (data.length === 0) {
+                div.style.display = 'none';
+                return;
+            }
+            const withStock = data.filter(p => p.stock > 0);
+            if (withStock.length === 0) {
+                div.innerHTML = '<div style="padding:8px; color:#999;">Sin stock disponible</div>';
+            } else {
+                div.innerHTML = withStock.map(p => 
+                    '<div onclick="seleccionar_producto(\'' + p.sku + '\',\'' + p.nombre + '\',' + p.stock + ')">' + 
+                    p.sku + ' - ' + p.nombre + ' (Stock: ' + p.stock + ')</div>'
+                ).join('');
+            }
+            div.style.display = 'block';
+        });
+}
+
+function seleccionar_producto(sku, nombre, stock) {
+    document.getElementById('prod_sku').value = sku + ' - ' + nombre;
+    document.getElementById('prod_resultados').style.display = 'none';
+    document.getElementById('prod_cant').max = stock;
+}
+
+function agregar_item() {
+    const texto = document.getElementById('prod_sku').value;
+    const parts = texto.split(' - ');
+    const sku = parts[0] ? parts[0].trim() : '';
+    const nombre = parts[1] ? parts[1].trim() : texto;
+    const cant = parseInt(document.getElementById('prod_cant').value) || 0;
+    
+    if (!sku || cant < 1) {
+        alert('Ingrese SKU y cantidad validos');
+        return;
+    }
+    
+    items.push({sku, nombre, cantidad: cant});
+    actualizar_tabla();
+    
+    document.getElementById('prod_sku').value = '';
+    document.getElementById('prod_cant').value = '1';
+    document.getElementById('prod_sku').focus();
+}
+
+function actualizar_tabla() {
+    const tbody = document.getElementById('items_tabla');
+    let total_cant = 0;
+    
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#999;">No hay items agregados</td></tr>';
+    } else {
+        tbody.innerHTML = items.map((item, idx) => {
+            total_cant += item.cantidad;
+            return '<tr><td>' + item.sku + '</td><td>' + item.nombre + '</td><td>' + item.cantidad + '</td><td><button class="btn btn-danger" style="padding:4px 8px;" onclick="eliminar_item(' + idx + ')">X</button></td></tr>';
+        }).join('');
+    }
+    
+    document.getElementById('total_cant').textContent = total_cant;
+}
+
+function eliminar_item(idx) {
+    items.splice(idx, 1);
+    actualizar_tabla();
+}
+
+function confirmar_salida() {
+    if (items.length === 0) {
+        alert('No hay items para registrar');
+        return;
+    }
+    
+    fetch('/api/salida', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            nro_comp: document.getElementById('salida_nro').value,
+            tipo_comp: document.getElementById('salida_tipo').value,
+            cliente_cuit: document.getElementById('cliente_cuit').value,
+            cliente_nombre: document.getElementById('cliente_nombre').value,
+            items: items
+        })
+    }).then(r => r.json()).then(data => {
+        alert(data.msg);
+        if (data.ok) location.href = '/salida';
+    });
+}
+
+function buscar_clientes() {
+    const q = document.getElementById('cliente_buscar').value;
+    if (q.length < 2) {
+        document.getElementById('cliente_resultados').style.display = 'none';
+        return;
+    }
+    
+    fetch('/api/clientes?q=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(data => {
+            const div = document.getElementById('cliente_resultados');
+            if (data.length === 0) {
+                div.innerHTML = '<div style="padding:8px; color:#999;">Sin resultados - puede registrar manualmente</div>';
+            } else {
+                div.innerHTML = data.map(c => 
+                    '<div onclick="seleccionar_cliente(\'' + (c.cuit || '') + '\',\'' + c.nombre.replace(/'/g, "\\'") + '\')">' + 
+                    (c.cuit ? c.cuit + ' - ' : '') + c.nombre + '</div>'
+                ).join('');
+            }
+            div.style.display = 'block';
+        });
+}
+
+function seleccionar_cliente(cuit, nombre) {
+    document.getElementById('cliente_cuit').value = cuit;
+    document.getElementById('cliente_nombre').value = nombre;
+    document.getElementById('cliente_buscar').value = (cuit ? cuit + ' - ' : '') + nombre;
+    document.getElementById('cliente_resultados').style.display = 'none';
+}
+</script>
+{% endblock %}

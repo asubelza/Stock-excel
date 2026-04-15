@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Salida de Stock</h2>
+        <a href="/nueva_salida" class="btn btn-success">+ Nueva Salida</a>
+    </div>
+    
+    {% if movimientos %}
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Usuario</th>
+                <th>SKU</th>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Deposito</th>
+                <th>Tipo Comp</th>
+                <th>Nro Comp</th>
+                <th>Cliente</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in movimientos %}
+            <tr>
+                <td>{{ m.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                <td>{{ m.usuario }}</td>
+                <td>{{ m.sku }}</td>
+                <td>{{ m.producto }}</td>
+                <td class="salida">{{ m.cantidad }}</td>
+                <td>{{ m.deposito }}</td>
+                <td>{{ m.tipo_comp or '-' }}</td>
+                <td>{{ m.nro_comp or '-' }}</td>
+                <td>{{ m.cliente_nombre or '-' }}</td>
+                <td><button class="btn" style="padding:4px 8px; font-size:12px;" onclick="editar_movimiento({{ m.id }}, '{{ m.sku }}', '{{ m.producto }}', {{ m.cantidad }}, '{{ m.nro_comp or '' }}', '{{ m.tipo_comp or '' }}', '{{ m.cliente_cuit or '' }}', '{{ m.cliente_nombre or '' }}')">Editar</button></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">No hay salidas registradas</div>
+    {% endif %}
+</div>
+
+<div id="modal_editar" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
+    <div style="background:white; max-width:500px; margin:100px auto; padding:20px; border-radius:8px;">
+        <h3>Editar Salida</h3>
+        <input type="hidden" id="edit_id">
+        <div class="form-group">
+            <label>SKU</label>
+            <input type="text" id="edit_sku" disabled style="background:#eee;">
+        </div>
+        <div class="form-group">
+            <label>Producto</label>
+            <input type="text" id="edit_producto" disabled style="background:#eee;">
+        </div>
+        <div class="form-group">
+            <label>Cantidad</label>
+            <input type="number" id="edit_cantidad" min="1">
+        </div>
+        <div class="form-group">
+            <label>Nro Comprobante</label>
+            <input type="text" id="edit_nro_comp">
+        </div>
+        <div class="form-group">
+            <label>Tipo Comprobante</label>
+            <select id="edit_tipo_comp" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px;">
+                <option value="Venta">Venta</option>
+                <option value="Presupuesto">Presupuesto</option>
+                <option value="Uso interno">Uso interno</option>
+                <option value="Merma">Merma</option>
+                <option value="Devolucion">Devolución</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Cliente CUIT</label>
+            <input type="text" id="edit_cli_cuit">
+        </div>
+        <div class="form-group">
+            <label>Cliente Nombre</label>
+            <input type="text" id="edit_cli_nombre">
+        </div>
+        <button class="btn btn-success" onclick="guardar_edicion()">Guardar</button>
+        <button class="btn" onclick="document.getElementById('modal_editar').style.display='none'">Cancelar</button>
+    </div>
+</div>
+
+<script>
+function editar_movimiento(id, sku, producto, cantidad, nro_comp, tipo_comp, cli_cuit, cli_nombre) {
+    document.getElementById('edit_id').value = id;
+    document.getElementById('edit_sku').value = sku;
+    document.getElementById('edit_producto').value = producto;
+    document.getElementById('edit_cantidad').value = cantidad;
+    document.getElementById('edit_nro_comp').value = nro_comp;
+    document.getElementById('edit_tipo_comp').value = tipo_comp || 'Venta';
+    document.getElementById('edit_cli_cuit').value = cli_cuit;
+    document.getElementById('edit_cli_nombre').value = cli_nombre;
+    document.getElementById('modal_editar').style.display = 'block';
+}
+
+function guardar_edicion() {
+    const id = document.getElementById('edit_id').value;
+    const nueva_cantidad = parseInt(document.getElementById('edit_cantidad').value);
+    const nro_comp = document.getElementById('edit_nro_comp').value;
+    const tipo_comp = document.getElementById('edit_tipo_comp').value;
+    const cli_cuit = document.getElementById('edit_cli_cuit').value;
+    const cli_nombre = document.getElementById('edit_cli_nombre').value;
+    
+    fetch('/api/movimiento/' + id, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            cantidad: nueva_cantidad,
+            nro_comp: nro_comp,
+            tipo_comp: tipo_comp,
+            cliente_cuit: cli_cuit,
+            cliente_nombre: cli_nombre
+        })
+    }).then(r => r.json()).then(data => {
+        alert(data.msg);
+        if (data.ok) location.reload();
+    });
+}
+</script>
+{% endblock %}

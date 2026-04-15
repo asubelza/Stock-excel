@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Gestión de Usuarios</h2>
+        <button class="btn btn-success" onclick="document.getElementById('form_nuevo').style.display='block'">+ Nuevo Usuario</button>
+    </div>
+    
+    <div id="form_nuevo" style="display:none; background:#f8f9fa; padding:15px; margin-bottom:20px; border-radius:8px;">
+        <h3 style="margin-bottom:15px;">Nuevo Usuario</h3>
+        <div class="row">
+            <div class="col">
+                <div class="form-group">
+                    <label>Usuario *</label>
+                    <input type="text" id="usu_username" required>
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label>Contraseña *</label>
+                    <input type="password" id="usu_password" required>
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label>Tipo *</label>
+                    <select id="usu_rol" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px;">
+                        <option value="datainput">DataInput (Entrada/Stock)</option>
+                        <option value="deposito">Deposito (Salida/Stock)</option>
+                        <option value="admin">Admin (Todo)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <div class="form-group">
+                    <label>Nombre *</label>
+                    <input type="text" id="usu_nombre" required>
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label>Apellido</label>
+                    <input type="text" id="usu_apellido">
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-success" onclick="guardar_usuario()">Guardar</button>
+        <button class="btn" onclick="document.getElementById('form_nuevo').style.display='none'">Cancelar</button>
+    </div>
+    
+    {% if usuarios %}
+    <table>
+        <thead>
+            <tr>
+                <th>Usuario</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in usuarios %}
+            <tr>
+                <td>{{ u.username }}</td>
+                <td>{{ u.nombre }}</td>
+                <td>{{ u.apellido or '-' }}</td>
+                <td>
+                    {% if u.rol == 'admin' %}<span style="color:#e74c3c; font-weight:bold;">Admin</span>
+                    {% elif u.rol == 'datainput' %}<span style="color:#27ae60;">DataInput</span>
+                    {% elif u.rol == 'deposito' %}<span style="color:#3498db;">Deposito</span>{% endif %}
+                </td>
+                <td>{{ u.estado }}</td>
+                <td>
+                    <button class="btn btn-danger" style="padding:4px 8px;" onclick="eliminar_usuario({{ u.id }})">Eliminar</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">No hay usuarios registrados</div>
+    {% endif %}
+</div>
+
+<script>
+function guardar_usuario() {
+    const username = document.getElementById('usu_username').value.trim();
+    const password = document.getElementById('usu_password').value;
+    const nombre = document.getElementById('usu_nombre').value.trim();
+    
+    if (!username || !password || !nombre) {
+        alert('Usuario, contraseña y nombre son requeridos');
+        return;
+    }
+    
+    fetch('/api/usuario', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            username: username,
+            password: password,
+            nombre: nombre,
+            apellido: document.getElementById('usu_apellido').value,
+            rol: document.getElementById('usu_rol').value
+        })
+    }).then(r => r.json()).then(data => {
+        alert(data.msg);
+        if (data.ok) location.reload();
+    });
+}
+
+function eliminar_usuario(id) {
+    if (!confirm('¿Está seguro de eliminar este usuario?')) return;
+    
+    fetch('/api/usuario/' + id, {
+        method: 'DELETE'
+    }).then(r => r.json()).then(data => {
+        alert(data.msg);
+        if (data.ok) location.reload();
+    });
+}
+</script>
+{% endblock %}

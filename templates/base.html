@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion de Stock</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; background: #f0f0f0; }
+        .header { background: #2c3e50; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 20px; }
+        .user-info { font-size: 14px; opacity: 0.8; }
+        .nav { display: flex; gap: 5px; flex-wrap: wrap; }
+        .nav a { color: white; text-decoration: none; padding: 8px 12px; background: rgba(255,255,255,0.1); border-radius: 4px; font-size: 13px; }
+        .nav a:hover { background: rgba(255,255,255,0.2); }
+        .container { padding: 20px; max-width: 1400px; margin: 0 auto; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .card-header h2 { font-size: 18px; color: #2c3e50; }
+        .btn { padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 13px; display: inline-block; }
+        .btn:hover { background: #2980b9; }
+        .btn-success { background: #27ae60; }
+        .btn-success:hover { background: #219a52; }
+        .btn-danger { background: #e74c3c; }
+        .btn-danger:hover { background: #c0392b; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }
+        th { background: #f8f9fa; font-weight: 600; color: #555; }
+        tr:hover { background: #f8f9fa; }
+        .entrada { color: #27ae60; font-weight: bold; }
+        .salida { color: #e74c3c; font-weight: bold; }
+        .stock-bajo { color: #e74c3c; font-weight: bold; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 500; color: #555; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #3498db; }
+        .row { display: flex; gap: 15px; }
+        .col { flex: 1; }
+        .col-2 { flex: 2; }
+        .col-3 { flex: 3; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 15px; }
+        .search-box input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .resultados { border: 1px solid #ddd; max-height: 150px; overflow-y: auto; background: white; display: none; }
+        .resultados div { padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; }
+        .resultados div:hover { background: #f0f0f0; }
+        .items-table { margin: 15px 0; }
+        .totales { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: right; font-size: 16px; }
+        .error { color: #e74c3c; padding: 10px; background: #fadbd8; border-radius: 4px; margin-bottom: 15px; }
+        .success { color: #27ae60; padding: 10px; background: #d5f4e6; border-radius: 4px; margin-bottom: 15px; }
+        .login-box { max-width: 400px; margin: 100px auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .login-box h2 { text-align: center; margin-bottom: 30px; color: #2c3e50; }
+        .login-box button { width: 100%; }
+        .empty { text-align: center; padding: 40px; color: #999; }
+    </style>
+</head>
+<body>
+    {% if session.usuario %}
+    <div class="header">
+        <div>
+            <h1>Gestion de Stock</h1>
+        </div>
+        <div class="nav">
+            <a href="/">Historico</a>
+            <a href="/stock">Stock</a>
+            <a href="/entrada">Entrada</a>
+            <a href="/salida">Salida</a>
+            <a href="/proveedores">Proveedores</a>
+            <a href="/clientes">Clientes</a>
+            {% if session.rol == 'admin' %}<a href="/usuarios">Usuarios</a>{% endif %}
+            <a href="/nueva_entrada">+ Entrada</a>
+            <a href="/nueva_salida">+ Salida</a>
+            <a href="/importar_excel">Importar</a>
+            <a href="/logout">Salir ({{ usuario }})</a>
+        </div>
+    </div>
+    {% endif %}
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Historico de Movimientos</h2>
+        <a href="/nueva_entrada" class="btn btn-success">+ Nueva Entrada</a>
+    </div>
+    
+    <div class="search-box">
+        <input type="text" id="buscar" placeholder="Buscar por SKU, producto o cliente..." onkeyup="filtrar()">
+    </div>
+    
+    {% if movimientos %}
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Usuario</th>
+                <th>Tipo</th>
+                <th>SKU</th>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Deposito</th>
+                <th>Tipo Comp</th>
+                <th>Nro Comp</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in movimientos %}
+            <tr>
+                <td>{{ m.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                <td>{{ m.usuario }}</td>
+                <td class="{{ 'entrada' if m.tipo == 'ENTRADA' else 'salida' }}">{{ m.tipo }}</td>
+                <td>{{ m.sku }}</td>
+                <td>{{ m.producto }}</td>
+                <td>{{ m.cantidad }}</td>
+                <td>{{ m.deposito or 'Principal' }}</td>
+                <td>{{ m.tipo_comp or '-' }}</td>
+                <td>{{ m.nro_comp or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">No hay movimientos registrados</div>
+    {% endif %}
+</div>
+
+<script>
+function filtrar() {
+    const query = document.getElementById('buscar').value.toLowerCase();
+    const rows = document.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

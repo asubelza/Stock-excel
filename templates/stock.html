@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Stock de Productos</h2>
+        <div>
+            <a href="/nuevo_producto" class="btn btn-success">+ Nuevo Producto</a>
+            <a href="/exportar_excel" class="btn" style="background: #9b59b6; color: white;">Exportar Excel</a>
+        </div>
+    </div>
+    
+    <div class="search-box">
+        <input type="text" id="buscar" placeholder="Buscar por SKU o Nombre..." onkeyup="filtrar()">
+        <select id="filtro_stock" onchange="filtrar()" style="padding:10px; border:1px solid #ddd; border-radius:4px;">
+            <option value="todos">Todos</option>
+            <option value="mayor0" selected>Stock > 0</option>
+            <option value="menor_min">Stock bajo mínimo</option>
+        </select>
+    </div>
+    
+    {% if productos %}
+    <table>
+        <thead>
+            <tr>
+                <th>SKU</th>
+                <th>Nombre</th>
+                <th>Tipo</th>
+                <th>Rubro</th>
+                <th>Deposito</th>
+                <th>Stock</th>
+                <th>Stock Min</th>
+                <th>Costo</th>
+            </tr>
+        </thead>
+        <tbody id="tabla_productos">
+            {% for p in productos %}
+            <tr class="{{ 'stock-bajo' if p.stock < p.stock_min }}">
+                <td>{{ p.sku }}</td>
+                <td>{{ p.nombre }}</td>
+                <td>{{ p.tipo }}</td>
+                <td>{{ p.rubro or '-' }}</td>
+                <td>{{ p.deposito }}</td>
+                <td>{{ p.stock }}</td>
+                <td>{{ p.stock_min }}</td>
+                <td>${{ "%.2f"|format(p.costo or 0) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">No hay productos. <a href="/importar_excel">Importar desde Excel</a></div>
+    {% endif %}
+</div>
+
+<script>
+window.onload = function() {
+    filtrar();
+};
+
+function filtrar() {
+    const query = document.getElementById('buscar').value.toLowerCase();
+    const filtroStock = document.getElementById('filtro_stock').value;
+    const rows = document.querySelectorAll('#tabla_productos tr');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 6) return;
+        
+        const stock = parseInt(cells[5].textContent) || 0;
+        const stockMin = parseInt(cells[6].textContent) || 0;
+        const text = row.textContent.toLowerCase();
+        
+        let mostrar = text.includes(query);
+        
+        if (filtroStock === 'mayor0' && stock <= 0) mostrar = false;
+        if (filtroStock === 'menor_min' && stock >= stockMin) mostrar = false;
+        if (filtroStock === 'menor_min' && stockMin === 0) mostrar = false;
+        
+        if (mostrar) visibleCount++;
+        row.style.display = mostrar ? '' : 'none';
+    });
+    
+    // Si no hay resultados visibles, mostrar mensaje
+    const emptyMsg = document.getElementById('empty_msg');
+    if (visibleCount === 0 && rows.length > 0) {
+        if (!emptyMsg) {
+            const msg = document.createElement('div');
+            msg.id = 'empty_msg';
+            msg.className = 'empty';
+            msg.textContent = 'No hay productos que coincidan con los filtros';
+            msg.style.marginTop = '20px';
+            document.querySelector('.card').appendChild(msg);
+        }
+    } else if (emptyMsg) {
+        emptyMsg.remove();
+    }
+}
+</script>
+{% endblock %}
