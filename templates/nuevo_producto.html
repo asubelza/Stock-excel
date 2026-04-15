@@ -59,7 +59,7 @@
     
     <div style="margin-top:20px;">
         <button class="btn btn-success" onclick="guardar()">Guardar Producto</button>
-        <a href="/stock" class="btn">Cancelar</a>
+        <a href="{{ url_for('stock') }}" class="btn">Cancelar</a>
     </div>
 </div>
 
@@ -73,7 +73,7 @@ function guardar() {
         return;
     }
     
-    fetch('/api/producto', {
+    fetch('/stock/api/producto', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -91,7 +91,7 @@ function guardar() {
         })
     }).then(r => r.json()).then(data => {
         alert(data.msg);
-        if (data.ok) location.href = '/stock';
+        if (data.ok) location.href = '{{ url_for("stock") }}';
     });
 }
 </script>

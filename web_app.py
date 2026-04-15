@@ -6,8 +6,10 @@ from openpyxl import Workbook, load_workbook
 import os
 from datetime import datetime
 from functools import wraps
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 app = Flask(__name__)
+app.config['APPLICATION_ROOT'] = '/stock'
 app.secret_key = os.environ.get('SECRET_KEY', 'stock-secret-key-2024')
 
 db_uri = os.environ.get('DATABASE_URL', 'sqlite:///stock.db')
@@ -106,7 +108,7 @@ def login_required(f):
             if ruta.startswith(p):
                 return f(*args, **kwargs)
         
-        return redirect('/')
+        return redirect('/stock/')
     return decorated_function
 
 class Producto(db.Model):
@@ -184,14 +186,14 @@ def login():
             session['usuario'] = user
             session['nombre'] = USUARIOS[user]['nombre']
             session['rol'] = USUARIOS[user]['rol']
-            return redirect('/')
+            return redirect('/stock/')
         
         db_user = Usuario.query.filter_by(username=user, estado='A').first()
         if db_user and db_user.password == password:
             session['usuario'] = db_user.username
             session['nombre'] = f"{db_user.nombre} {db_user.apellido or ''}".strip()
             session['rol'] = db_user.rol
-            return redirect('/')
+            return redirect('/stock/')
         
         return render_template('login.html', error='Usuario o contraseña incorrectos')
     
@@ -242,7 +244,7 @@ def clientes():
 @login_required
 def usuarios():
     if session.get('rol') != 'admin':
-        return redirect('/')
+        return redirect('/stock/')
     usuarios = Usuario.query.order_by(Usuario.apellido, Usuario.nombre).all()
     return render_template('usuarios.html', usuarios=usuarios, usuario=session.get('nombre'))
 
@@ -943,3 +945,5 @@ def swagger_json():
 
 if __name__ == '__main__':
     app.run(debug=os.environ.get('DEBUG', 'True').lower() == 'true', host='0.0.0.0', port=5000)
+
+application = DispatcherMiddleware(app, {'/stock': app})

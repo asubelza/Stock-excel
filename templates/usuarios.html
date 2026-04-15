@@ -98,7 +98,7 @@ function guardar_usuario() {
         return;
     }
     
-    fetch('/api/usuario', {
+    fetch('/stock/api/usuario', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -117,7 +117,7 @@ function guardar_usuario() {
 function eliminar_usuario(id) {
     if (!confirm('¿Está seguro de eliminar este usuario?')) return;
     
-    fetch('/api/usuario/' + id, {
+    fetch('/stock/api/usuario/' + id, {
         method: 'DELETE'
     }).then(r => r.json()).then(data => {
         alert(data.msg);

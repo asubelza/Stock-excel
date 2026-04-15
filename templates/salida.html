@@ -4,7 +4,7 @@
 <div class="card">
     <div class="card-header">
         <h2>Salida de Stock</h2>
-        <a href="/nueva_salida" class="btn btn-success">+ Nueva Salida</a>
+        <a href="{{ url_for('nueva_salida') }}" class="btn btn-success">+ Nueva Salida</a>
     </div>
     
     {% if movimientos %}
@@ -109,7 +109,7 @@ function guardar_edicion() {
     const cli_cuit = document.getElementById('edit_cli_cuit').value;
     const cli_nombre = document.getElementById('edit_cli_nombre').value;
     
-    fetch('/api/movimiento/' + id, {
+    fetch('/stock/api/movimiento/' + id, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({

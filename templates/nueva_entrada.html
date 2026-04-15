@@ -92,7 +92,7 @@
     
     <div style="margin-top:20px;">
         <button class="btn btn-success" onclick="confirmar_entrada()">Confirmar Entrada</button>
-        <a href="/" class="btn">Cancelar</a>
+        <a href="{{ url_for('index') }}" class="btn">Cancelar</a>
     </div>
 </div>
 
@@ -106,7 +106,7 @@ function buscar_productos() {
         return;
     }
     
-    fetch('/api/productos?q=' + encodeURIComponent(q))
+    fetch('/stock/api/productos?q=' + encodeURIComponent(q))
         .then(r => r.json())
         .then(data => {
             const div = document.getElementById('prod_resultados');
@@ -178,7 +178,7 @@ function confirmar_entrada() {
         return;
     }
     
-    fetch('/api/entrada', {
+    fetch('/stock/api/entrada', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -190,7 +190,7 @@ function confirmar_entrada() {
         })
     }).then(r => r.json()).then(data => {
         alert(data.msg);
-        if (data.ok) location.href = '/entrada';
+        if (data.ok) location.href = '/stock/entrada';
     });
 }
 </script>

@@ -34,7 +34,7 @@
             <input type="file" name="archivo" accept=".xlsx" required>
         </div>
         <button type="submit" class="btn btn-success">Importar</button>
-        <a href="/stock" class="btn">Cancelar</a>
+        <a href="{{ url_for('stock') }}" class="btn">Cancelar</a>
     </form>
     
     <div id="resultado" style="margin-top:20px;"></div>
@@ -46,7 +46,7 @@ document.getElementById('form_import').onsubmit = function(e) {
     const formData = new FormData(this);
     document.getElementById('resultado').innerHTML = '<p>Importando...</p>';
     
-    fetch('/importar_excel', {
+    fetch('/stock/importar_excel', {
         method: 'POST',
         body: formData
     }).then(r => r.json()).then(data => {
