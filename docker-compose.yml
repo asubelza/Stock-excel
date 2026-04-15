@@ -5,8 +5,10 @@ services:
     build: .
     ports:
       - "5000:5000"
-    volumes:
-      - .:/app
     environment:
       - FLASK_ENV=development
+      - DEBUG=True
+      - DATABASE_URL=sqlite:///stock.db
+    volumes:
+      - ./instance:/app/instance
     command: python web_app.py

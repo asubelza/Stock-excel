@@ -1,0 +1,43 @@
+version: '3'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: stockuser
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-stockpass123}
+      POSTGRES_DB: stockdb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stockuser -d stockdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - stock_network
+
+  web:
+    build: .
+    ports:
+      - "${APP_PORT:-5000}:5000"
+    environment:
+      - FLASK_ENV=production
+      - DEBUG=False
+      - DATABASE_URL=postgresql://stockuser:${DB_PASSWORD:-stockpass123}@db:5432/stockdb
+      - SECRET_KEY=${SECRET_KEY:-stock-secret-key-production-2024}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./instance:/app/instance
+    networks:
+      - stock_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  stock_network:
+    driver: bridge

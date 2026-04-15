@@ -1,15 +1,63 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+from flasgger import Swagger
 from openpyxl import Workbook, load_workbook
 import os
 from datetime import datetime
 from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = 'stock-secret-key-2024'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stock.db'
+app.secret_key = os.environ.get('SECRET_KEY', 'stock-secret-key-2024')
+
+db_uri = os.environ.get('DATABASE_URL', 'sqlite:///stock.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
+
+swagger = Swagger(app, template={
+    "info": {
+        "title": "Gestión de Stock API",
+        "version": "1.0.0",
+        "description": "API para gestión de stock, entradas, salidas, productos, proveedores, clientes y usuarios"
+    },
+    "definitions": {
+        "UsuarioSchema": {
+            "type": "object",
+            "required": ["username", "password", "nombre"],
+            "properties": {
+                "username": {"type": "string"},
+                "password": {"type": "string"},
+                "nombre": {"type": "string"},
+                "apellido": {"type": "string"},
+                "rol": {"type": "string", "enum": ["admin", "datainput", "deposito"]}
+            }
+        },
+        "ProductoSchema": {
+            "type": "object",
+            "required": ["sku", "nombre"],
+            "properties": {
+                "sku": {"type": "string"},
+                "nombre": {"type": "string"},
+                "stock": {"type": "integer"},
+                "costo": {"type": "number"},
+                "precio": {"type": "number"}
+            }
+        },
+        "EntradaSchema": {
+            "type": "object",
+            "properties": {
+                "nro_comp": {"type": "string"},
+                "tipo_comp": {"type": "string"},
+                "proveedor_cuit": {"type": "string"},
+                "proveedor_nombre": {"type": "string"},
+                "items": {"type": "array", "items": {"type": "object"}}
+            }
+        }
+    }
+})
 
 USUARIOS = {
     'admin': {'pass': 'admin123', 'nombre': 'Administrador', 'rol': 'admin'},
@@ -124,7 +172,6 @@ COLUMNAS_EXCEL = {
 }
 
 with app.app_context():
-    db.drop_all()
     db.create_all()
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -202,6 +249,7 @@ def usuarios():
 @app.route('/api/usuario', methods=['POST'])
 @login_required
 def api_usuario():
+    """Crear nuevo usuario"""
     if session.get('rol') != 'admin':
         return jsonify({'ok': False, 'msg': 'Sin permisos'}), 403
     try:
@@ -348,6 +396,21 @@ def nuevo_proveedor():
 @app.route('/api/productos')
 @login_required
 def api_productos():
+    """
+    Listar productos
+    ---
+    tags:
+      - Productos
+    parameters:
+      - name: q
+        in: query
+        type: string
+        required: false
+        description: Buscar por SKU o nombre
+    responses:
+      200:
+        description: Lista de productos
+    """
     query = request.args.get('q', '')
     if query:
         productos = Producto.query.filter(
@@ -363,6 +426,45 @@ def api_productos():
 @app.route('/api/entrada', methods=['POST'])
 @login_required
 def api_entrada():
+    """
+    Registrar entrada de stock
+    ---
+    tags:
+      - Entradas
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              nro_comp:
+                type: string
+              tipo_comp:
+                type: string
+              proveedor_cuit:
+                type: string
+              proveedor_nombre:
+                type: string
+              items:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    sku:
+                      type: string
+                    nombre:
+                      type: string
+                    cantidad:
+                      type: integer
+                    costo:
+                      type: number
+    responses:
+      201:
+        description: Entrada registrada
+      400:
+        description: Error
+    """
     try:
         data = request.json
         items = data.get('items', [])
@@ -412,6 +514,43 @@ def api_entrada():
 @app.route('/api/salida', methods=['POST'])
 @login_required
 def api_salida():
+    """
+    Registrar salida de stock
+    ---
+    tags:
+      - Salidas
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              nro_comp:
+                type: string
+              tipo_comp:
+                type: string
+              cliente_cuit:
+                type: string
+              cliente_nombre:
+                type: string
+              items:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    sku:
+                      type: string
+                    nombre:
+                      type: string
+                    cantidad:
+                      type: integer
+    responses:
+      201:
+        description: Salida registrada
+      400:
+        description: Error
+    """
     try:
         data = request.json
         items = data.get('items', [])
@@ -523,6 +662,37 @@ def api_movimiento_edit(id):
 @app.route('/api/producto', methods=['POST'])
 @login_required
 def api_producto():
+    """
+    Crear nuevo producto
+    ---
+    tags:
+      - Productos
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - sku
+              - nombre
+            properties:
+              sku:
+                type: string
+              nombre:
+                type: string
+              stock:
+                type: integer
+              costo:
+                type: number
+              precio:
+                type: number
+    responses:
+      201:
+        description: Producto creado
+      400:
+        description: Error de validación
+    """
     try:
         data = request.json
         if not data.get('sku') or not data.get('nombre'):
@@ -555,6 +725,36 @@ def api_producto():
 @app.route('/api/proveedor', methods=['POST'])
 @login_required
 def api_proveedor():
+    """
+    Crear nuevo proveedor
+    ---
+    tags:
+      - Proveedores
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - nombre
+            properties:
+              nombre:
+                type: string
+              cuit:
+                type: string
+              telefono:
+                type: string
+              email:
+                type: string
+              direccion:
+                type: string
+    responses:
+      201:
+        description: Proveedor creado
+      400:
+        description: Error
+    """
     try:
         data = request.json
         if not data.get('nombre'):
@@ -736,5 +936,10 @@ def exportar_excel():
     except Exception as e:
         return f'Error: {str(e)}'
 
+@app.route('/swagger.json')
+def swagger_json():
+    """Endpoint que retorna la especificación OpenAPI en JSON"""
+    return jsonify(swagger.config.get('spec', {}))
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=os.environ.get('DEBUG', 'True').lower() == 'true', host='0.0.0.0', port=5000)
