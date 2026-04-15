@@ -78,13 +78,13 @@ class Usuario(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
 
 PERMISOS = {
-    'admin': ['/', '/stock', '/entrada', '/salida', '/proveedores', '/clientes', 
+    'admin': ['/', '/stock/historico', '/stock', '/entrada', '/salida', '/proveedores', '/clientes', 
               '/nueva_entrada', '/nueva_salida', '/nuevo_producto', '/nuevo_proveedor',
               '/nuevo_cliente', '/importar_excel', '/exportar_excel', '/usuarios', '/logout',
               '/api/movimiento/'],
-    'datainput': ['/', '/stock', '/entrada', '/nueva_entrada', '/nuevo_producto', 
+    'datainput': ['/', '/stock/historico', '/stock', '/entrada', '/nueva_entrada', '/nuevo_producto', 
                   '/importar_excel', '/exportar_excel', '/logout', '/api/movimiento/'],
-    'deposito': ['/', '/stock', '/salida', '/nueva_salida', '/logout', '/api/movimiento/'],
+    'deposito': ['/', '/stock/historico', '/stock', '/salida', '/nueva_salida', '/logout', '/api/movimiento/'],
 }
 
 def tiene_permiso(ruta):
@@ -108,7 +108,7 @@ def login_required(f):
             if ruta.startswith(p):
                 return f(*args, **kwargs)
         
-        return redirect('/stock/')
+        return redirect('/stock/stock')
     return decorated_function
 
 class Producto(db.Model):
@@ -186,14 +186,14 @@ def login():
             session['usuario'] = user
             session['nombre'] = USUARIOS[user]['nombre']
             session['rol'] = USUARIOS[user]['rol']
-            return redirect('/stock/')
+            return redirect('/stock/stock')
         
         db_user = Usuario.query.filter_by(username=user, estado='A').first()
         if db_user and db_user.password == password:
             session['usuario'] = db_user.username
             session['nombre'] = f"{db_user.nombre} {db_user.apellido or ''}".strip()
             session['rol'] = db_user.rol
-            return redirect('/stock/')
+            return redirect('/stock/stock')
         
         return render_template('login.html', error='Usuario o contraseña incorrectos')
     
@@ -205,6 +205,7 @@ def logout():
     return redirect('/stock/login')
 
 @app.route('/')
+@app.route('/stock/historico')
 @login_required
 def index():
     return render_template('index.html', movimientos=Movimiento.query.order_by(Movimiento.fecha.desc()).limit(100).all(), usuario=session.get('nombre'))
@@ -243,7 +244,7 @@ def clientes():
 @login_required
 def usuarios():
     if session.get('rol') != 'admin':
-        return redirect('/stock/')
+        return redirect('/stock/stock')
     usuarios = Usuario.query.order_by(Usuario.apellido, Usuario.nombre).all()
     return render_template('usuarios.html', usuarios=usuarios, usuario=session.get('nombre'))
 
