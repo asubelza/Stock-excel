@@ -211,7 +211,6 @@ def index():
     return render_template('index.html', movimientos=Movimiento.query.order_by(Movimiento.fecha.desc()).limit(100).all(), usuario=session.get('nombre'))
 
 @app.route('/stock')
-@app.route('/stock/')
 @login_required
 def stock():
     productos = Producto.query.order_by(Producto.nombre).all()
@@ -245,7 +244,7 @@ def clientes():
 @login_required
 def usuarios():
     if session.get('rol') != 'admin':
-        return redirect('/stock/')
+        return redirect('/stock')
     usuarios = Usuario.query.order_by(Usuario.apellido, Usuario.nombre).all()
     return render_template('usuarios.html', usuarios=usuarios, usuario=session.get('nombre'))
 
