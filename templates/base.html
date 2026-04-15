@@ -60,17 +60,17 @@
             <h1>Gestion de Stock</h1>
         </div>
         <div class="nav">
-            <a href="/historico">Historico</a>
-            <a href="/stock">Stock</a>
-            <a href="/entrada">Entrada</a>
-            <a href="/salida">Salida</a>
-            <a href="/proveedores">Proveedores</a>
-            <a href="/clientes">Clientes</a>
-            {% if session.get('rol') == 'admin' %}<a href="/usuarios">Usuarios</a>{% endif %}
-            <a href="/nueva_entrada">+ Entrada</a>
-            <a href="/nueva_salida">+ Salida</a>
-            <a href="/importar_excel">Importar</a>
-            <a href="/logout">Salir ({{ session.get('nombre') }})</a>
+            <a href="/stock/">Historico</a>
+            <a href="/stock/">Stock</a>
+            <a href="/stock/entrada">Entrada</a>
+            <a href="/stock/salida">Salida</a>
+            <a href="/stock/proveedores">Proveedores</a>
+            <a href="/stock/clientes">Clientes</a>
+            {% if session.get('rol') == 'admin' %}<a href="/stock/usuarios">Usuarios</a>{% endif %}
+            <a href="/stock/nueva_entrada">+ Entrada</a>
+            <a href="/stock/nueva_salida">+ Salida</a>
+            <a href="/stock/importar_excel">Importar</a>
+            <a href="/stock/logout">Salir ({{ session.get('nombre') }})</a>
         </div>
     </div>
     {% endif %}

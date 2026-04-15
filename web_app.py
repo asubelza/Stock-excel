@@ -9,6 +9,7 @@ from functools import wraps
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 app = Flask(__name__)
+app.config['APPLICATION_ROOT'] = '/stock'
 app.secret_key = os.environ.get('SECRET_KEY', 'stock-secret-key-2024')
 
 db_uri = os.environ.get('DATABASE_URL', 'sqlite:///stock.db')
@@ -95,7 +96,7 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'usuario' not in session:
-            return redirect('/login')
+            return redirect('/stock/login')
         rol = session.get('rol')
         permisos = PERMISOS.get(rol, [])
         ruta = request.path
@@ -107,7 +108,7 @@ def login_required(f):
             if ruta.startswith(p):
                 return f(*args, **kwargs)
         
-        return redirect('/stock')
+        return redirect('/stock/')
     return decorated_function
 
 class Producto(db.Model):
@@ -185,14 +186,14 @@ def login():
             session['usuario'] = user
             session['nombre'] = USUARIOS[user]['nombre']
             session['rol'] = USUARIOS[user]['rol']
-            return redirect('/stock')
+            return redirect('/stock/')
         
         db_user = Usuario.query.filter_by(username=user, estado='A').first()
         if db_user and db_user.password == password:
             session['usuario'] = db_user.username
             session['nombre'] = f"{db_user.nombre} {db_user.apellido or ''}".strip()
             session['rol'] = db_user.rol
-            return redirect('/stock')
+            return redirect('/stock/')
         
         return render_template('login.html', error='Usuario o contraseña incorrectos')
     
@@ -201,7 +202,7 @@ def login():
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect('/login')
+    return redirect('/stock/login')
 
 @app.route('/')
 @app.route('/historico')
@@ -210,6 +211,7 @@ def index():
     return render_template('index.html', movimientos=Movimiento.query.order_by(Movimiento.fecha.desc()).limit(100).all(), usuario=session.get('nombre'))
 
 @app.route('/stock')
+@app.route('/stock/')
 @login_required
 def stock():
     productos = Producto.query.order_by(Producto.nombre).all()
@@ -243,7 +245,7 @@ def clientes():
 @login_required
 def usuarios():
     if session.get('rol') != 'admin':
-        return redirect('/stock')
+        return redirect('/stock/')
     usuarios = Usuario.query.order_by(Usuario.apellido, Usuario.nombre).all()
     return render_template('usuarios.html', usuarios=usuarios, usuario=session.get('nombre'))
 

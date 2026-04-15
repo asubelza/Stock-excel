@@ -92,7 +92,7 @@
     
     <div style="margin-top:20px;">
         <button class="btn btn-success" onclick="confirmar_entrada()">Confirmar Entrada</button>
-        <a href="/" class="btn">Cancelar</a>
+        <a href="/stock/" class="btn">Cancelar</a>
     </div>
 </div>
 
@@ -190,7 +190,7 @@ function confirmar_entrada() {
         })
     }).then(r => r.json()).then(data => {
         alert(data.msg);
-        if (data.ok) location.href = '/entrada';
+        if (data.ok) location.href = '/stock/entrada';
     });
 }
 </script>

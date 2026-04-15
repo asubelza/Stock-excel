@@ -5,8 +5,8 @@
     <div class="card-header">
         <h2>Stock de Productos</h2>
         <div>
-            <a href="/nuevo_producto" class="btn btn-success">+ Nuevo Producto</a>
-            <a href="/exportar_excel" class="btn" style="background: #9b59b6; color: white;">Exportar Excel</a>
+            <a href="/stock/nuevo_producto" class="btn btn-success">+ Nuevo Producto</a>
+            <a href="/stock/exportar_excel" class="btn" style="background: #9b59b6; color: white;">Exportar Excel</a>
         </div>
     </div>
     
@@ -49,7 +49,7 @@
         </tbody>
     </table>
     {% else %}
-    <div class="empty">No hay productos. <a href="/importar_excel">Importar desde Excel</a></div>
+    <div class="empty">No hay productos. <a href="/stock/importar_excel">Importar desde Excel</a></div>
     {% endif %}
 </div>
 

@@ -59,7 +59,7 @@
     
     <div style="margin-top:20px;">
         <button class="btn btn-success" onclick="guardar()">Guardar Producto</button>
-        <a href="/stock" class="btn">Cancelar</a>
+        <a href="/stock/" class="btn">Cancelar</a>
     </div>
 </div>
 
@@ -91,7 +91,7 @@ function guardar() {
         })
     }).then(r => r.json()).then(data => {
         alert(data.msg);
-        if (data.ok) location.href = '/stock';
+        if (data.ok) location.href = '/stock/';
     });
 }
 </script>
