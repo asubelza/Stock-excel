@@ -170,7 +170,7 @@ COLUMNAS_EXCEL = {
     2: 'nombre', 3: 'sku', 4: 'tipo', 5: 'estado', 8: 'rubro',
     9: 'subrubro', 10: 'descripcion', 11: 'cod_proveedor', 15: 'observaciones',
     16: 'precio', 17: 'tasa_iva', 18: 'costo', 20: 'cod_barra',
-    21: 'stock_min', 22: 'deposito', 23: 'stock'
+    21: 'stock', 22: 'stock_min', 23: 'deposito'
 }
 
 with app.app_context():
