@@ -60,17 +60,17 @@
             <h1>Gestion de Stock</h1>
         </div>
         <div class="nav">
-            <a href="{{ url_for('index') }}">Historico</a>
-            <a href="{{ url_for('stock') }}">Stock</a>
-            <a href="{{ url_for('entrada') }}">Entrada</a>
-            <a href="{{ url_for('salida') }}">Salida</a>
-            <a href="{{ url_for('proveedores') }}">Proveedores</a>
-            <a href="{{ url_for('clientes') }}">Clientes</a>
-            {% if session.rol == 'admin' %}<a href="{{ url_for('usuarios') }}">Usuarios</a>{% endif %}
-            <a href="{{ url_for('nueva_entrada') }}">+ Entrada</a>
-            <a href="{{ url_for('nueva_salida') }}">+ Salida</a>
-            <a href="{{ url_for('importar_excel') }}">Importar</a>
-            <a href="{{ url_for('logout') }}">Salir ({{ usuario }})</a>
+            <a href="/stock/">Historico</a>
+            <a href="/stock/stock">Stock</a>
+            <a href="/stock/entrada">Entrada</a>
+            <a href="/stock/salida">Salida</a>
+            <a href="/stock/proveedores">Proveedores</a>
+            <a href="/stock/clientes">Clientes</a>
+            {% if session.rol == 'admin' %}<a href="/stock/usuarios">Usuarios</a>{% endif %}
+            <a href="/stock/nueva_entrada">+ Entrada</a>
+            <a href="/stock/nueva_salida">+ Salida</a>
+            <a href="/stock/importar_excel">Importar</a>
+            <a href="/stock/logout">Salir ({{ usuario }})</a>
         </div>
     </div>
     {% endif %}

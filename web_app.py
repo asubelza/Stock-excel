@@ -96,7 +96,7 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'usuario' not in session:
-            return redirect('/login')
+            return redirect('/stock/login')
         rol = session.get('rol')
         permisos = PERMISOS.get(rol, [])
         ruta = request.path
@@ -202,7 +202,7 @@ def login():
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect('/login')
+    return redirect('/stock/login')
 
 @app.route('/')
 @login_required

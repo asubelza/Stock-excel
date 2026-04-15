@@ -91,7 +91,7 @@ function guardar() {
         })
     }).then(r => r.json()).then(data => {
         alert(data.msg);
-        if (data.ok) location.href = '{{ url_for("stock") }}';
+        if (data.ok) location.href = '/stock/stock';
     });
 }
 </script>
