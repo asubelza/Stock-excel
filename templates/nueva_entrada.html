@@ -32,16 +32,18 @@
             <div class="col">
                 <div class="form-group">
                     <label>CUIT</label>
-                    <input type="text" id="prov_cuit">
+                    <input type="text" id="prov_cuit" readonly>
                 </div>
             </div>
             <div class="col">
                 <div class="form-group">
-                    <label>Nombre</label>
-                    <input type="text" id="prov_nombre">
+                    <label>Nombre (buscar o escribir)</label>
+                    <input type="text" id="prov_nombre_buscar" onkeyup="buscar_proveedores()" autocomplete="off" placeholder="Buscar proveedor...">
+                    <div id="prov_resultados" class="resultados"></div>
                 </div>
             </div>
         </div>
+        <input type="hidden" id="prov_nombre">
     </div>
     
     <div class="card" style="background:#fff; border:1px solid #ddd;">
@@ -127,6 +129,36 @@ function seleccionar_producto(sku, nombre, stock) {
     document.getElementById('prod_resultados').style.display = 'none';
 }
 
+function buscar_proveedores() {
+    const q = document.getElementById('prov_nombre_buscar').value;
+    if (q.length < 2) {
+        document.getElementById('prov_resultados').style.display = 'none';
+        return;
+    }
+    
+    fetch('/stock/api/proveedores?q=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(data => {
+            const div = document.getElementById('prov_resultados');
+            if (data.length === 0) {
+                div.innerHTML = '<div style="padding:8px; color:#999;">Sin resultados - escriba manualmente</div>';
+            } else {
+                div.innerHTML = data.map(p => 
+                    '<div onclick="seleccionar_proveedor(\'' + (p.cuit || '') + '\',\'' + p.nombre.replace(/'/g, "\\'") + '\')">' + 
+                    (p.cuit ? p.cuit + ' - ' : '') + p.nombre + '</div>'
+                ).join('');
+            }
+            div.style.display = 'block';
+        });
+}
+
+function seleccionar_proveedor(cuit, nombre) {
+    document.getElementById('prov_cuit').value = cuit;
+    document.getElementById('prov_nombre_buscar').value = nombre;
+    document.getElementById('prov_nombre').value = nombre;
+    document.getElementById('prov_resultados').style.display = 'none';
+}
+
 function agregar_item() {
     const texto = document.getElementById('prod_sku').value;
     const parts = texto.split(' - ');
@@ -185,7 +217,7 @@ function confirmar_entrada() {
             nro_comp: document.getElementById('entrada_nro').value,
             tipo_comp: document.getElementById('entrada_tipo').value,
             proveedor_cuit: document.getElementById('prov_cuit').value,
-            proveedor_nombre: document.getElementById('prov_nombre').value,
+            proveedor_nombre: document.getElementById('prov_nombre').value || document.getElementById('prov_nombre_buscar').value,
             items: items
         })
     }).then(r => r.json()).then(data => {

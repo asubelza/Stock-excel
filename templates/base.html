@@ -40,9 +40,22 @@
         .col-3 { flex: 3; }
         .search-box { display: flex; gap: 10px; margin-bottom: 15px; }
         .search-box input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-        .resultados { border: 1px solid #ddd; max-height: 150px; overflow-y: auto; background: white; display: none; }
-        .resultados div { padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; }
-        .resultados div:hover { background: #f0f0f0; }
+        .resultados { 
+            border: 1px solid #ddd; 
+            max-height: 200px; 
+            overflow-y: auto; 
+            background: white; 
+            display: none; 
+            position: absolute; 
+            z-index: 1000;
+            width: 100%;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            border-radius: 4px;
+        }
+        .resultados div { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 13px; }
+        .resultados div:hover { background: #3498db; color: white; }
+        .resultados-container { position: relative; }
+        .resultados-container input { width: 100%; }
         .items-table { margin: 15px 0; }
         .totales { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: right; font-size: 16px; }
         .error { color: #e74c3c; padding: 10px; background: #fadbd8; border-radius: 4px; margin-bottom: 15px; }

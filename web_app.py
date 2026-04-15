@@ -790,6 +790,22 @@ def api_producto():
         db.session.rollback()
         return jsonify({'ok': False, 'msg': str(e)}), 500
 
+@app.route('/api/proveedores')
+@login_required
+def api_proveedores():
+    """Listar proveedores"""
+    query = request.args.get('q', '')
+    if query:
+        proveedores = Proveedor.query.filter(
+            (Proveedor.nombre.contains(query)) | (Proveedor.cuit.contains(query))
+        ).limit(20).all()
+    else:
+        proveedores = Proveedor.query.limit(20).all()
+    return jsonify([{
+        'id': p.id, 'nombre': p.nombre, 'cuit': p.cuit or '',
+        'direccion': p.direccion or '', 'telefono': p.telefono or ''
+    } for p in proveedores])
+
 @app.route('/api/proveedor', methods=['POST'])
 @login_required
 def api_proveedor():
