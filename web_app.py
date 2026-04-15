@@ -207,7 +207,7 @@ def logout():
 @app.route('/')
 @login_required
 def index():
-    return redirect('/stock/entrada')
+    return render_template('index.html', movimientos=Movimiento.query.order_by(Movimiento.fecha.desc()).limit(100).all(), usuario=session.get('nombre'))
 
 @app.route('/stock')
 @login_required
