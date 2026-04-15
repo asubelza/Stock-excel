@@ -148,6 +148,9 @@ class Movimiento(db.Model):
     cliente_cuit = db.Column(db.String(20))
     cliente_nombre = db.Column(db.String(200))
     observacion = db.Column(db.String(200))
+    eliminado = db.Column(db.Boolean, default=False)
+    eliminado_por = db.Column(db.String(50))
+    eliminado_fecha = db.Column(db.DateTime)
 
 class Proveedor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -207,7 +210,7 @@ def logout():
 @app.route('/historico')
 @login_required
 def index():
-    return render_template('index.html', movimientos=Movimiento.query.order_by(Movimiento.fecha.desc()).limit(100).all(), usuario=session.get('nombre'))
+    return render_template('index.html', movimientos=Movimiento.query.filter_by(eliminado=False).order_by(Movimiento.fecha.desc()).limit(100).all(), usuario=session.get('nombre'))
 
 @app.route('/stock')
 @app.route('/stockdb')
@@ -219,13 +222,13 @@ def stock():
 @app.route('/entrada')
 @login_required
 def entrada():
-    movimientos = Movimiento.query.filter_by(tipo='ENTRADA').order_by(Movimiento.fecha.desc()).limit(100).all()
+    movimientos = Movimiento.query.filter_by(tipo='ENTRADA', eliminado=False).order_by(Movimiento.fecha.desc()).limit(100).all()
     return render_template('entrada.html', movimientos=movimientos, usuario=session.get('nombre'))
 
 @app.route('/salida')
 @login_required
 def salida():
-    movimientos = Movimiento.query.filter_by(tipo='SALIDA').order_by(Movimiento.fecha.desc()).limit(100).all()
+    movimientos = Movimiento.query.filter_by(tipo='SALIDA', eliminado=False).order_by(Movimiento.fecha.desc()).limit(100).all()
     return render_template('salida.html', movimientos=movimientos, usuario=session.get('nombre'))
 
 @app.route('/proveedores')
@@ -656,6 +659,59 @@ def api_movimiento_edit(id):
         db.session.commit()
         
         return jsonify({'ok': True, 'msg': 'Movimiento actualizado'})
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'ok': False, 'msg': str(e)}), 500
+
+@app.route('/api/movimiento/<int:id>', methods=['DELETE'])
+@login_required
+def api_movimiento_delete(id):
+    """Eliminar (anular) movimiento"""
+    try:
+        movimiento = Movimiento.query.get(id)
+        if not movimiento:
+            return jsonify({'ok': False, 'msg': 'Movimiento no encontrado'}), 404
+        
+        if movimiento.eliminado:
+            return jsonify({'ok': False, 'msg': 'Movimiento ya fue eliminado'}), 400
+        
+        if session.get('rol') != 'admin':
+            return jsonify({'ok': False, 'msg': 'Solo admins pueden eliminar movimientos'}), 403
+        
+        usuario = session.get('usuario', 'admin')
+        
+        producto = Producto.query.filter_by(sku=movimiento.sku).first()
+        if producto:
+            if movimiento.tipo == 'ENTRADA':
+                producto.stock = (producto.stock or 0) - movimiento.cantidad
+            elif movimiento.tipo == 'SALIDA':
+                producto.stock = (producto.stock or 0) + movimiento.cantidad
+        
+        movimiento.eliminado = True
+        movimiento.eliminado_por = usuario
+        movimiento.eliminado_fecha = datetime.now()
+        
+        movimiento_anulado = Movimiento(
+            usuario=usuario,
+            sku=movimiento.sku,
+            producto=movimiento.producto,
+            tipo='ANULADO',
+            cantidad=movimiento.cantidad,
+            deposito=movimiento.deposito,
+            nro_comp=movimiento.nro_comp,
+            tipo_comp=movimiento.tipo_comp,
+            costo=movimiento.costo,
+            proveedor_cuit=movimiento.proveedor_cuit,
+            proveedor_nombre=movimiento.proveedor_nombre,
+            cliente_cuit=movimiento.cliente_cuit,
+            cliente_nombre=movimiento.cliente_nombre,
+            observacion=f"ANULADO - Original ID:{movimiento.id} - Usuario que anula:{usuario}"
+        )
+        db.session.add(movimiento_anulado)
+        db.session.commit()
+        
+        return jsonify({'ok': True, 'msg': 'Movimiento anulado correctamente'})
     
     except Exception as e:
         db.session.rollback()

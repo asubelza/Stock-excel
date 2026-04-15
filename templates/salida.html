@@ -35,7 +35,10 @@
                 <td>{{ m.tipo_comp or '-' }}</td>
                 <td>{{ m.nro_comp or '-' }}</td>
                 <td>{{ m.cliente_nombre or '-' }}</td>
-                <td><button class="btn" style="padding:4px 8px; font-size:12px;" onclick="editar_movimiento({{ m.id }}, '{{ m.sku }}', '{{ m.producto }}', {{ m.cantidad }}, '{{ m.nro_comp or '' }}', '{{ m.tipo_comp or '' }}', '{{ m.cliente_cuit or '' }}', '{{ m.cliente_nombre or '' }}')">Editar</button></td>
+                <td>
+                    <button class="btn" style="padding:4px 8px; font-size:12px;" onclick="editar_movimiento({{ m.id }}, '{{ m.sku }}', '{{ m.producto }}', {{ m.cantidad }}, '{{ m.nro_comp or '' }}', '{{ m.tipo_comp or '' }}', '{{ m.cliente_cuit or '' }}', '{{ m.cliente_nombre or '' }}')">Editar</button>
+                    <button class="btn btn-danger" style="padding:4px 8px; font-size:12px;" onclick="eliminar_movimiento({{ m.id }}, '{{ m.producto }}', {{ m.cantidad }})">X</button>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
