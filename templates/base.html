@@ -54,7 +54,7 @@
     </style>
 </head>
 <body>
-    {% if session.usuario %}
+    {% if session.get('usuario') %}
     <div class="header">
         <div>
             <h1>Gestion de Stock</h1>
@@ -66,11 +66,11 @@
             <a href="/stock/salida">Salida</a>
             <a href="/stock/proveedores">Proveedores</a>
             <a href="/stock/clientes">Clientes</a>
-            {% if session.rol == 'admin' %}<a href="/stock/usuarios">Usuarios</a>{% endif %}
+            {% if session.get('rol') == 'admin' %}<a href="/stock/usuarios">Usuarios</a>{% endif %}
             <a href="/stock/nueva_entrada">+ Entrada</a>
             <a href="/stock/nueva_salida">+ Salida</a>
             <a href="/stock/importar_excel">Importar</a>
-            <a href="/stock/logout">Salir ({{ usuario }})</a>
+            <a href="/stock/logout">Salir ({{ session.get('nombre') }})</a>
         </div>
     </div>
     {% endif %}
