@@ -177,13 +177,16 @@ COLUMNAS_EXCEL = {
 
 with app.app_context():
     db.create_all()
-    try:
-        db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN IF NOT EXISTS eliminado BOOLEAN DEFAULT 0"))
-        db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN IF NOT EXISTS eliminado_por VARCHAR(50)"))
-        db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN IF NOT EXISTS eliminado_fecha DATETIME"))
-        db.session.commit()
-    except:
-        pass
+    from sqlalchemy import inspect
+    inspector = inspect(db.engine)
+    columnas = [c['name'] for c in inspector.get_columns('movimiento')]
+    if 'eliminado' not in columnas:
+        db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN eliminado BOOLEAN DEFAULT 0"))
+    if 'eliminado_por' not in columnas:
+        db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN eliminado_por VARCHAR(50)"))
+    if 'eliminado_fecha' not in columnas:
+        db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN eliminado_fecha DATETIME"))
+    db.session.commit()
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
