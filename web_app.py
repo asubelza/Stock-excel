@@ -202,7 +202,7 @@ def login():
 @app.route('/logout')
 def logout():
     session.clear()
-    return render_template('login.html')
+    return redirect('/stock/')
 
 @app.route('/')
 @login_required
