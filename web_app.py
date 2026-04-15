@@ -210,6 +210,7 @@ def index():
     return render_template('index.html', movimientos=Movimiento.query.order_by(Movimiento.fecha.desc()).limit(100).all(), usuario=session.get('nombre'))
 
 @app.route('/stock')
+@app.route('/stock/stock')
 @login_required
 def stock():
     productos = Producto.query.order_by(Producto.nombre).all()
