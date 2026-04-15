@@ -207,7 +207,7 @@ def logout():
 @app.route('/')
 @login_required
 def index():
-    return redirect('/stock/stock')
+    return redirect('/stock/entrada')
 
 @app.route('/stock')
 @login_required
