@@ -119,6 +119,7 @@ function guardar_edicion() {
     
     fetch('/stock/api/movimiento/' + id, {
         method: 'PUT',
+        credentials: 'include',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             cantidad: nueva_cantidad,
@@ -140,6 +141,7 @@ function eliminar_movimiento(id, producto, cantidad) {
     
     fetch('/stock/api/movimiento/' + id, {
         method: 'DELETE',
+        credentials: 'include',
         headers: {'Content-Type': 'application/json'}
     }).then(r => r.json()).then(data => {
         alert(data.msg);
