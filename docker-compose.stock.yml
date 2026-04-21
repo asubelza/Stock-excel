@@ -1,14 +1,17 @@
 version: '3'
 
 services:
+
   stock:
     build: .
+    ports:
+      - "8001:5000"
     environment:
       - DATABASE_URL=postgresql://stockuser:stockpass123@db:5432/stockdb
     depends_on:
       - db
     networks:
-      - app-network
+      - web_ecjy_app-network
     restart: unless-stopped
 
   db:
@@ -20,12 +23,12 @@ services:
     volumes:
       - stock_db_data:/var/lib/postgresql/data
     networks:
-      - app-network
+      - web_ecjy_app-network
     restart: unless-stopped
 
 networks:
-  app-network:
-    driver: bridge
+  web_ecjy_app-network:
+    external: true
 
 volumes:
   stock_db_data:
