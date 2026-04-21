@@ -1,0 +1,34 @@
+version: '3'
+
+services:
+
+  stock:
+    build: .
+    ports:
+      - "8001:5000"
+    environment:
+      - DATABASE_URL=postgresql://stockuser:stockpass123@db:5432/stockdb
+    depends_on:
+      - db
+    networks:
+      - web_ecjy_app-network
+    restart: unless-stopped
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: stockuser
+      POSTGRES_PASSWORD: stockpass123
+      POSTGRES_DB: stockdb
+    volumes:
+      - stock_db_data:/var/lib/postgresql/data
+    networks:
+      - web_ecjy_app-network
+    restart: unless-stopped
+
+networks:
+  web_ecjy_app-network:
+    external: true
+
+volumes:
+  stock_db_data:

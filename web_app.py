@@ -4,7 +4,7 @@ from flask_migrate import Migrate
 from flasgger import Swagger
 from openpyxl import Workbook, load_workbook
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
@@ -12,11 +12,34 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'stock-secret-key-2024')
 
 db_uri = os.environ.get('DATABASE_URL', 'sqlite:///stock.db')
+if db_uri and db_uri.startswith('postgresql://'):
+    db_uri = db_uri.replace('postgresql://', 'postgresql+psycopg2://')
 app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+    'pool_size': 10,
+    'max_overflow': 20,
+}
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+def usar_postgresql():
+    return db_uri and 'postgresql' in db_uri.lower()
+
+def lock_producto(sku):
+    if usar_postgresql():
+        import hashlib
+        sku_hash = int(hashlib.md5(sku.encode()).hexdigest()[:16], 16) % (2**31)
+        db.session.execute(db.text(f"SELECT pg_try_advisory_lock({sku_hash})"))
+
+def unlock_producto(sku):
+    if usar_postgresql():
+        import hashlib
+        sku_hash = int(hashlib.md5(sku.encode()).hexdigest()[:16], 16) % (2**31)
+        db.session.execute(db.text(f"SELECT pg_advisory_unlock({sku_hash})"))
 
 swagger = Swagger(app, template={
     "info": {
@@ -65,6 +88,10 @@ USUARIOS = {
     'deposito': {'pass': 'depo123', 'nombre': 'Deposito', 'rol': 'deposito'},
     'datainput': {'pass': 'data123', 'nombre': 'DataInput', 'rol': 'datainput'},
 }
+
+login_intentos = {}
+MAX_INTENTOS = 5
+BLOQUEO_MINUTOS = 15
 
 class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -168,6 +195,19 @@ class Cliente(db.Model):
     telefono = db.Column(db.String(50))
     email = db.Column(db.String(100))
 
+class Lote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sku = db.Column(db.String(50), nullable=False)
+    cantidad = db.Column(db.Integer, nullable=False)
+    cantidad_disponible = db.Column(db.Integer, nullable=False)
+    costo_unitario = db.Column(db.Float, default=0)
+    fecha_ingreso = db.Column(db.DateTime, default=datetime.now)
+    fecha_vencimiento = db.Column(db.DateTime)
+    nro_lote = db.Column(db.String(50))
+    deposito = db.Column(db.String(50))
+    # Solo backref simple - lote_id se maneja manualmente
+    lote_id = db.Column(db.Integer)
+
 COLUMNAS_EXCEL = {
     2: 'nombre', 3: 'sku', 4: 'tipo', 5: 'estado', 8: 'rubro',
     9: 'subrubro', 10: 'descripcion', 11: 'cod_proveedor', 15: 'observaciones',
@@ -186,15 +226,35 @@ with app.app_context():
         db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN eliminado_por VARCHAR(50)"))
     if 'eliminado_fecha' not in columnas:
         db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN eliminado_fecha DATETIME"))
+    if 'lote_id' not in columnas:
+        db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN lote_id INTEGER"))
+    
+    tablas = inspector.get_table_names()
+    if 'lote' not in tablas:
+        db.create_all()
+    
     db.session.commit()
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    ip = request.remote_addr or request.headers.get('X-Forwarded-For', 'unknown')
+    
     if request.method == 'POST':
         user = request.form.get('usuario', '').strip()
         password = request.form.get('password', '').strip()
         
+        bloqueado = login_intentos.get(ip, {})
+        if bloqueado.get('bloqueado', False):
+            tiempo_bloqueo = bloqueado.get('hasta', datetime.now())
+            if datetime.now() < tiempo_bloqueo:
+                tiempo_restante = (tiempo_bloqueo - datetime.now()).seconds // 60 + 1
+                return render_template('login.html', error=f' IP bloqueada. Intente en {tiempo_restante} minutos')
+            else:
+                del login_intentos[ip]
+        
         if user in USUARIOS and USUARIOS[user]['pass'] == password:
+            if ip in login_intentos:
+                del login_intentos[ip]
             session['usuario'] = user
             session['nombre'] = USUARIOS[user]['nombre']
             session['rol'] = USUARIOS[user]['rol']
@@ -202,12 +262,25 @@ def login():
         
         db_user = Usuario.query.filter_by(username=user, estado='A').first()
         if db_user and db_user.password == password:
+            if ip in login_intentos:
+                del login_intentos[ip]
             session['usuario'] = db_user.username
             session['nombre'] = f"{db_user.nombre} {db_user.apellido or ''}".strip()
             session['rol'] = db_user.rol
             return redirect('/stock/')
         
-        return render_template('login.html', error='Usuario o contraseña incorrectos')
+        intentos = login_intentos.get(ip, {'count': 0})
+        intentos['count'] = intentos.get('count', 0) + 1
+        
+        if intentos['count'] >= MAX_INTENTOS:
+            intentos['bloqueado'] = True
+            intentos['hasta'] = datetime.now() + timedelta(minutes=BLOQUEO_MINUTOS)
+            login_intentos[ip] = intentos
+            return render_template('login.html', error=f'Demasiados intentos. IP bloqueada por {BLOQUEO_MINUTOS} minutos')
+        
+        login_intentos[ip] = intentos
+        intentos_faltantes = MAX_INTENTOS - intentos['count']
+        return render_template('login.html', error=f'Usuario o contraseña incorrectos. Intentos restantes: {intentos_faltantes}')
     
     return render_template('login.html')
 
@@ -504,6 +577,17 @@ def api_entrada():
             if item.get('costo'):
                 producto.costo = item['costo']
             
+            nuevo_lote = Lote(
+                sku=item['sku'],
+                cantidad=item['cantidad'],
+                cantidad_disponible=item['cantidad'],
+                costo_unitario=item.get('costo', 0),
+                nro_lote=data.get('nro_comp', ''),
+                deposito=item.get('deposito', 'Principal')
+            )
+            db.session.add(nuevo_lote)
+            db.session.flush()
+            
             movimiento = Movimiento(
                 usuario=session.get('usuario', 'admin'),
                 sku=item['sku'],
@@ -515,6 +599,7 @@ def api_entrada():
                 tipo_comp=data.get('tipo_comp', ''),
                 costo=item.get('costo', 0),
                 proveedor_cuit=data.get('proveedor_cuit', ''),
+                lote_id=nuevo_lote.id,
                 proveedor_nombre=data.get('proveedor_nombre', '')
             )
             db.session.add(movimiento)
@@ -577,28 +662,45 @@ def api_salida():
             if not item.get('sku') or not item.get('cantidad'):
                 continue
             
-            producto = Producto.query.filter_by(sku=item['sku']).first()
-            if not producto:
-                return jsonify({'ok': False, 'msg': f'Producto {item["sku"]} no encontrado'}), 400
-            
-            if (producto.stock or 0) < item['cantidad']:
-                return jsonify({'ok': False, 'msg': f'Stock insuficiente para {item["sku"]}'}), 400
-            
-            producto.stock -= item['cantidad']
-            
-            movimiento = Movimiento(
-                usuario=session.get('usuario', 'admin'),
-                sku=item['sku'],
-                producto=item.get('nombre', item['sku']),
-                tipo='SALIDA',
-                cantidad=item['cantidad'],
-                deposito=producto.deposito,
-                nro_comp=data.get('nro_comp', ''),
-                tipo_comp=data.get('tipo_comp', ''),
-                cliente_cuit=data.get('cliente_cuit', ''),
-                cliente_nombre=data.get('cliente_nombre', '')
-            )
-            db.session.add(movimiento)
+            lock_producto(item['sku'])
+            try:
+                producto = Producto.query.filter_by(sku=item['sku']).first()
+                if not producto:
+                    return jsonify({'ok': False, 'msg': f'Producto {item["sku"]} no encontrado'}), 400
+                
+                stock_actual = producto.stock or 0
+                if stock_actual < item['cantidad']:
+                    return jsonify({'ok': False, 'msg': f'Stock insuficiente para {item["sku"]}. Stock actual: {stock_actual}, Solicitado: {item["cantidad"]}'}), 400
+                
+                cantidad_a_sacar = item['cantidad']
+                lotes = Lote.query.filter_by(sku=item['sku']).filter(Lote.cantidad_disponible > 0).order_by(Lote.fecha_ingreso).all()
+                
+                lote_ids = []
+                for lote in lotes:
+                    if cantidad_a_sacar <= 0:
+                        break
+                    tomar = min(cantidad_a_sacar, lote.cantidad_disponible)
+                    lote.cantidad_disponible -= tomar
+                    cantidad_a_sacar -= tomar
+                    lote_ids.append(f"{lote.nro_lote}:{tomar}")
+                
+                producto.stock -= item['cantidad']
+                
+                movimiento = Movimiento(
+                    usuario=session.get('usuario', 'admin'),
+                    sku=item['sku'],
+                    producto=item.get('nombre', item['sku']),
+                    tipo='SALIDA',
+                    cantidad=item['cantidad'],
+                    deposito=producto.deposito,
+                    nro_comp=data.get('nro_comp', ''),
+                    tipo_comp=data.get('tipo_comp', ''),
+                    cliente_cuit=data.get('cliente_cuit', ''),
+                    cliente_nombre=data.get('cliente_nombre', '')
+                )
+                db.session.add(movimiento)
+            finally:
+                unlock_producto(item['sku'])
         
         db.session.commit()
         return jsonify({'ok': True, 'msg': f'{len(items)} salidas registradas'})
@@ -628,14 +730,17 @@ def api_movimiento_edit(id):
         if nueva_cantidad != cantidad_anterior:
             producto = Producto.query.filter_by(sku=movimiento.sku).first()
             if producto:
+                diferencia = nueva_cantidad - cantidad_anterior
+                stock_actual = producto.stock or 0
+                
                 if movimiento.tipo == 'ENTRADA':
-                    diferencia = nueva_cantidad - cantidad_anterior
-                    producto.stock = (producto.stock or 0) + diferencia
+                    producto.stock = stock_actual + diferencia
                 elif movimiento.tipo == 'SALIDA':
-                    diferencia = cantidad_anterior - nueva_cantidad
-                    if (producto.stock or 0) < diferencia:
-                        return jsonify({'ok': False, 'msg': 'Stock insuficiente'}), 400
-                    producto.stock = (producto.stock or 0) - diferencia
+                    if diferencia > 0 and stock_actual < diferencia:
+                        return jsonify({'ok': False, 'msg': f'Stock insuficiente. Stock actual: {stock_actual}, diferencia: {diferencia}'}), 400
+                    if stock_actual - diferencia < 0:
+                        return jsonify({'ok': False, 'msg': 'Stock no puede ser negativo'}), 400
+                    producto.stock = stock_actual - diferencia
         
         movimiento.cantidad = nueva_cantidad
         
