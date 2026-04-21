@@ -7,6 +7,20 @@
         <a href="/stock/nueva_salida" class="btn btn-success">+ Nueva Salida</a>
     </div>
     
+    <div class="search-box" style="display:flex; gap:10px; flex-wrap:wrap;">
+        <input type="text" id="buscar" placeholder="Buscar por SKU, producto, cliente..." onkeyup="filtrar()" style="flex:2; padding:10px; border:1px solid #ddd; border-radius:4px;">
+        <select id="filtro_tipo" onchange="filtrar()" style="padding:10px; border:1px solid #ddd; border-radius:4px;">
+            <option value="">Todos los tipos</option>
+            <option value="Venta">Venta</option>
+            <option value="Presupuesto">Presupuesto</option>
+            <option value="Uso interno">Uso interno</option>
+            <option value="Merma">Merma</option>
+            <option value="Devolucion">Devolución</option>
+        </select>
+        <input type="date" id="fecha_desde" onchange="filtrar()" style="padding:10px; border:1px solid #ddd; border-radius:4px;" placeholder="Desde">
+        <input type="date" id="fecha_hasta" onchange="filtrar()" style="padding:10px; border:1px solid #ddd; border-radius:4px;" placeholder="Hasta">
+    </div>
+    
     {% if movimientos %}
     <table>
         <thead>
@@ -23,9 +37,9 @@
                 <th></th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="tabla_movimientos">
             {% for m in movimientos %}
-            <tr>
+            <tr data-tipo="{{ m.tipo_comp or '' }}" data-fecha="{{ m.fecha.strftime('%Y-%m-%d') }}">
                 <td>{{ m.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
                 <td>{{ m.usuario }}</td>
                 <td>{{ m.sku }}</td>
@@ -126,6 +140,43 @@ function guardar_edicion() {
         alert(data.msg);
         if (data.ok) location.reload();
     });
+}
+
+function filtrar() {
+    const query = document.getElementById('buscar').value.toLowerCase();
+    const filtroTipo = document.getElementById('filtro_tipo').value;
+    const fechaDesde = document.getElementById('fecha_desde').value;
+    const fechaHasta = document.getElementById('fecha_hasta').value;
+    const rows = document.querySelectorAll('#tabla_movimientos tr');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const dataTipo = row.getAttribute('data-tipo') || '';
+        const dataFecha = row.getAttribute('data-fecha') || '';
+        
+        let mostrar = text.includes(query);
+        
+        if (filtroTipo && dataTipo !== filtroTipo) mostrar = false;
+        if (fechaDesde && dataFecha < fechaDesde) mostrar = false;
+        if (fechaHasta && dataFecha > fechaHasta) mostrar = false;
+        
+        if (mostrar) visibleCount++;
+        row.style.display = mostrar ? '' : 'none';
+    });
+    
+    const tabla = document.querySelector('#tabla_movimientos');
+    let emptyMsg = document.getElementById('empty_msg');
+    if (visibleCount === 0 && rows.length > 0) {
+        if (!emptyMsg) {
+            emptyMsg = document.createElement('tr');
+            emptyMsg.id = 'empty_msg';
+            emptyMsg.innerHTML = '<td colspan="10" style="text-align:center; color:#999; padding:40px;">No hay salidas que coincidan con los filtros</td>';
+            tabla.appendChild(emptyMsg);
+        }
+    } else if (emptyMsg) {
+        emptyMsg.remove();
+    }
 }
 </script>
 {% endblock %}

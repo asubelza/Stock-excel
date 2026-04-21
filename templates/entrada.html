@@ -7,6 +7,59 @@
         <a href="/stock/nueva_entrada" class="btn btn-success">+ Nueva Entrada</a>
     </div>
     
+    <div class="search-box" style="display:flex; gap:10px; flex-wrap:wrap;">
+        <input type="text" id="buscar" placeholder="Buscar por SKU, producto, proveedor..." onkeyup="filtrar()" style="flex:2; padding:10px; border:1px solid #ddd; border-radius:4px;">
+        <select id="filtro_tipo" onchange="filtrar()" style="padding:10px; border:1px solid #ddd; border-radius:4px;">
+            <option value="">Todos los tipos</option>
+            <option value="Factura">Factura</option>
+            <option value="Remito">Remito</option>
+            <option value="Presupuesto">Presupuesto</option>
+            <option value="Orden de compra">Orden de compra</option>
+        </select>
+        <input type="date" id="fecha_desde" onchange="filtrar()" style="padding:10px; border:1px solid #ddd; border-radius:4px;" placeholder="Desde">
+        <input type="date" id="fecha_hasta" onchange="filtrar()" style="padding:10px; border:1px solid #ddd; border-radius:4px;" placeholder="Hasta">
+    </div>
+    
+    {% if movimientos %}
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Usuario</th>
+                <th>SKU</th>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Costo</th>
+                <th>Tipo Comp</th>
+                <th>Nro Comp</th>
+                <th>Proveedor</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="tabla_movimientos">
+            {% for m in movimientos %}
+            <tr data-tipo="{{ m.tipo_comp or '' }}" data-fecha="{{ m.fecha.strftime('%Y-%m-%d') }}">
+                <td>{{ m.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                <td>{{ m.usuario }}</td>
+                <td>{{ m.sku }}</td>
+                <td>{{ m.producto }}</td>
+                <td class="entrada">{{ m.cantidad }}</td>
+                <td>${{ "%.2f"|format(m.costo or 0) }}</td>
+                <td>{{ m.tipo_comp or '-' }}</td>
+                <td>{{ m.nro_comp or '-' }}</td>
+                <td>{{ m.proveedor_nombre or '-' }}</td>
+                <td>
+                    <button class="btn" style="padding:4px 8px; font-size:12px;" onclick="editar_movimiento({{ m.id }}, '{{ m.sku }}', '{{ m.producto }}', {{ m.cantidad }}, {{ m.costo or 0 }}, '{{ m.nro_comp or '' }}', '{{ m.tipo_comp or '' }}', '{{ m.proveedor_cuit or '' }}', '{{ m.proveedor_nombre or '' }}')">Editar</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">No hay entradas registradas</div>
+    {% endif %}
+</div>
+    
     {% if movimientos %}
     <table>
         <thead>
@@ -147,6 +200,45 @@ function eliminar_movimiento(id, producto, cantidad) {
     }).catch(err => {
         alert('Error: ' + err);
     });
+}
+
+function filtrar() {
+    const query = document.getElementById('buscar').value.toLowerCase();
+    const filtroTipo = document.getElementById('filtro_tipo').value;
+    const fechaDesde = document.getElementById('fecha_desde').value;
+    const fechaHasta = document.getElementById('fecha_hasta').value;
+    const rows = document.querySelectorAll('#tabla_movimientos tr');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const dataTipo = row.getAttribute('data-tipo') || '';
+        const dataFecha = row.getAttribute('data-fecha') || '';
+        
+        let mostrar = text.includes(query);
+        
+        if (filtroTipo && dataTipo !== filtroTipo) mostrar = false;
+        
+        if (fechaDesde && dataFecha < fechaDesde) mostrar = false;
+        if (fechaHasta && dataFecha > fechaHasta) mostrar = false;
+        
+        if (mostrar) visibleCount++;
+        row.style.display = mostrar ? '' : 'none';
+    });
+    
+    // Mostrar/ocultar mensaje de no resultados
+    const tabla = document.querySelector('#tabla_movimientos');
+    let emptyMsg = document.getElementById('empty_msg');
+    if (visibleCount === 0 && rows.length > 0) {
+        if (!emptyMsg) {
+            emptyMsg = document.createElement('tr');
+            emptyMsg.id = 'empty_msg';
+            emptyMsg.innerHTML = '<td colspan="10" style="text-align:center; color:#999; padding:40px;">No hay entradas que coincidan con los filtros</td>';
+            tabla.appendChild(emptyMsg);
+        }
+    } else if (emptyMsg) {
+        emptyMsg.remove();
+    }
 }
 </script>
 {% endblock %}
