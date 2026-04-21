@@ -205,7 +205,8 @@ class Lote(db.Model):
     fecha_vencimiento = db.Column(db.DateTime)
     nro_lote = db.Column(db.String(50))
     deposito = db.Column(db.String(50))
-    movimientos = db.relationship('Movimiento', foreign_keys='Movimiento.lote_id', backref='lote', lazy=True)
+    # Solo backref simple - lote_id se maneja manualmente
+    lote_id = db.Column(db.Integer)
 
 COLUMNAS_EXCEL = {
     2: 'nombre', 3: 'sku', 4: 'tipo', 5: 'estado', 8: 'rubro',
