@@ -168,6 +168,18 @@ class Cliente(db.Model):
     telefono = db.Column(db.String(50))
     email = db.Column(db.String(100))
 
+class Lote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sku = db.Column(db.String(50), nullable=False)
+    cantidad = db.Column(db.Integer, nullable=False)
+    cantidad_disponible = db.Column(db.Integer, nullable=False)
+    costo_unitario = db.Column(db.Float, default=0)
+    fecha_ingreso = db.Column(db.DateTime, default=datetime.now)
+    fecha_vencimiento = db.Column(db.DateTime)
+    nro_lote = db.Column(db.String(50))
+    deposito = db.Column(db.String(50))
+    movimientos = db.relationship('Movimiento', backref='lote', lazy=True)
+
 COLUMNAS_EXCEL = {
     2: 'nombre', 3: 'sku', 4: 'tipo', 5: 'estado', 8: 'rubro',
     9: 'subrubro', 10: 'descripcion', 11: 'cod_proveedor', 15: 'observaciones',
@@ -186,6 +198,13 @@ with app.app_context():
         db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN eliminado_por VARCHAR(50)"))
     if 'eliminado_fecha' not in columnas:
         db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN eliminado_fecha DATETIME"))
+    if 'lote_id' not in columnas:
+        db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN lote_id INTEGER"))
+    
+    tablas = inspector.get_table_names()
+    if 'lote' not in tablas:
+        db.create_all()
+    
     db.session.commit()
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -504,6 +523,17 @@ def api_entrada():
             if item.get('costo'):
                 producto.costo = item['costo']
             
+            nuevo_lote = Lote(
+                sku=item['sku'],
+                cantidad=item['cantidad'],
+                cantidad_disponible=item['cantidad'],
+                costo_unitario=item.get('costo', 0),
+                nro_lote=data.get('nro_comp', ''),
+                deposito=item.get('deposito', 'Principal')
+            )
+            db.session.add(nuevo_lote)
+            db.session.flush()
+            
             movimiento = Movimiento(
                 usuario=session.get('usuario', 'admin'),
                 sku=item['sku'],
@@ -515,6 +545,7 @@ def api_entrada():
                 tipo_comp=data.get('tipo_comp', ''),
                 costo=item.get('costo', 0),
                 proveedor_cuit=data.get('proveedor_cuit', ''),
+                lote_id=nuevo_lote.id
                 proveedor_nombre=data.get('proveedor_nombre', '')
             )
             db.session.add(movimiento)
@@ -584,6 +615,18 @@ def api_salida():
             stock_actual = producto.stock or 0
             if stock_actual < item['cantidad']:
                 return jsonify({'ok': False, 'msg': f'Stock insuficiente para {item["sku"]}. Stock actual: {stock_actual}, Solicitado: {item["cantidad"]}'}), 400
+            
+            cantidad_a_sacar = item['cantidad']
+            lotes = Lote.query.filter_by(sku=item['sku']).filter(Lote.cantidad_disponible > 0).order_by(Lote.fecha_ingreso).all()
+            
+            lote_ids = []
+            for lote in lotes:
+                if cantidad_a_sacar <= 0:
+                    break
+                tomar = min(cantidad_a_sacar, lote.cantidad_disponible)
+                lote.cantidad_disponible -= tomar
+                cantidad_a_sacar -= tomar
+                lote_ids.append(f"{lote.nro_lote}:{tomar}")
             
             producto.stock -= item['cantidad']
             
