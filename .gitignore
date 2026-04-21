@@ -1,4 +1,9 @@
-build/
-*.spec
+app*.py
+test_*.py
 __pycache__/
 *.pyc
+instance/
+.env
+*.db
+*.xlsx~
+.DS_Store
