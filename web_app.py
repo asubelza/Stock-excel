@@ -598,7 +598,7 @@ def api_entrada():
                 tipo_comp=data.get('tipo_comp', ''),
                 costo=item.get('costo', 0),
                 proveedor_cuit=data.get('proveedor_cuit', ''),
-                lote_id=nuevo_lote.id
+                lote_id=nuevo_lote.id,
                 proveedor_nombre=data.get('proveedor_nombre', '')
             )
             db.session.add(movimiento)
@@ -730,14 +730,16 @@ def api_movimiento_edit(id):
             producto = Producto.query.filter_by(sku=movimiento.sku).first()
             if producto:
                 diferencia = nueva_cantidad - cantidad_anterior
+                stock_actual = producto.stock or 0
                 
                 if movimiento.tipo == 'ENTRADA':
-                    producto.stock = (producto.stock or 0) + diferencia
+                    producto.stock = stock_actual + diferencia
                 elif movimiento.tipo == 'SALIDA':
-                    nuevo_stock = (producto.stock or 0) - diferencia
-                    if diferencia > 0 and (producto.stock or 0) < diferencia:
-                        return jsonify({'ok': False, 'msg': f'Stock insuficiente. Stock actual: {producto.stock or 0}'}), 400
-                    producto.stock = nuevo_stock
+                    if diferencia > 0 and stock_actual < diferencia:
+                        return jsonify({'ok': False, 'msg': f'Stock insuficiente. Stock actual: {stock_actual}, diferencia: {diferencia}'}), 400
+                    if stock_actual - diferencia < 0:
+                        return jsonify({'ok': False, 'msg': 'Stock no puede ser negativo'}), 400
+                    producto.stock = stock_actual - diferencia
         
         movimiento.cantidad = nueva_cantidad
         
