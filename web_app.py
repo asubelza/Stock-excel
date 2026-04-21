@@ -4,7 +4,7 @@ from flask_migrate import Migrate
 from flasgger import Swagger
 from openpyxl import Workbook, load_workbook
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
@@ -67,6 +67,10 @@ USUARIOS = {
     'deposito': {'pass': 'depo123', 'nombre': 'Deposito', 'rol': 'deposito'},
     'datainput': {'pass': 'data123', 'nombre': 'DataInput', 'rol': 'datainput'},
 }
+
+login_intentos = {}
+MAX_INTENTOS = 5
+BLOQUEO_MINUTOS = 15
 
 class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -211,11 +215,24 @@ with app.app_context():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    ip = request.remote_addr or request.headers.get('X-Forwarded-For', 'unknown')
+    
     if request.method == 'POST':
         user = request.form.get('usuario', '').strip()
         password = request.form.get('password', '').strip()
         
+        bloqueado = login_intentos.get(ip, {})
+        if bloqueado.get('bloqueado', False):
+            tiempo_bloqueo = bloqueado.get('hasta', datetime.now())
+            if datetime.now() < tiempo_bloqueo:
+                tiempo_restante = (tiempo_bloqueo - datetime.now()).seconds // 60 + 1
+                return render_template('login.html', error=f' IP bloqueada. Intente en {tiempo_restante} minutos')
+            else:
+                del login_intentos[ip]
+        
         if user in USUARIOS and USUARIOS[user]['pass'] == password:
+            if ip in login_intentos:
+                del login_intentos[ip]
             session['usuario'] = user
             session['nombre'] = USUARIOS[user]['nombre']
             session['rol'] = USUARIOS[user]['rol']
@@ -223,12 +240,25 @@ def login():
         
         db_user = Usuario.query.filter_by(username=user, estado='A').first()
         if db_user and db_user.password == password:
+            if ip in login_intentos:
+                del login_intentos[ip]
             session['usuario'] = db_user.username
             session['nombre'] = f"{db_user.nombre} {db_user.apellido or ''}".strip()
             session['rol'] = db_user.rol
             return redirect('/stock/')
         
-        return render_template('login.html', error='Usuario o contraseña incorrectos')
+        intentos = login_intentos.get(ip, {'count': 0})
+        intentos['count'] = intentos.get('count', 0) + 1
+        
+        if intentos['count'] >= MAX_INTENTOS:
+            intentos['bloqueado'] = True
+            intentos['hasta'] = datetime.now() + timedelta(minutes=BLOQUEO_MINUTOS)
+            login_intentos[ip] = intentos
+            return render_template('login.html', error=f'Demasiados intentos. IP bloqueada por {BLOQUEO_MINUTOS} minutos')
+        
+        login_intentos[ip] = intentos
+        intentos_faltantes = MAX_INTENTOS - intentos['count']
+        return render_template('login.html', error=f'Usuario o contraseña incorrectos. Intentos restantes: {intentos_faltantes}')
     
     return render_template('login.html')
 
