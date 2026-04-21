@@ -219,15 +219,23 @@ with app.app_context():
     db.create_all()
     from sqlalchemy import inspect
     inspector = inspect(db.engine)
-    columnas = [c['name'] for c in inspector.get_columns('movimiento')]
-    if 'eliminado' not in columnas:
-        db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN eliminado BOOLEAN DEFAULT 0"))
-    if 'eliminado_por' not in columnas:
-        db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN eliminado_por VARCHAR(50)"))
-    if 'eliminado_fecha' not in columnas:
-        db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN eliminado_fecha DATETIME"))
-    if 'lote_id' not in columnas:
-        db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN lote_id INTEGER"))
+    
+    try:
+        columnas = [c['name'] for c in inspector.get_columns('movimiento')]
+        if 'eliminado' not in columnas:
+            db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN eliminado BOOLEAN DEFAULT 0"))
+            db.session.commit()
+        if 'eliminado_por' not in columnas:
+            db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN eliminado_por VARCHAR(50)"))
+            db.session.commit()
+        if 'eliminado_fecha' not in columnas:
+            db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN eliminado_fecha TIMESTAMP"))
+            db.session.commit()
+        if 'lote_id' not in columnas:
+            db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN lote_id INTEGER"))
+            db.session.commit()
+    except Exception as e:
+        print(f"Migration warning: {e}")
     
     tablas = inspector.get_table_names()
     if 'lote' not in tablas:
