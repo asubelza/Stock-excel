@@ -16,9 +16,30 @@ if db_uri and db_uri.startswith('postgresql://'):
     db_uri = db_uri.replace('postgresql://', 'postgresql+psycopg2://')
 app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+    'pool_size': 10,
+    'max_overflow': 20,
+}
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+def usar_postgresql():
+    return db_uri and 'postgresql' in db_uri.lower()
+
+def lock_producto(sku):
+    if usar_postgresql():
+        import hashlib
+        sku_hash = int(hashlib.md5(sku.encode()).hexdigest()[:16], 16) % (2**31)
+        db.session.execute(db.text(f"SELECT pg_try_advisory_lock({sku_hash})"))
+
+def unlock_producto(sku):
+    if usar_postgresql():
+        import hashlib
+        sku_hash = int(hashlib.md5(sku.encode()).hexdigest()[:16], 16) % (2**31)
+        db.session.execute(db.text(f"SELECT pg_advisory_unlock({sku_hash})"))
 
 swagger = Swagger(app, template={
     "info": {
@@ -640,41 +661,45 @@ def api_salida():
             if not item.get('sku') or not item.get('cantidad'):
                 continue
             
-            producto = Producto.query.filter_by(sku=item['sku']).first()
-            if not producto:
-                return jsonify({'ok': False, 'msg': f'Producto {item["sku"]} no encontrado'}), 400
-            
-            stock_actual = producto.stock or 0
-            if stock_actual < item['cantidad']:
-                return jsonify({'ok': False, 'msg': f'Stock insuficiente para {item["sku"]}. Stock actual: {stock_actual}, Solicitado: {item["cantidad"]}'}), 400
-            
-            cantidad_a_sacar = item['cantidad']
-            lotes = Lote.query.filter_by(sku=item['sku']).filter(Lote.cantidad_disponible > 0).order_by(Lote.fecha_ingreso).all()
-            
-            lote_ids = []
-            for lote in lotes:
-                if cantidad_a_sacar <= 0:
-                    break
-                tomar = min(cantidad_a_sacar, lote.cantidad_disponible)
-                lote.cantidad_disponible -= tomar
-                cantidad_a_sacar -= tomar
-                lote_ids.append(f"{lote.nro_lote}:{tomar}")
-            
-            producto.stock -= item['cantidad']
-            
-            movimiento = Movimiento(
-                usuario=session.get('usuario', 'admin'),
-                sku=item['sku'],
-                producto=item.get('nombre', item['sku']),
-                tipo='SALIDA',
-                cantidad=item['cantidad'],
-                deposito=producto.deposito,
-                nro_comp=data.get('nro_comp', ''),
-                tipo_comp=data.get('tipo_comp', ''),
-                cliente_cuit=data.get('cliente_cuit', ''),
-                cliente_nombre=data.get('cliente_nombre', '')
-            )
-            db.session.add(movimiento)
+            lock_producto(item['sku'])
+            try:
+                producto = Producto.query.filter_by(sku=item['sku']).first()
+                if not producto:
+                    return jsonify({'ok': False, 'msg': f'Producto {item["sku"]} no encontrado'}), 400
+                
+                stock_actual = producto.stock or 0
+                if stock_actual < item['cantidad']:
+                    return jsonify({'ok': False, 'msg': f'Stock insuficiente para {item["sku"]}. Stock actual: {stock_actual}, Solicitado: {item["cantidad"]}'}), 400
+                
+                cantidad_a_sacar = item['cantidad']
+                lotes = Lote.query.filter_by(sku=item['sku']).filter(Lote.cantidad_disponible > 0).order_by(Lote.fecha_ingreso).all()
+                
+                lote_ids = []
+                for lote in lotes:
+                    if cantidad_a_sacar <= 0:
+                        break
+                    tomar = min(cantidad_a_sacar, lote.cantidad_disponible)
+                    lote.cantidad_disponible -= tomar
+                    cantidad_a_sacar -= tomar
+                    lote_ids.append(f"{lote.nro_lote}:{tomar}")
+                
+                producto.stock -= item['cantidad']
+                
+                movimiento = Movimiento(
+                    usuario=session.get('usuario', 'admin'),
+                    sku=item['sku'],
+                    producto=item.get('nombre', item['sku']),
+                    tipo='SALIDA',
+                    cantidad=item['cantidad'],
+                    deposito=producto.deposito,
+                    nro_comp=data.get('nro_comp', ''),
+                    tipo_comp=data.get('tipo_comp', ''),
+                    cliente_cuit=data.get('cliente_cuit', ''),
+                    cliente_nombre=data.get('cliente_nombre', '')
+                )
+                db.session.add(movimiento)
+            finally:
+                unlock_producto(item['sku'])
         
         db.session.commit()
         return jsonify({'ok': True, 'msg': f'{len(items)} salidas registradas'})
