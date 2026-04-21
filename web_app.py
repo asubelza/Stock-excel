@@ -581,8 +581,9 @@ def api_salida():
             if not producto:
                 return jsonify({'ok': False, 'msg': f'Producto {item["sku"]} no encontrado'}), 400
             
-            if (producto.stock or 0) < item['cantidad']:
-                return jsonify({'ok': False, 'msg': f'Stock insuficiente para {item["sku"]}'}), 400
+            stock_actual = producto.stock or 0
+            if stock_actual < item['cantidad']:
+                return jsonify({'ok': False, 'msg': f'Stock insuficiente para {item["sku"]}. Stock actual: {stock_actual}, Solicitado: {item["cantidad"]}'}), 400
             
             producto.stock -= item['cantidad']
             
@@ -628,14 +629,15 @@ def api_movimiento_edit(id):
         if nueva_cantidad != cantidad_anterior:
             producto = Producto.query.filter_by(sku=movimiento.sku).first()
             if producto:
+                diferencia = nueva_cantidad - cantidad_anterior
+                
                 if movimiento.tipo == 'ENTRADA':
-                    diferencia = nueva_cantidad - cantidad_anterior
                     producto.stock = (producto.stock or 0) + diferencia
                 elif movimiento.tipo == 'SALIDA':
-                    diferencia = cantidad_anterior - nueva_cantidad
-                    if (producto.stock or 0) < diferencia:
-                        return jsonify({'ok': False, 'msg': 'Stock insuficiente'}), 400
-                    producto.stock = (producto.stock or 0) - diferencia
+                    nuevo_stock = (producto.stock or 0) - diferencia
+                    if diferencia > 0 and (producto.stock or 0) < diferencia:
+                        return jsonify({'ok': False, 'msg': f'Stock insuficiente. Stock actual: {producto.stock or 0}'}), 400
+                    producto.stock = nuevo_stock
         
         movimiento.cantidad = nueva_cantidad
         
