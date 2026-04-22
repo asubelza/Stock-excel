@@ -70,7 +70,7 @@
     {% if session.get('usuario') %}
     <div class="header">
         <div style="display:flex; align-items:center; gap:15px;">
-            <img src="/static/logo.png" style="height:40px;">
+            <img src="{{ url_for('static', filename='logo.png') }}" style="height:40px;">
             <h1>Gestion de Stock</h1>
         </div>
         <div class="nav">
