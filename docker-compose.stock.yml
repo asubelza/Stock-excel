@@ -2,20 +2,22 @@ version: '3'
 
 services:
 
-  stock:
+  stock-excel:
     build: .
+    container_name: stock-excel_stock_1
     ports:
       - "8001:5000"
     environment:
-      - DATABASE_URL=postgresql://stockuser:stockpass123@db:5432/stockdb
+      - DATABASE_URL=postgresql://stockuser:stockpass123@stock-db:5432/stockdb
     depends_on:
-      - db
+      - stock-db
     networks:
       - web_ecjy_app-network
     restart: unless-stopped
 
-  db:
+  stock-db:
     image: postgres:15-alpine
+    container_name: stock-excel_db_1
     environment:
       POSTGRES_USER: stockuser
       POSTGRES_PASSWORD: stockpass123
