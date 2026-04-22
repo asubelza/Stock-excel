@@ -445,7 +445,7 @@ with app.app_context():
     try:
         columnas = [c['name'] for c in inspector.get_columns('movimiento')]
         if 'eliminado' not in columnas:
-            db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN eliminado BOOLEAN DEFAULT 0"))
+            db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN eliminado BOOLEAN DEFAULT FALSE"))
             db.session.commit()
         if 'eliminado_por' not in columnas:
             db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN eliminado_por VARCHAR(50)"))
@@ -813,7 +813,7 @@ def api_movimiento_delete(id):
         if not movimiento:
             return jsonify({'ok': False, 'msg': 'Movimiento no encontrado'}), 404
         
-        if movimiento.eliminado:
+        if movimiento.eliminado == True:
             return jsonify({'ok': False, 'msg': 'Movimiento ya fue eliminado'}), 400
         
         if session.get('rol') != 'admin':

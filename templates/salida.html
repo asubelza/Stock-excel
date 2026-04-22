@@ -178,5 +178,17 @@ function filtrar() {
         emptyMsg.remove();
     }
 }
+
+function eliminar_movimiento(id, producto, cantidad) {
+    if (!confirm('¿Eliminar salida de ' + cantidad + ' unidades de "' + producto + '"?')) return;
+    if (!confirm('¿CONFIRMA la eliminación? Esta acción no se puede deshacer.')) return;
+    
+    fetch('/stock/api/movimiento/' + id, {
+        method: 'DELETE'
+    }).then(r => r.json()).then(data => {
+        alert(data.msg);
+        if (data.ok) location.reload();
+    });
+}
 </script>
 {% endblock %}
