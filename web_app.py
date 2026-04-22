@@ -237,17 +237,8 @@ with app.app_context():
         if 'lote_id' not in columnas:
             db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN lote_id INTEGER"))
             db.session.commit()
-            except Exception as e:
-                errores.append(f'Fila {row}: {str(e)[:30]}')
-        
-        db.session.commit()
-        msg = f'{creados} clientes importados'
-        if errores:
-            msg += f'. {len(errores)} errores'
-        return jsonify({'ok': True, 'msg': msg})
     except Exception as e:
-        db.session.rollback()
-        return jsonify({'ok': False, 'msg': str(e)}), 500
+        print(f"Migration warning: {e}")
 
 @app.route('/nueva_entrada')
 @login_required
