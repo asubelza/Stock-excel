@@ -853,8 +853,15 @@ def api_movimiento_delete(id):
         if movimiento.eliminado:
             return jsonify({'ok': False, 'msg': 'Movimiento ya fue eliminado'}), 400
         
-        if session.get('rol') != 'admin':
-            return jsonify({'ok': False, 'msg': 'Solo admins pueden eliminar movimientos'}), 403
+        rol = session.get('rol')
+        if rol == 'admin':
+            pass
+        elif rol == 'datainput' and movimiento.tipo != 'ENTRADA':
+            return jsonify({'ok': False, 'msg': 'Solo datainput puede eliminar entradas'}), 403
+        elif rol == 'deposito' and movimiento.tipo != 'SALIDA':
+            return jsonify({'ok': False, 'msg': 'Solo deposito puede eliminar salidas'}), 403
+        else:
+            return jsonify({'ok': False, 'msg': 'Sin permisos para eliminar este movimiento'}), 403
         
         usuario = session.get('usuario', 'admin')
         
