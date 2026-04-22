@@ -1135,6 +1135,9 @@ def importar_excel():
 @login_required
 def exportar_excel():
     try:
+        from flask import send_file
+        import io
+        
         wb = Workbook()
         ws = wb.active
         ws.title = "Productos"
@@ -1166,9 +1169,17 @@ def exportar_excel():
             ws.cell(row, 17).value = p.stock
         
         filename = f'stock_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
-        wb.save(filename)
         
-        return f'<a href="/download/{filename}">Descargar {filename}</a>'
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
     
     except Exception as e:
         return f'Error: {str(e)}'
