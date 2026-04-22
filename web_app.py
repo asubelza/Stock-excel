@@ -12,7 +12,7 @@ from werkzeug.middleware.dispatcher import DispatcherMiddleware
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 app.secret_key = os.environ.get('SECRET_KEY', 'stock-secret-key-2024')
 
 db_uri = os.environ.get('DATABASE_URL', 'sqlite:///stock.db')
