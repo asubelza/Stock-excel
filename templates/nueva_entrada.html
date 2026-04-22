@@ -108,7 +108,7 @@ function buscar_productos() {
         return;
     }
     
-    fetch('/api/productos?q=' + encodeURIComponent(q))
+    fetch('/stock/api/productos?q=' + encodeURIComponent(q))
         .then(r => r.json())
         .then(data => {
             const div = document.getElementById('prod_resultados');
@@ -136,7 +136,7 @@ function buscar_proveedores() {
         return;
     }
     
-    fetch('/api/proveedores?q=' + encodeURIComponent(q))
+    fetch('/stock/api/proveedores?q=' + encodeURIComponent(q))
         .then(r => r.json())
         .then(data => {
             const div = document.getElementById('prov_resultados');
@@ -210,7 +210,7 @@ function confirmar_entrada() {
         return;
     }
     
-    fetch('/api/entrada', {
+    fetch('/stock/api/entrada', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({

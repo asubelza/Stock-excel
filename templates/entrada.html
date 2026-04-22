@@ -170,7 +170,7 @@ function guardar_edicion() {
     const prov_cuit = document.getElementById('edit_prov_cuit').value;
     const prov_nombre = document.getElementById('edit_prov_nombre').value;
     
-    fetch('/api/movimiento/' + id, {
+    fetch('/stock/api/movimiento/' + id, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -191,7 +191,7 @@ function eliminar_movimiento(id, producto, cantidad) {
     if (!confirm('¿Eliminar entrada de ' + cantidad + ' unidades de "' + producto + '"?')) return;
     if (!confirm('¿CONFIRMA la eliminación? Esta acción no se puede deshacer.')) return;
     
-    fetch('/api/movimiento/' + id, {
+    fetch('/stock/api/movimiento/' + id, {
         method: 'DELETE',
         headers: {'Content-Type': 'application/json'}
     }).then(r => r.json()).then(data => {
