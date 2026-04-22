@@ -199,7 +199,7 @@ def api_limpiar_historico():
     if session.get('rol') != 'admin':
         return jsonify({'ok': False, 'msg': 'Solo admins'}), 403
     try:
-        eliminados = Movimiento.query.filter_by(eliminado=False).delete()
+        eliminados = db.session.query(Movimiento).delete()
         db.session.commit()
         return jsonify({'ok': True, 'msg': f'{eliminados} movimientos eliminados'})
     except Exception as e:
@@ -813,7 +813,7 @@ def api_movimiento_delete(id):
         if not movimiento:
             return jsonify({'ok': False, 'msg': 'Movimiento no encontrado'}), 404
         
-        if movimiento.eliminado == True:
+        if movimiento.eliminado:
             return jsonify({'ok': False, 'msg': 'Movimiento ya fue eliminado'}), 400
         
         if session.get('rol') != 'admin':
