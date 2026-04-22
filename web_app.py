@@ -824,7 +824,10 @@ def api_movimiento_delete(id):
         producto = Producto.query.filter_by(sku=movimiento.sku).first()
         if producto:
             if movimiento.tipo == 'ENTRADA':
-                producto.stock = (producto.stock or 0) - movimiento.cantidad
+                nuevo_stock = (producto.stock or 0) - movimiento.cantidad
+                if nuevo_stock < 0:
+                    return jsonify({'ok': False, 'msg': f'No se puede eliminar. Stock quedaría en negativo: {nuevo_stock}'}), 400
+                producto.stock = nuevo_stock
                 if movimiento.lote_id:
                     lote = Lote.query.get(movimiento.lote_id)
                     if lote:
