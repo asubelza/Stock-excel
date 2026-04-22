@@ -284,10 +284,14 @@ def api_cliente():
 @app.route('/api/clientes')
 @login_required
 def api_clientes():
-    query = request.args.get('q', '')
+    query = request.args.get('q', '').strip()
     if query:
+        q_lower = query.lower()
         clientes = Cliente.query.filter(
-            (Cliente.nombre.contains(query)) | (Cliente.cuit.contains(query))
+            db.or_(
+                Cliente.nombre.ilike(f'%{q_lower}%'),
+                Cliente.cuit.ilike(f'%{query}%')
+            )
         ).limit(20).all()
     else:
         clientes = Cliente.query.limit(20).all()
@@ -876,10 +880,14 @@ def api_producto():
 @login_required
 def api_proveedores():
     """Listar proveedores"""
-    query = request.args.get('q', '')
+    query = request.args.get('q', '').strip()
     if query:
+        q_lower = query.lower()
         proveedores = Proveedor.query.filter(
-            (Proveedor.nombre.contains(query)) | (Proveedor.cuit.contains(query))
+            db.or_(
+                Proveedor.nombre.ilike(f'%{q_lower}%'),
+                Proveedor.cuit.ilike(f'%{query}%')
+            )
         ).limit(20).all()
     else:
         proveedores = Proveedor.query.limit(20).all()
