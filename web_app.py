@@ -141,6 +141,203 @@ def login_required(f):
         return redirect('/stock/')
     return decorated_function
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        user = request.form.get('usuario', '').strip()
+        password = request.form.get('password', '').strip()
+        
+        if user in USUARIOS and USUARIOS[user]['pass'] == password:
+            session['usuario'] = user
+            session['nombre'] = USUARIOS[user]['nombre']
+            session['rol'] = USUARIOS[user]['rol']
+            return redirect('/stock/')
+        
+        db_user = Usuario.query.filter_by(username=user, estado='A').first()
+        if db_user and db_user.password == password:
+            session['usuario'] = db_user.username
+            session['nombre'] = f"{db_user.nombre} {db_user.apellido or ''}".strip()
+            session['rol'] = db_user.rol
+            return redirect('/stock/')
+        
+        return render_template('login.html', error='Usuario o contraseña incorrectos')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/stock/login')
+
+@app.route('/')
+@app.route('/stock')
+@login_required
+def index():
+    productos = Producto.query.order_by(Producto.nombre).all()
+    return render_template('stock.html', productos=productos, usuario=session.get('nombre'))
+
+@app.route('/entrada')
+@login_required
+def entrada():
+    movimientos = Movimiento.query.filter_by(tipo='ENTRADA').order_by(Movimiento.fecha.desc()).limit(100).all()
+    return render_template('entrada.html', movimientos=movimientos, usuario=session.get('nombre'))
+
+@app.route('/salida')
+@login_required
+def salida():
+    movimientos = Movimiento.query.filter_by(tipo='SALIDA').order_by(Movimiento.fecha.desc()).limit(100).all()
+    return render_template('salida.html', movimientos=movimientos, usuario=session.get('nombre'))
+
+@app.route('/proveedores')
+@login_required
+def proveedores():
+    proveedores = Proveedor.query.order_by(Proveedor.nombre).all()
+    return render_template('proveedores.html', proveedores=proveedores, usuario=session.get('nombre'))
+
+@app.route('/clientes')
+@login_required
+def clientes():
+    clientes = Cliente.query.order_by(Cliente.nombre).all()
+    return render_template('clientes.html', clientes=clientes, usuario=session.get('nombre'))
+
+@app.route('/usuarios')
+@login_required
+def usuarios():
+    if session.get('rol') != 'admin':
+        return redirect('/stock/')
+    usuarios = Usuario.query.order_by(Usuario.apellido, Usuario.nombre).all()
+    return render_template('usuarios.html', usuarios=usuarios, usuario=session.get('nombre'))
+
+@app.route('/nuevo_cliente')
+@login_required
+def nuevo_cliente():
+    return render_template('nuevo_cliente.html', usuario=session.get('nombre'))
+
+@app.route('/api/usuario', methods=['POST'])
+@login_required
+def api_usuario():
+    if session.get('rol') != 'admin':
+        return jsonify({'ok': False, 'msg': 'Sin permisos'}), 403
+    try:
+        data = request.json
+        if not data.get('username') or not data.get('password') or not data.get('nombre'):
+            return jsonify({'ok': False, 'msg': 'Usuario, contraseña y nombre son requeridos'}), 400
+        
+        existing = Usuario.query.filter_by(username=data['username']).first()
+        if existing:
+            return jsonify({'ok': False, 'msg': 'Ya existe un usuario con ese nombre'}), 400
+        
+        usuario = Usuario(
+            username=data['username'],
+            password=data['password'],
+            nombre=data['nombre'],
+            apellido=data.get('apellido', ''),
+            rol=data.get('rol', 'datainput')
+        )
+        db.session.add(usuario)
+        db.session.commit()
+        return jsonify({'ok': True, 'msg': 'Usuario creado'})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Error en api_usuario")
+        return jsonify({'ok': False, 'msg': str(e)}), 500
+
+@app.route('/api/usuario/<int:id>', methods=['DELETE'])
+@login_required
+def api_usuario_delete(id):
+    if session.get('rol') != 'admin':
+        return jsonify({'ok': False, 'msg': 'Sin permisos'}), 403
+    try:
+        usuario = Usuario.query.get(id)
+        if not usuario:
+            return jsonify({'ok': False, 'msg': 'Usuario no encontrado'}), 404
+        db.session.delete(usuario)
+        db.session.commit()
+        return jsonify({'ok': True, 'msg': 'Usuario eliminado'})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Error en api_usuario_delete")
+        return jsonify({'ok': False, 'msg': str(e)}), 500
+
+@app.route('/api/cliente', methods=['POST'])
+@login_required
+def api_cliente():
+    try:
+        data = request.json
+        if not data.get('nombre'):
+            return jsonify({'ok': False, 'msg': 'Nombre requerido'}), 400
+        
+        cliente = Cliente(
+            nombre=data['nombre'],
+            cuit=data.get('cuit', ''),
+            direccion=data.get('direccion', ''),
+            telefono=data.get('telefono', ''),
+            email=data.get('email', '')
+        )
+        db.session.add(cliente)
+        db.session.commit()
+        return jsonify({'ok': True, 'msg': 'Cliente creado'})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Error en api_cliente")
+        return jsonify({'ok': False, 'msg': str(e)}), 500
+
+@app.route('/api/clientes')
+@login_required
+def api_clientes():
+    query = request.args.get('q', '')
+    if query:
+        clientes = Cliente.query.filter(
+            (Cliente.nombre.contains(query)) | (Cliente.cuit.contains(query))
+        ).limit(20).all()
+    else:
+        clientes = Cliente.query.limit(20).all()
+    return jsonify([{
+        'id': c.id, 'nombre': c.nombre, 'cuit': c.cuit or '',
+        'direccion': c.direccion or '', 'telefono': c.telefono or ''
+    } for c in clientes])
+
+@app.route('/api/importar_clientes', methods=['POST'])
+@login_required
+def api_importar_clientes():
+    try:
+        file = request.files['archivo']
+        if not file:
+            return jsonify({'ok': False, 'msg': 'No hay archivo'}), 400
+        
+        wb = load_workbook(file)
+        ws = wb.active
+        
+        creados = 0
+        errores = []
+        
+        for row in range(2, ws.max_row + 1):
+            nombre = ws.cell(row, 1).value
+            cuit = ws.cell(row, 2).value
+            
+            if not nombre:
+                continue
+            
+            try:
+                cliente = Cliente(
+                    nombre=str(nombre).strip(),
+                    cuit=str(cuit).strip() if cuit else ''
+                )
+                db.session.add(cliente)
+                creados += 1
+            except Exception as e:
+                errores.append(f'Fila {row}: {str(e)[:30]}')
+        
+        db.session.commit()
+        msg = f'{creados} clientes importados'
+        if errores:
+            msg += f'. {len(errores)} errores'
+        return jsonify({'ok': True, 'msg': msg})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Error en api_importar_clientes")
+        return jsonify({'ok': False, 'msg': str(e)}), 500
+
 class Producto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     sku = db.Column(db.String(50), unique=True, nullable=False)
