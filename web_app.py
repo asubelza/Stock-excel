@@ -126,6 +126,8 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'usuario' not in session:
+            if request.path.startswith('/api/'):
+                return jsonify({'ok': False, 'msg': 'No autenticado'}), 401
             return redirect('/stock/login')
         rol = session.get('rol')
         permisos = PERMISOS.get(rol, [])
@@ -138,6 +140,8 @@ def login_required(f):
             if p != '/' and ruta.startswith(p):
                 return f(*args, **kwargs)
         
+        if request.path.startswith('/api/'):
+            return jsonify({'ok': False, 'msg': 'Sin permisos'}), 403
         return redirect('/stock/')
     return decorated_function
 
