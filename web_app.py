@@ -671,7 +671,11 @@ def api_salida():
                     lote_ids.append(f"{lote.nro_lote}:{tomar}")
                 
                 producto.stock -= item['cantidad']
+                if producto.stock < 0:
+                    db.session.rollback()
+                    return jsonify({'ok': False, 'msg': f'Stock no puede ser negativo para {item["sku"]}. Stock: {producto.stock}'}), 400
                 
+                lote_ids_str = ", ".join(lote_ids)
                 movimiento = Movimiento(
                     usuario=session.get('usuario', 'admin'),
                     sku=item['sku'],
@@ -682,7 +686,8 @@ def api_salida():
                     nro_comp=data.get('nro_comp', ''),
                     tipo_comp=data.get('tipo_comp', ''),
                     cliente_cuit=data.get('cliente_cuit', ''),
-                    cliente_nombre=data.get('cliente_nombre', '')
+                    cliente_nombre=data.get('cliente_nombre', ''),
+                    observacion=f"Lotes: {lote_ids_str}"
                 )
                 db.session.add(movimiento)
             finally:
@@ -753,7 +758,14 @@ def api_movimiento_edit(id):
                                 break
                             lote.cantidad_disponible += restitucion
                             restitucion = 0
+                if movimiento.tipo == 'SALIDA':
+                    producto.stock = stock_actual - diferencia
+                else:
                     producto.stock = stock_actual + diferencia
+                    
+                if producto.stock < 0:
+                    db.session.rollback()
+                    return jsonify({'ok': False, 'msg': f'Stock no puede ser negativo. Stock: {producto.stock}'}), 400
         
         movimiento.cantidad = nueva_cantidad
         
@@ -773,19 +785,6 @@ def api_movimiento_edit(id):
             movimiento.cliente_nombre = data['cliente_nombre']
         
         db.session.commit()
-        
-        movimiento_correccion = Movimiento(
-            usuario=session.get('usuario', 'admin'),
-            sku=movimiento.sku,
-            producto=movimiento.producto,
-            tipo='CORRECCION',
-            cantidad=nueva_cantidad - cantidad_anterior,
-            nro_comp=f"ORIG:{movimiento.id}",
-            observacion=f"Corrección: Cantidad anterior {cantidad_anterior} -> {nueva_cantidad}"
-        )
-        db.session.add(movimiento_correccion)
-        db.session.commit()
-        
         return jsonify({'ok': True, 'msg': 'Movimiento actualizado'})
     
     except Exception as e:
