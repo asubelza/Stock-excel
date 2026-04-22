@@ -108,13 +108,13 @@ class Usuario(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
 
 PERMISOS = {
-    'admin': ['/', '/historico', '/stock', '/entrada', '/salida', '/proveedores', '/clientes', 
+    'admin': ['/', '/historico', '/entrada', '/salida', '/proveedores', '/clientes', 
               '/nueva_entrada', '/nueva_salida', '/nuevo_producto', '/nuevo_proveedor',
               '/nuevo_cliente', '/importar_excel', '/exportar_excel', '/usuarios', '/logout',
               '/api/movimiento/'],
-    'datainput': ['/', '/historico', '/stock', '/entrada', '/nueva_entrada', 
+    'datainput': ['/', '/historico', '/entrada', '/nueva_entrada', 
                   '/importar_excel', '/exportar_excel', '/logout', '/api/movimiento/'],
-    'deposito': ['/', '/historico', '/stock', '/salida', '/nueva_salida', '/logout', '/api/movimiento/'],
+    'deposito': ['/', '/historico', '/salida', '/nueva_salida', '/logout', '/api/movimiento/'],
 }
 
 def tiene_permiso(ruta):
@@ -135,7 +135,7 @@ def login_required(f):
             return f(*args, **kwargs)
         
         for p in permisos:
-            if ruta.startswith(p):
+            if p != '/' and ruta.startswith(p):
                 return f(*args, **kwargs)
         
         return redirect('/stock/')
