@@ -111,10 +111,10 @@ PERMISOS = {
     'admin': ['/', '/historico', '/entrada', '/salida', '/proveedores', '/clientes', 
               '/nueva_entrada', '/nueva_salida', '/nuevo_producto', '/nuevo_proveedor',
               '/nuevo_cliente', '/importar_excel', '/exportar_excel', '/usuarios', '/logout',
-              '/api/movimiento/'],
+              '/api/'],
     'datainput': ['/', '/historico', '/entrada', '/nueva_entrada', 
-                  '/importar_excel', '/exportar_excel', '/logout', '/api/movimiento/'],
-    'deposito': ['/', '/historico', '/salida', '/nueva_salida', '/logout', '/api/movimiento/'],
+                  '/importar_excel', '/exportar_excel', '/logout', '/api/'],
+    'deposito': ['/', '/historico', '/salida', '/nueva_salida', '/logout', '/api/'],
 }
 
 def tiene_permiso(ruta):
