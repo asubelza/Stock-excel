@@ -87,7 +87,7 @@ function guardar_proveedor() {
         return;
     }
     
-    fetch('/stock/api/proveedor', {
+    fetch('/api/proveedor', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -113,7 +113,7 @@ function importar_excel(input) {
     const formData = new FormData();
     formData.append('archivo', file);
     
-    fetch('/stock/api/importar_proveedores', {
+    fetch('/api/importar_proveedores', {
         method: 'POST',
         body: formData
     }).then(r => r.json()).then(data => {

@@ -87,7 +87,7 @@ function guardar_cliente() {
         return;
     }
     
-    fetch('/stock/api/cliente', {
+    fetch('/api/cliente', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -113,7 +113,7 @@ function importar_excel(input) {
     const formData = new FormData();
     formData.append('archivo', file);
     
-    fetch('/stock/api/importar_clientes', {
+    fetch('/api/importar_clientes', {
         method: 'POST',
         body: formData
     }).then(r => r.json()).then(data => {

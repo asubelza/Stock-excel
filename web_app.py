@@ -4,9 +4,13 @@ from flask_migrate import Migrate
 from flasgger import Swagger
 from openpyxl import Workbook, load_workbook
 import os
+import logging
 from datetime import datetime, timedelta
 from functools import wraps
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'stock-secret-key-2024')
@@ -178,6 +182,7 @@ class Movimiento(db.Model):
     eliminado = db.Column(db.Boolean, default=False)
     eliminado_por = db.Column(db.String(50))
     eliminado_fecha = db.Column(db.DateTime)
+    lote_id = db.Column(db.Integer)
 
 class Proveedor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -205,8 +210,6 @@ class Lote(db.Model):
     fecha_vencimiento = db.Column(db.DateTime)
     nro_lote = db.Column(db.String(50))
     deposito = db.Column(db.String(50))
-    # Solo backref simple - lote_id se maneja manualmente
-    lote_id = db.Column(db.Integer)
 
 COLUMNAS_EXCEL = {
     2: 'nombre', 3: 'sku', 4: 'tipo', 5: 'estado', 8: 'rubro',
@@ -234,229 +237,6 @@ with app.app_context():
         if 'lote_id' not in columnas:
             db.session.execute(db.text("ALTER TABLE movimiento ADD COLUMN lote_id INTEGER"))
             db.session.commit()
-    except Exception as e:
-        print(f"Migration warning: {e}")
-    
-    tablas = inspector.get_table_names()
-    if 'lote' not in tablas:
-        db.create_all()
-    
-    db.session.commit()
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    ip = request.remote_addr or request.headers.get('X-Forwarded-For', 'unknown')
-    
-    if request.method == 'POST':
-        user = request.form.get('usuario', '').strip()
-        password = request.form.get('password', '').strip()
-        
-        bloqueado = login_intentos.get(ip, {})
-        if bloqueado.get('bloqueado', False):
-            tiempo_bloqueo = bloqueado.get('hasta', datetime.now())
-            if datetime.now() < tiempo_bloqueo:
-                tiempo_restante = (tiempo_bloqueo - datetime.now()).seconds // 60 + 1
-                return render_template('login.html', error=f' IP bloqueada. Intente en {tiempo_restante} minutos')
-            else:
-                del login_intentos[ip]
-        
-        if user in USUARIOS and USUARIOS[user]['pass'] == password:
-            if ip in login_intentos:
-                del login_intentos[ip]
-            session['usuario'] = user
-            session['nombre'] = USUARIOS[user]['nombre']
-            session['rol'] = USUARIOS[user]['rol']
-            return redirect('/stock/')
-        
-        db_user = Usuario.query.filter_by(username=user, estado='A').first()
-        if db_user and db_user.password == password:
-            if ip in login_intentos:
-                del login_intentos[ip]
-            session['usuario'] = db_user.username
-            session['nombre'] = f"{db_user.nombre} {db_user.apellido or ''}".strip()
-            session['rol'] = db_user.rol
-            return redirect('/stock/')
-        
-        intentos = login_intentos.get(ip, {'count': 0})
-        intentos['count'] = intentos.get('count', 0) + 1
-        
-        if intentos['count'] >= MAX_INTENTOS:
-            intentos['bloqueado'] = True
-            intentos['hasta'] = datetime.now() + timedelta(minutes=BLOQUEO_MINUTOS)
-            login_intentos[ip] = intentos
-            return render_template('login.html', error=f'Demasiados intentos. IP bloqueada por {BLOQUEO_MINUTOS} minutos')
-        
-        login_intentos[ip] = intentos
-        intentos_faltantes = MAX_INTENTOS - intentos['count']
-        return render_template('login.html', error=f'Usuario o contraseña incorrectos. Intentos restantes: {intentos_faltantes}')
-    
-    return render_template('login.html')
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect('/stock/login')
-
-@app.route('/')
-@app.route('/historico')
-@login_required
-def index():
-    return render_template('index.html', movimientos=Movimiento.query.filter_by(eliminado=False).order_by(Movimiento.fecha.desc()).limit(100).all(), usuario=session.get('nombre'))
-
-@app.route('/stock')
-@app.route('/stockdb')
-@login_required
-def stock():
-    productos = Producto.query.order_by(Producto.nombre).all()
-    return render_template('stock.html', productos=productos, usuario=session.get('nombre'))
-
-@app.route('/entrada')
-@login_required
-def entrada():
-    movimientos = Movimiento.query.filter_by(tipo='ENTRADA', eliminado=False).order_by(Movimiento.fecha.desc()).limit(100).all()
-    return render_template('entrada.html', movimientos=movimientos, usuario=session.get('nombre'))
-
-@app.route('/salida')
-@login_required
-def salida():
-    movimientos = Movimiento.query.filter_by(tipo='SALIDA', eliminado=False).order_by(Movimiento.fecha.desc()).limit(100).all()
-    return render_template('salida.html', movimientos=movimientos, usuario=session.get('nombre'))
-
-@app.route('/proveedores')
-@login_required
-def proveedores():
-    proveedores = Proveedor.query.order_by(Proveedor.nombre).all()
-    return render_template('proveedores.html', proveedores=proveedores, usuario=session.get('nombre'))
-
-@app.route('/clientes')
-@login_required
-def clientes():
-    clientes = Cliente.query.order_by(Cliente.nombre).all()
-    return render_template('clientes.html', clientes=clientes, usuario=session.get('nombre'))
-
-@app.route('/usuarios')
-@login_required
-def usuarios():
-    if session.get('rol') != 'admin':
-        return redirect('/stock')
-    usuarios = Usuario.query.order_by(Usuario.apellido, Usuario.nombre).all()
-    return render_template('usuarios.html', usuarios=usuarios, usuario=session.get('nombre'))
-
-@app.route('/api/usuario', methods=['POST'])
-@login_required
-def api_usuario():
-    """Crear nuevo usuario"""
-    if session.get('rol') != 'admin':
-        return jsonify({'ok': False, 'msg': 'Sin permisos'}), 403
-    try:
-        data = request.json
-        if not data.get('username') or not data.get('password') or not data.get('nombre'):
-            return jsonify({'ok': False, 'msg': 'Usuario, contraseña y nombre son requeridos'}), 400
-        
-        existing = Usuario.query.filter_by(username=data['username']).first()
-        if existing:
-            return jsonify({'ok': False, 'msg': 'Ya existe un usuario con ese nombre'}), 400
-        
-        usuario = Usuario(
-            username=data['username'],
-            password=data['password'],
-            nombre=data['nombre'],
-            apellido=data.get('apellido', ''),
-            rol=data.get('rol', 'datainput')
-        )
-        db.session.add(usuario)
-        db.session.commit()
-        return jsonify({'ok': True, 'msg': 'Usuario creado'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'ok': False, 'msg': str(e)}), 500
-
-@app.route('/api/usuario/<int:id>', methods=['DELETE'])
-@login_required
-def api_usuario_delete(id):
-    if session.get('rol') != 'admin':
-        return jsonify({'ok': False, 'msg': 'Sin permisos'}), 403
-    try:
-        usuario = Usuario.query.get(id)
-        if not usuario:
-            return jsonify({'ok': False, 'msg': 'Usuario no encontrado'}), 404
-        db.session.delete(usuario)
-        db.session.commit()
-        return jsonify({'ok': True, 'msg': 'Usuario eliminado'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'ok': False, 'msg': str(e)}), 500
-
-@app.route('/nuevo_cliente')
-@login_required
-def nuevo_cliente():
-    return render_template('nuevo_cliente.html', usuario=session.get('nombre'))
-
-@app.route('/api/cliente', methods=['POST'])
-@login_required
-def api_cliente():
-    try:
-        data = request.json
-        if not data.get('nombre'):
-            return jsonify({'ok': False, 'msg': 'Nombre requerido'}), 400
-        
-        cliente = Cliente(
-            nombre=data['nombre'],
-            cuit=data.get('cuit', ''),
-            direccion=data.get('direccion', ''),
-            telefono=data.get('telefono', ''),
-            email=data.get('email', '')
-        )
-        db.session.add(cliente)
-        db.session.commit()
-        return jsonify({'ok': True, 'msg': 'Cliente creado'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'ok': False, 'msg': str(e)}), 500
-
-@app.route('/api/clientes')
-@login_required
-def api_clientes():
-    query = request.args.get('q', '')
-    if query:
-        clientes = Cliente.query.filter(
-            (Cliente.nombre.contains(query)) | (Cliente.cuit.contains(query))
-        ).limit(20).all()
-    else:
-        clientes = Cliente.query.limit(20).all()
-    return jsonify([{
-        'id': c.id, 'nombre': c.nombre, 'cuit': c.cuit or '',
-        'direccion': c.direccion or '', 'telefono': c.telefono or ''
-    } for c in clientes])
-
-@app.route('/api/importar_clientes', methods=['POST'])
-@login_required
-def api_importar_clientes():
-    try:
-        file = request.files['archivo']
-        if not file:
-            return jsonify({'ok': False, 'msg': 'No hay archivo'}), 400
-        
-        wb = load_workbook(file)
-        ws = wb.active
-        
-        creados = 0
-        errores = []
-        
-        for row in range(2, ws.max_row + 1):
-            nombre = ws.cell(row, 1).value
-            cuit = ws.cell(row, 2).value
-            
-            if not nombre:
-                continue
-            
-            try:
-                cliente = Cliente(
-                    nombre=str(nombre).strip(),
-                    cuit=str(cuit).strip() if cuit else ''
-                )
-                db.session.add(cliente)
-                creados += 1
             except Exception as e:
                 errores.append(f'Fila {row}: {str(e)[:30]}')
         
@@ -617,6 +397,7 @@ def api_entrada():
     
     except Exception as e:
         db.session.rollback()
+        logger.exception("Error en api_entrada")
         return jsonify({'ok': False, 'msg': str(e)}), 500
 
 @app.route('/api/salida', methods=['POST'])
@@ -838,6 +619,7 @@ def api_movimiento_delete(id):
     
     except Exception as e:
         db.session.rollback()
+        logger.exception("Error en api_salida")
         return jsonify({'ok': False, 'msg': str(e)}), 500
 
 @app.route('/api/producto', methods=['POST'])

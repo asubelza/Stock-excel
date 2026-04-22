@@ -73,7 +73,7 @@ function guardar() {
         return;
     }
     
-    fetch('/stock/api/producto', {
+    fetch('/api/producto', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
