@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual de Usuario | Stock Excel</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #333; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #2c3e50; padding-bottom: 20px; }
+        .header h1 { font-size: 24pt; color: #2c3e50; margin-bottom: 5px; }
+        .header h2 { font-size: 14pt; color: #7f8c8d; font-weight: normal; }
+        .header .badge { display: inline-block; padding: 5px 15px; border-radius: 4px; font-size: 12pt; margin-top: 10px; }
+        .header .badge.datainput { background: #27ae60; color: white; }
+        .header .badge.deposito { background: #3498db; color: white; }
+        .toc { background: #f8f9fa; padding: 15px 20px; margin-bottom: 25px; border-radius: 8px; }
+        .toc h3 { margin-bottom: 10px; }
+        .toc ul { margin-left: 20px; }
+        .section { margin-bottom: 25px; }
+        .section h3 { background: #2c3e50; color: white; padding: 8px 15px; font-size: 13pt; margin-bottom: 15px; }
+        .section h4 { color: #2c3e50; font-size: 12pt; margin: 15px 0 10px 0; border-left: 4px solid #3498db; padding-left: 10px; }
+        ul { margin-left: 25px; }
+        li { margin-bottom: 8px; }
+        .table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        .table th { background: #34495e; color: white; padding: 10px; text-align: left; }
+        .table td { padding: 8px 10px; border-bottom: 1px solid #ddd; }
+        .table tr:nth-child(even) { background: #f9f9f9; }
+        .note { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 15px; margin: 15px 0; }
+        .warning { background: #f8d7da; border-left: 4px solid #dc3545; padding: 10px 15px; margin: 15px 0; }
+        .success { background: #d4edda; border-left: 4px solid #28a745; padding: 10px 15px; margin: 15px 0; }
+        .step { background: #ecf0f1; border-radius: 8px; padding: 15px; margin: 10px 0; }
+        .step-num { display: inline-block; background: #3498db; color: white; width: 25px; height: 25px; line-height: 25px; text-align: center; border-radius: 50%; margin-right: 10px; }
+        .permiso-ok { color: #27ae60; font-weight: bold; }
+        .permiso-no { color: #e74c3c; font-weight: bold; }
+        .role-section { margin-bottom: 40px; border: 2px solid #ddd; border-radius: 8px; padding: 20px; }
+        .role-section.datainput { border-color: #27ae60; }
+        .role-section.deposito { border-color: #3498db; }
+        .role-section h3 { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #ddd; }
+        .footer { margin-top: 30px; text-align: center; font-size: 9pt; color: #7f8c8d; border-top: 1px solid #ddd; padding-top: 15px; }
+        @media print {
+            body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            .page-break { page-break-before: always; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📦 Stock Excel</h1>
+        <h2>Manual de Usuario - Perfiles Operativos</h2>
+        <div style="margin-top: 15px;">
+            <span class="badge datainput">👤 DATAINPUT</span>
+            <span style="margin: 0 10px;">|</span>
+            <span class="badge deposito">👤 DEPOSITO</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>1. Inicio de Sesión</h3>
+        <div class="step">
+            <span class="step-num">1</span> Acceder a <strong>https://estudiocontablejy.com.ar/stock/</strong>
+        </div>
+        <div class="step">
+            <span class="step-num">2</span> Ingresar usuario y contraseña (asignados por el administrador)
+        </div>
+        <div class="step">
+            <span class="step-num">3</span> Hacer clic en <strong>"Ingresar"</strong>
+        </div>
+        <div class="note">
+            <strong>Credenciales de prueba:</strong><br>
+            DataInput: usuario <strong>datainput</strong> | contraseña <strong>data123</strong><br>
+            Depósito: usuario <strong>deposito</strong> | contraseña <strong>depo123</strong>
+        </div>
+    </div>
+
+    <div class="role-section datainput">
+        <h3>👤 Perfil: DataInput</h3>
+        <p>El usuario <strong>DataInput</strong> se encarga de registrar las entradas de stock y consultar movimientos.</p>
+        
+        <h4>Permisos</h4>
+        <table class="table">
+            <tr><th>Funcionalidad</th><th>Acceso</th></tr>
+            <tr><td>Ver Stock (página principal)</td><td class="permiso-ok">✓ Permitido</td></tr>
+            <tr><td>Ver Entradas</td><td class="permiso-ok">✓ Permitido</td></tr>
+            <tr><td>Ver Salidas</td><td class="permiso-ok">✓ Permitido</td></tr>
+            <tr><td>Registrar Entradas</td><td class="permiso-ok">✓ Permitido</td></tr>
+            <tr><td>Registrar Salidas</td><td class="permiso-no">✗ No permitido</td></tr>
+            <tr><td>Gestionar Proveedores</td><td class="permiso-no">✗ No permitido</td></tr>
+            <tr><td>Gestionar Clientes</td><td class="permiso-no">✗ No permitido</td></tr>
+            <tr><td>Gestionar Productos</td><td class="permiso-no">✗ No permitido</td></tr>
+            <tr><td>Gestionar Usuarios</td><td class="permiso-no">✗ No permitido</td></tr>
+            <tr><td>Importar/Exportar Excel</td><td class="permiso-ok">✓ Permitido</td></tr>
+            <tr><td>Editar Entradas</td><td class="permiso-ok">✓ Permitido</td></tr>
+            <tr><td>Eliminar Entradas</td><td class="permiso-ok">✓ Permitido</td></tr>
+            <tr><td>Editar Salidas</td><td class="permiso-no">✗ No permitido</td></tr>
+            <tr><td>Eliminar Salidas</td><td class="permiso-no">✗ No permitido</td></tr>
+        </table>
+
+        <h4>Registrar Entrada de Stock</h4>
+        <div class="step">
+            <span class="step-num">1</span> Ir a <strong>"Nueva Entrada"</strong> desde el menú
+        </div>
+        <div class="step">
+            <span class="step-num">2</span> Buscar o escribir el <strong>SKU</strong> del producto
+        </div>
+        <div class="step">
+            <span class="step-num">3</span> Buscar o escribir el <strong>proveedor</strong>
+        </div>
+        <div class="step">
+            <span class="step-num">4</span> Ingresar la <strong>cantidad</strong>
+        </div>
+        <div class="step">
+            <span class="step-num">5</span> Ingresar el <strong>número de lote</strong> (si aplica)
+        </div>
+        <div class="step">
+            <span class="step-num">6</span> Ingresar la <strong>fecha de vencimiento</strong> (si aplica)
+        </div>
+        <div class="step">
+            <span class="step-num">7</span> Agregar observaciones si es necesario
+        </div>
+        <div class="step">
+            <span class="step-num">8</span> Hacer clic en <strong>"Guardar Entrada"</strong>
+        </div>
+        <div class="success">
+            ✓ El stock se actualiza automáticamente al guardar.
+        </div>
+    </div>
+
+    <div class="role-section deposito">
+        <h3>👤 Perfil: Depósito</h3>
+        <p>El usuario <strong>Depósito</strong> se encarga de registrar las salidas de stock y consultar movimientos.</p>
+        
+        <h4>Permisos</h4>
+        <table class="table">
+            <tr><th>Funcionalidad</th><th>Acceso</th></tr>
+            <tr><td>Ver Stock (página principal)</td><td class="permiso-ok">✓ Permitido</td></tr>
+            <tr><td>Ver Entradas</td><td class="permiso-no">✗ No permitido</td></tr>
+            <tr><td>Ver Salidas</td><td class="permiso-ok">✓ Permitido</td></tr>
+            <tr><td>Registrar Entradas</td><td class="permiso-no">✗ No permitido</td></tr>
+            <tr><td>Registrar Salidas</td><td class="permiso-ok">✓ Permitido</td></tr>
+            <tr><td>Gestionar Proveedores</td><td class="permiso-no">✗ No permitido</td></tr>
+            <tr><td>Gestionar Clientes</td><td class="permiso-no">✗ No permitido</td></tr>
+            <tr><td>Gestionar Productos</td><td class="permiso-no">✗ No permitido</td></tr>
+            <tr><td>Gestionar Usuarios</td><td class="permiso-no">✗ No permitido</td></tr>
+            <tr><td>Importar/Exportar Excel</td><td class="permiso-no">✗ No permitido</td></tr>
+            <tr><td>Editar Entradas</td><td class="permiso-no">✗ No permitido</td></tr>
+            <tr><td>Eliminar Entradas</td><td class="permiso-no">✗ No permitido</td></tr>
+            <tr><td>Editar Salidas</td><td class="permiso-no">✗ No permitido</td></tr>
+            <tr><td>Eliminar Salidas</td><td class="permiso-ok">✓ Permitido</td></tr>
+        </table>
+
+        <h4>Registrar Salida de Stock</h4>
+        <div class="step">
+            <span class="step-num">1</span> Ir a <strong>"Nueva Salida"</strong> desde el menú
+        </div>
+        <div class="step">
+            <span class="step-num">2</span> Buscar o escribir el <strong>SKU</strong> del producto
+        </div>
+        <div class="step">
+            <span class="step-num">3</span> Buscar o escribir el <strong>cliente</strong>
+        </div>
+        <div class="step">
+            <span class="step-num">4</span> Ingresar la <strong>cantidad</strong> a retirar
+        </div>
+        <div class="step">
+            <span class="step-num">5</span> Agregar observaciones si es necesario
+        </div>
+        <div class="step">
+            <span class="step-num">6</span> Hacer clic en <strong>"Guardar Salida"</strong>
+        </div>
+        <div class="warning">
+            ⚠️ El sistema valida que haya stock disponible antes de permitir la salida.
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>2. Búsqueda de Productos</h3>
+        <div class="step">
+            <span class="step-num">1</span> En la <strong>página principal</strong>, escribir en el campo de búsqueda
+        </div>
+        <div class="step">
+            <span class="step-num">2</span> Se puede buscar por <strong>SKU</strong> o <strong>nombre</strong>
+        </div>
+        <div class="step">
+            <span class="step-num">3</span> Los resultados se filtran automáticamente
+        </div>
+        <div class="note">
+            La búsqueda es incremental: se actualiza mientras escribís.
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>3. Viendo Movimientos</h3>
+        <ul>
+            <li><strong>Página principal:</strong> Ver todos los productos con stock actual</li>
+            <li><strong>Entradas:</strong> Listado de ingresos (solo DataInput)</li>
+            <li><strong>Salidas:</strong> Listado de egresos (solo Depósito)</li>
+            <li><strong>Historial:</strong> Todos los movimientos (filtrados por tu rol)</li>
+        </ul>
+        <div class="note">
+            Las páginas se actualizan automáticamente cada 30 segundos.
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>4. Filtros en Listas</h3>
+        <p>En las listas de Entradas y Salidas podés usar filtros:</p>
+        <ul>
+            <li><strong>Búsqueda:</strong> Filtrar por producto</li>
+            <li><strong>Tipo:</strong> Filtrar por tipo de movimiento</li>
+            <li><strong>Fecha:</strong> Filtrar por rango de fechas</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h3>5. Exportar a Excel</h3>
+        <div class="step">
+            <span class="step-num">1</span> Ir a <strong>"Exportar Excel"</strong> (DataInput)
+        </div>
+        <div class="step">
+            <span class="step-num">2</span> Seleccionar el tipo de datos a exportar
+        </div>
+        <div class="step">
+            <span class="step-num">3</span> Hacer clic en <strong>"Exportar"</strong>
+        </div>
+        <div class="step">
+            <span class="step-num">4</span> Se descargará un archivo Excel automáticamente
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>6. Cerrar Sesión</h3>
+        <div class="step">
+            <span class="step-num">1</span> Hacer clic en <strong>"Logout"</strong> en el menú
+        </div>
+        <div class="step">
+            <span class="step-num">2</span> Se cierra la sesión y se redirige al login
+        </div>
+        <div class="warning">
+            ⚠️ Siempre cerrá sesión cuando te alejes de la computadora.
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>7. Restricciones Importantes</h3>
+        <div class="warning">
+            <strong>⚠️ Recordá:</strong>
+            <ul style="margin-top: 10px;">
+                <li>Solo podés registrar el tipo de movimiento correspondiente a tu rol</li>
+                <li>No podés editar ni eliminar movimientos de otros roles</li>
+                <li>No podés acceder a funciones de administración</li>
+                <li>Si necesitas algo que no tenés acceso, consultá con el administrador</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Stock Excel - Estudio Contable JY | Manual v1.0</p>
+        <p>Desarrollado por asubelzacg</p>
+    </div>
+</body>
+</html>
