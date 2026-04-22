@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Histórico de Movimientos</h2>
+    </div>
+    
+    <div class="search-box" style="display:flex; gap:10px; flex-wrap:wrap;">
+        <input type="text" id="buscar" placeholder="Buscar por SKU, producto, proveedor, cliente..." onkeyup="filtrar()" style="flex:2; padding:10px; border:1px solid #ddd; border-radius:4px;">
+        <select id="filtro_tipo" onchange="filtrar()" style="padding:10px; border:1px solid #ddd; border-radius:4px;">
+            <option value="">Todos los tipos</option>
+            <option value="ENTRADA">Entrada</option>
+            <option value="SALIDA">Salida</option>
+            <option value="Factura">Factura</option>
+            <option value="Remito">Remito</option>
+            <option value="Presupuesto">Presupuesto</option>
+        </select>
+        <input type="date" id="fecha_desde" onchange="filtrar()" style="padding:10px; border:1px solid #ddd; border-radius:4px;">
+        <input type="date" id="fecha_hasta" onchange="filtrar()" style="padding:10px; border:1px solid #ddd; border-radius:4px;">
+    </div>
+    
+    {% if movimientos %}
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Usuario</th>
+                <th>SKU</th>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Costo</th>
+                <th>Tipo Comp</th>
+                <th>Nro Comp</th>
+                <th>Proveedor/Cliente</th>
+            </tr>
+        </thead>
+        <tbody id="tabla_movimientos">
+            {% for m in movimientos %}
+            <tr data-tipo="{{m.tipo}}" data-fecha="{{m.fecha.strftime('%Y-%m-%d') if m.fecha}}" data-sku="{{m.sku or ''}}" data-producto="{{m.producto or ''}}" data-proveedor="{{m.proveedor_nombre or ''}}" data-cliente="{{m.cliente_nombre or ''}}">
+                <td>{{m.fecha.strftime('%Y-%m-%d %H:%M') if m.fecha}}</td>
+                <td><span class="badge badge-{{'success' if m.tipo=='ENTRADA' else 'danger'}}">{{m.tipo}}</span></td>
+                <td>{{m.usuario or ''}}</td>
+                <td>{{m.sku or ''}}</td>
+                <td>{{m.producto or ''}}</td>
+                <td>{{m.cantidad}}</td>
+                <td>${{"%.2f"|format(m.costo or 0)}}</td>
+                <td>{{m.tipo_comp or ''}}</td>
+                <td>{{m.nro_comp or ''}}</td>
+                <td>{{m.proveedor_nombre or m.cliente_nombre or ''}}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="padding:20px; text-align:center; color:#666;">No hay movimientos registrados.</p>
+    {% endif %}
+</div>
+
+<script>
+function filtrar() {
+    const buscar = document.getElementById('buscar').value.toLowerCase();
+    const tipo = document.getElementById('filtro_tipo').value;
+    const fechaDesde = document.getElementById('fecha_desde').value;
+    const fechaHasta = document.getElementById('fecha_hasta').value;
+    
+    const filas = document.querySelectorAll('#tabla_movimientos tr');
+    filas.forEach(fila => {
+        let mostrar = true;
+        
+        if (tipo && fila.dataset.tipo !== tipo) mostrar = false;
+        
+        if (fechaDesde && fila.dataset.fecha < fechaDesde) mostrar = false;
+        if (fechaHasta && fila.dataset.fecha > fechaHasta) mostrar = false;
+        
+        if (buscar) {
+            const texto = (fila.dataset.sku + ' ' + fila.dataset.producto + ' ' + fila.dataset.proveedor + ' ' + fila.dataset.cliente).toLowerCase();
+            if (!texto.includes(buscar)) mostrar = false;
+        }
+        
+        fila.style.display = mostrar ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

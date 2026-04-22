@@ -187,6 +187,12 @@ def salida():
     movimientos = Movimiento.query.filter_by(tipo='SALIDA').order_by(Movimiento.fecha.desc()).limit(100).all()
     return render_template('salida.html', movimientos=movimientos, usuario=session.get('nombre'))
 
+@app.route('/historico')
+@login_required
+def historico():
+    movimientos = Movimiento.query.order_by(Movimiento.fecha.desc()).limit(500).all()
+    return render_template('historico.html', movimientos=movimientos, usuario=session.get('nombre'))
+
 @app.route('/proveedores')
 @login_required
 def proveedores():
