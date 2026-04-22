@@ -178,19 +178,19 @@ def index():
 @app.route('/entrada')
 @login_required
 def entrada():
-    movimientos = Movimiento.query.filter_by(tipo='ENTRADA').order_by(Movimiento.fecha.desc()).limit(100).all()
+    movimientos = Movimiento.query.filter_by(tipo='ENTRADA', eliminado=False).order_by(Movimiento.fecha.desc()).limit(100).all()
     return render_template('entrada.html', movimientos=movimientos, usuario=session.get('nombre'))
 
 @app.route('/salida')
 @login_required
 def salida():
-    movimientos = Movimiento.query.filter_by(tipo='SALIDA').order_by(Movimiento.fecha.desc()).limit(100).all()
+    movimientos = Movimiento.query.filter_by(tipo='SALIDA', eliminado=False).order_by(Movimiento.fecha.desc()).limit(100).all()
     return render_template('salida.html', movimientos=movimientos, usuario=session.get('nombre'))
 
 @app.route('/historico')
 @login_required
 def historico():
-    movimientos = Movimiento.query.order_by(Movimiento.fecha.desc()).limit(500).all()
+    movimientos = Movimiento.query.filter_by(eliminado=False).order_by(Movimiento.fecha.desc()).limit(500).all()
     return render_template('historico.html', movimientos=movimientos, usuario=session.get('nombre'))
 
 @app.route('/api/historico/limpiar', methods=['POST'])
@@ -809,14 +809,11 @@ def api_movimiento_edit(id):
 def api_movimiento_delete(id):
     """Eliminar (anular) movimiento"""
     try:
-        logger.info(f"Delete movimiento {id} - rol: {session.get('rol')}")
         movimiento = Movimiento.query.get(id)
         if not movimiento:
-            logger.info(f"Movimiento {id} no encontrado")
             return jsonify({'ok': False, 'msg': 'Movimiento no encontrado'}), 404
         
-        logger.info(f"Movimiento {id} tipo={movimiento.tipo} eliminado={movimiento.eliminado}")
-        if movimiento.eliminado is True:
+        if movimiento.eliminado:
             return jsonify({'ok': False, 'msg': 'Movimiento ya fue eliminado'}), 400
         
         if session.get('rol') != 'admin':
