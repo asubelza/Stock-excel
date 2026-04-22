@@ -497,10 +497,14 @@ def api_productos():
       200:
         description: Lista de productos
     """
-    query = request.args.get('q', '')
+    query = request.args.get('q', '').strip()
     if query:
+        q_lower = query.lower()
         productos = Producto.query.filter(
-            (Producto.sku.contains(query)) | (Producto.nombre.contains(query))
+            db.or_(
+                Producto.sku.ilike(f'%{q_lower}%'),
+                Producto.nombre.ilike(f'%{q_lower}%')
+            )
         ).limit(20).all()
     else:
         productos = Producto.query.limit(20).all()
