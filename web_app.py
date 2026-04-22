@@ -112,7 +112,7 @@ PERMISOS = {
               '/nueva_entrada', '/nueva_salida', '/nuevo_producto', '/nuevo_proveedor',
               '/nuevo_cliente', '/importar_excel', '/exportar_excel', '/usuarios', '/logout',
               '/api/movimiento/'],
-    'datainput': ['/', '/historico', '/stock', '/entrada', '/nueva_entrada', '/nuevo_producto', 
+    'datainput': ['/', '/historico', '/stock', '/entrada', '/nueva_entrada', 
                   '/importar_excel', '/exportar_excel', '/logout', '/api/movimiento/'],
     'deposito': ['/', '/historico', '/stock', '/salida', '/nueva_salida', '/logout', '/api/movimiento/'],
 }
@@ -275,6 +275,35 @@ def api_usuario_delete(id):
     except Exception as e:
         db.session.rollback()
         logger.exception("Error en api_usuario_delete")
+        return jsonify({'ok': False, 'msg': str(e)}), 500
+
+@app.route('/api/usuario/<int:id>', methods=['PUT'])
+@login_required
+def api_usuario_edit(id):
+    if session.get('rol') != 'admin':
+        return jsonify({'ok': False, 'msg': 'Sin permisos'}), 403
+    try:
+        usuario = Usuario.query.get(id)
+        if not usuario:
+            return jsonify({'ok': False, 'msg': 'Usuario no encontrado'}), 404
+        
+        data = request.json
+        
+        if data.get('reset_password') and data.get('password'):
+            usuario.password = data['password']
+        
+        if data.get('nombre'):
+            usuario.nombre = data['nombre']
+        if data.get('apellido'):
+            usuario.apellido = data['apellido']
+        if data.get('rol'):
+            usuario.rol = data['rol']
+        
+        db.session.commit()
+        return jsonify({'ok': True, 'msg': 'Usuario actualizado'})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Error en api_usuario_edit")
         return jsonify({'ok': False, 'msg': str(e)}), 500
 
 @app.route('/api/cliente', methods=['POST'])

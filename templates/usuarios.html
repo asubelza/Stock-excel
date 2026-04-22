@@ -76,6 +76,8 @@
                 </td>
                 <td>{{ u.estado }}</td>
                 <td>
+                    <button class="btn" style="padding:4px 8px;" onclick="editar_usuario({{ u.id }}, '{{ u.username }}', '{{ u.nombre }}', '{{ u.apellido or '' }}', '{{ u.rol }}')">Editar</button>
+                    <button class="btn" style="padding:4px 8px; background:#f39c12;" onclick="reset_password({{ u.id }})">Blanquear Pass</button>
                     <button class="btn btn-danger" style="padding:4px 8px;" onclick="eliminar_usuario({{ u.id }})">Eliminar</button>
                 </td>
             </tr>
@@ -85,6 +87,35 @@
     {% else %}
     <div class="empty">No hay usuarios registrados</div>
     {% endif %}
+</div>
+
+<div id="modal_editar" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+    <div style="background:white; max-width:400px; margin:100px auto; padding:20px; border-radius:8px;">
+        <h3>Editar Usuario</h3>
+        <input type="hidden" id="edit_usu_id">
+        <div class="form-group">
+            <label>Usuario</label>
+            <input type="text" id="edit_usu_username" disabled style="background:#eee;">
+        </div>
+        <div class="form-group">
+            <label>Nombre</label>
+            <input type="text" id="edit_usu_nombre">
+        </div>
+        <div class="form-group">
+            <label>Apellido</label>
+            <input type="text" id="edit_usu_apellido">
+        </div>
+        <div class="form-group">
+            <label>Tipo</label>
+            <select id="edit_usu_rol" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px;">
+                <option value="datainput">DataInput</option>
+                <option value="deposito">Deposito</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+        <button class="btn btn-success" onclick="guardar_edicion()">Guardar</button>
+        <button class="btn" onclick="document.getElementById('modal_editar').style.display='none'">Cancelar</button>
+    </div>
 </div>
 
 <script>
@@ -122,6 +153,56 @@ function eliminar_usuario(id) {
     }).then(r => r.json()).then(data => {
         alert(data.msg);
         if (data.ok) location.reload();
+    });
+}
+
+function editar_usuario(id, username, nombre, apellido, rol) {
+    document.getElementById('edit_usu_id').value = id;
+    document.getElementById('edit_usu_username').value = username;
+    document.getElementById('edit_usu_nombre').value = nombre;
+    document.getElementById('edit_usu_apellido').value = apellido;
+    document.getElementById('edit_usu_rol').value = rol;
+    document.getElementById('modal_editar').style.display = 'block';
+}
+
+function guardar_edicion() {
+    const id = document.getElementById('edit_usu_id').value;
+    const nombre = document.getElementById('edit_usu_nombre').value;
+    const apellido = document.getElementById('edit_usu_apellido').value;
+    const rol = document.getElementById('edit_usu_rol').value;
+    
+    fetch('/stock/api/usuario/' + id, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            nombre: nombre,
+            apellido: apellido,
+            rol: rol
+        })
+    }).then(r => r.json()).then(data => {
+        alert(data.msg);
+        if (data.ok) location.reload();
+    });
+}
+
+function reset_password(id) {
+    if (!confirm('¿Blanquear contraseña del usuario?')) return;
+    
+    const nueva_pass = prompt('Ingrese nueva contraseña (o leave blank for default):');
+    if (nueva_pass === null) return;
+    
+    if (!nueva_pass) nueva_pass = 'stock123';
+    
+    fetch('/stock/api/usuario/' + id, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            reset_password: true,
+            password: nueva_pass
+        })
+    }).then(r => r.json()).then(data => {
+        alert(data.msg);
+        if (data.ok) alert('Nueva contraseña: ' + nueva_pass);
     });
 }
 </script>
