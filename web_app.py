@@ -809,11 +809,14 @@ def api_movimiento_edit(id):
 def api_movimiento_delete(id):
     """Eliminar (anular) movimiento"""
     try:
+        logger.info(f"Delete movimiento {id} - rol: {session.get('rol')}")
         movimiento = Movimiento.query.get(id)
         if not movimiento:
+            logger.info(f"Movimiento {id} no encontrado")
             return jsonify({'ok': False, 'msg': 'Movimiento no encontrado'}), 404
         
-        if movimiento.eliminado:
+        logger.info(f"Movimiento {id} tipo={movimiento.tipo} eliminado={movimiento.eliminado}")
+        if movimiento.eliminado is True:
             return jsonify({'ok': False, 'msg': 'Movimiento ya fue eliminado'}), 400
         
         if session.get('rol') != 'admin':
