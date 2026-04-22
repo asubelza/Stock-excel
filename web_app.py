@@ -721,12 +721,39 @@ def api_movimiento_edit(id):
                 
                 if movimiento.tipo == 'ENTRADA':
                     producto.stock = stock_actual + diferencia
+                    nuevo_lote = Lote(
+                        sku=movimiento.sku,
+                        cantidad=diferencia,
+                        cantidad_disponible=diferencia,
+                        costo_unitario=movimiento.costo or 0,
+                        nro_lote=f"EDIT:{movimiento.id}",
+                        deposito=producto.deposito
+                    )
+                    db.session.add(nuevo_lote)
+                    db.session.flush()
+                    movimiento.lote_id = nuevo_lote.id
                 elif movimiento.tipo == 'SALIDA':
-                    if diferencia > 0 and stock_actual < diferencia:
-                        return jsonify({'ok': False, 'msg': f'Stock insuficiente. Stock actual: {stock_actual}, diferencia: {diferencia}'}), 400
-                    if stock_actual - diferencia < 0:
-                        return jsonify({'ok': False, 'msg': 'Stock no puede ser negativo'}), 400
-                    producto.stock = stock_actual - diferencia
+                    if diferencia > 0:
+                        total_lote = sum(l.cantidad_disponible for l in Lote.query.filter_by(sku=movimiento.sku).all())
+                        if total_lote < diferencia:
+                            return jsonify({'ok': False, 'msg': f'Stock insuficiente en lotes. Disponible: {total_lote}, solicitado: {diferencia}'}), 400
+                        cantidad_a_usar = diferencia
+                        lotes = Lote.query.filter_by(sku=movimiento.sku).filter(Lote.cantidad_disponible > 0).order_by(Lote.fecha_ingreso).all()
+                        for lote in lotes:
+                            if cantidad_a_usar <= 0:
+                                break
+                            ocupar = min(cantidad_a_usar, lote.cantidad_disponible)
+                            lote.cantidad_disponible -= ocupar
+                            cantidad_a_usar -= ocupar
+                    elif diferencia < 0:
+                        restitucion = abs(diferencia)
+                        lotes = Lote.query.filter_by(sku=movimiento.sku).order_by(Lote.fecha_ingreso.desc()).all()
+                        for lote in lotes:
+                            if restitucion <= 0:
+                                break
+                            lote.cantidad_disponible += restitucion
+                            restitucion = 0
+                    producto.stock = stock_actual + diferencia
         
         movimiento.cantidad = nueva_cantidad
         
@@ -786,8 +813,19 @@ def api_movimiento_delete(id):
         if producto:
             if movimiento.tipo == 'ENTRADA':
                 producto.stock = (producto.stock or 0) - movimiento.cantidad
+                if movimiento.lote_id:
+                    lote = Lote.query.get(movimiento.lote_id)
+                    if lote:
+                        lote.cantidad_disponible = max(0, lote.cantidad_disponible - movimiento.cantidad)
             elif movimiento.tipo == 'SALIDA':
                 producto.stock = (producto.stock or 0) + movimiento.cantidad
+                cantidad_a_devolver = movimiento.cantidad
+                lotes = Lote.query.filter_by(sku=movimiento.sku).order_by(Lote.fecha_ingreso.desc()).all()
+                for lote in lotes:
+                    if cantidad_a_devolver <= 0:
+                        break
+                    lote.cantidad_disponible += cantidad_a_devolver
+                    cantidad_a_devolver = 0
         
         movimiento.eliminado = True
         movimiento.eliminado_por = usuario
