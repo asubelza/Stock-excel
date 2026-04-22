@@ -1,33 +1,55 @@
 # Stock Excel - Gestión de Stock Web
 
-Sistema de gestión de stock con interfaz web, APIs REST y soporte multiusuario.
+Sistema de gestión de stock con interfaz web, APIs REST y soporte multiusuario con control FIFO (First In First Out) por lotes.
 
 ## Características
 
-- **Gestión de productos**: Crear, editar, eliminar productos
+- **Gestión de productos**: Crear, editar, eliminar productos con SKU único
+- **Sistema FIFO por lotes**: Control de stock por fecha de vencimiento (lotes)
 - **Movimientos de stock**: Entradas y salidas con trazabilidad completa
-- **Proveedores y Clientes**: Gestión completa de contactos
+- **Proveedores y Clientes**: Gestión completa de contactos con CUIT
 - **Importación/Exportación**: Compatible con Excel
-- **APIs REST**: Documentación Swagger integrada
+- **APIs REST**: Endpoints JSON para integración
 - **Autenticación**: Sistema de login con roles (admin, datainput, deposito)
+- **Histórico de movimientos**: Registro completo con filtros
+- **Validación de stock**: Previene stock negativo
+- **Colores diferenciados**: Verde para entradas, rojo para salidas
+- **Auto-refresh**: Actualización automática cada 30 segundos
 
 ## Rutas Web
 
 | Ruta | Descripción |
 |------|-------------|
 | `/stock/` | Histórico de movimientos |
-| `/stock/stockdb` | Lista de productos (stock) |
-| `/stock/entrada` | Lista de entradas |
-| `/stock/salida` | Lista de salidas |
+| `/stock/stockdb` | Lista de productos (stock actual) |
+| `/stock/entrada` | Lista de entradas de stock |
+| `/stock/salida` | Lista de salidas de stock |
 | `/stock/proveedores` | Gestión de proveedores |
 | `/stock/clientes` | Gestión de clientes |
-| `/stock/nueva_entrada` | Registrar entrada |
-| `/stock/nueva_salida` | Registrar salida |
-| `/stock/nuevo_producto` | Crear producto |
-| `/stock/importar_excel` | Importar desde Excel |
+| `/stock/nueva_entrada` | Registrar nueva entrada |
+| `/stock/nueva_salida` | Registrar nueva salida |
+| `/stock/nuevo_producto` | Crear nuevo producto |
+| `/stock/importar_excel` | Importar datos desde Excel |
 | `/stock/usuarios` | Gestión de usuarios (admin) |
 | `/stock/login` | Login |
 | `/stock/logout` | Logout |
+
+## Permisos por Rol
+
+| Ruta | admin | datainput | deposito |
+|------|-------|-----------|----------|
+| Stock | ✓ | ✓ | ✓ |
+| Entrada | ✓ | ✓ | ✗ |
+| Salida | ✓ | ✓ | ✓ |
+| Historico | ✓ | ✓ | ✓ |
+| Proveedores | ✓ | ✓ | ✗ |
+| Clientes | ✓ | ✓ | ✗ |
+| Productos | ✓ | ✓ | ✗ |
+| Usuarios | ✓ | ✗ | ✗ |
+| Importar/Exportar | ✓ | ✓ | ✗ |
+| Editar Movimiento | ✓ | ✓ | ✗ |
+| Eliminar Movimiento | ✓ | ✗ | ✗ |
+| Limpiar Historial | ✓ | ✗ | ✗ |
 
 ## APIs REST
 
@@ -47,6 +69,7 @@ Todas las APIs requieren login excepto `/stock/login`.
 | GET | `/stock/api/proveedores` | Listar proveedores |
 | POST | `/stock/api/proveedor` | Crear proveedor |
 | PUT | `/stock/api/movimiento/<id>` | Editar movimiento |
+| DELETE | `/stock/api/movimiento/<id>` | Eliminar movimiento |
 
 ### Documentación API
 Swagger disponible en: `/stock/swagger.json`
@@ -89,8 +112,19 @@ docker-compose up -d
 ```
 nginx (reverse proxy)
     └── stock:5000 (gunicorn + Flask)
-            └── SQLite/PostgreSQL
+            └── PostgreSQL
 ```
+
+## Modelos de Datos
+
+### Producto
+- id, sku, nombre, descripcion, unidad_medida, stock_actual, stock_minimo, proveedor_id, eliminado
+
+### Lote
+- id, producto_id, cantidad, fecha_vencimiento, fecha_entrada, eliminado
+
+### Movimiento
+- id, tipo (ENTRADA/SALIDA/CORRECCION/ANULADO), producto_id, cantidad, lote_id, observaciones, usuario_id, fecha, eliminado
 
 ## Licencia
 
