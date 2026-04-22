@@ -170,7 +170,6 @@ def logout():
     return redirect('/stock/login')
 
 @app.route('/')
-@app.route('/stock')
 @login_required
 def index():
     productos = Producto.query.order_by(Producto.nombre).all()
