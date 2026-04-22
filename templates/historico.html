@@ -4,6 +4,7 @@
 <div class="card">
     <div class="card-header">
         <h2>Histórico de Movimientos</h2>
+        <button class="btn btn-danger" onclick="limpiar_historico()">Limpiar Historial</button>
     </div>
     
     <div class="search-box" style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -86,6 +87,18 @@ function filtrar() {
         }
         
         fila.style.display = mostrar ? '' : 'none';
+    });
+}
+
+function limpiar_historico() {
+    if (!confirm('¿Eliminar TODO el histórico de movimientos? Esta acción no se puede deshacer.')) return;
+    if (!confirm('¿CONFIRMA? Se eliminarán todos los movimientos.')) return;
+    
+    fetch('/stock/api/historico/limpiar', {
+        method: 'POST'
+    }).then(r => r.json()).then(data => {
+        alert(data.msg);
+        if (data.ok) location.reload();
     });
 }
 </script>

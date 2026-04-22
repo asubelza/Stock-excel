@@ -193,6 +193,19 @@ def historico():
     movimientos = Movimiento.query.order_by(Movimiento.fecha.desc()).limit(500).all()
     return render_template('historico.html', movimientos=movimientos, usuario=session.get('nombre'))
 
+@app.route('/api/historico/limpiar', methods=['POST'])
+@login_required
+def api_limpiar_historico():
+    if session.get('rol') != 'admin':
+        return jsonify({'ok': False, 'msg': 'Solo admins'}), 403
+    try:
+        eliminados = Movimiento.query.filter_by(eliminado=False).delete()
+        db.session.commit()
+        return jsonify({'ok': True, 'msg': f'{eliminados} movimientos eliminados'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'ok': False, 'msg': str(e)}), 500
+
 @app.route('/proveedores')
 @login_required
 def proveedores():
