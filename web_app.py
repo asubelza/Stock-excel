@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flasgger import Swagger
@@ -238,6 +238,10 @@ with app.app_context():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     ip = request.remote_addr or request.headers.get('X-Forwarded-For', 'unknown')
+
+@app.route('/docs/<path:filename>')
+def docs(filename):
+    return send_from_directory('docs', filename)
     
     if request.method == 'POST':
         user = request.form.get('usuario', '').strip()
