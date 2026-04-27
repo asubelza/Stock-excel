@@ -74,7 +74,7 @@
             <h1>Gestion de Stock</h1>
         </div>
         <div class="nav">
-            <a href="/stock/historico">Historico</a>
+            {% if session.get('rol') == 'admin' %}<a href="/stock/historico">Historico</a>{% endif %}
             <a href="/stock/">Stock</a>
             <a href="/stock/entrada">Entrada</a>
             <a href="/stock/salida">Salida</a>
