@@ -8,6 +8,7 @@ import logging
 from datetime import datetime, timedelta
 from functools import wraps
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from werkzeug.security import generate_password_hash, check_password_hash
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
@@ -100,7 +101,7 @@ BLOQUEO_MINUTOS = 15
 class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
-    password = db.Column(db.String(100), nullable=False)
+    password = db.Column(db.String(500), nullable=False)
     nombre = db.Column(db.String(100), nullable=False)
     apellido = db.Column(db.String(100))
     rol = db.Column(db.String(20), nullable=False, default='datainput')
@@ -158,7 +159,7 @@ def login():
             return redirect('/stock/')
         
         db_user = Usuario.query.filter_by(username=user, estado='A').first()
-        if db_user and db_user.password == password:
+        if db_user and check_password_hash(db_user.password, password):
             session['usuario'] = db_user.username
             session['nombre'] = f"{db_user.nombre} {db_user.apellido or ''}".strip()
             session['rol'] = db_user.rol
@@ -251,7 +252,7 @@ def api_usuario():
         
         usuario = Usuario(
             username=data['username'],
-            password=data['password'],
+            password=generate_password_hash(data['password']),
             nombre=data['nombre'],
             apellido=data.get('apellido', ''),
             rol=data.get('rol', 'datainput')
@@ -294,7 +295,7 @@ def api_usuario_edit(id):
         data = request.json
         
         if data.get('reset_password') and data.get('password'):
-            usuario.password = data['password']
+            usuario.password = generate_password_hash(data['password'])
         
         if data.get('nombre'):
             usuario.nombre = data['nombre']
