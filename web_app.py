@@ -953,34 +953,34 @@ def api_producto():
       400:
         description: Error de validación
     """
-    try:
-        data = request.json
-        if not data.get('sku') or not data.get('nombre'):
-            return jsonify({'ok': False, 'msg': 'SKU y Nombre son requeridos'}), 400
-        
-        existing = Producto.query.filter_by(sku=data['sku']).first()
-        if existing:
-            return jsonify({'ok': False, 'msg': 'Ya existe un producto con ese SKU'}), 400
-        
-producto = Producto(
-            sku=data['sku'],
-            nombre=data['nombre'],
-            tipo=data.get('tipo', 'P'),
-            estado=data.get('estado', 'A'),
-            stock=data.get('stock', 0),
-            stock_min=data.get('stock_min', 0),
-            deposito=data.get('deposito', 'Principal'),
-            precio=float(data.get('precio', 0) or 0),
-            costo=float(data.get('costo', 0) or 0),
-            rubro=data.get('rubro', ''),
-            cod_barra=data.get('cod_barra', '')
-        )
-        db.session.add(producto)
-        db.session.commit()
-        return jsonify({'ok': True, 'msg': 'Producto creado'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'ok': False, 'msg': str(e)}), 500
+        try:
+            data = request.json
+            if not data.get('sku') or not data.get('nombre'):
+                return jsonify({'ok': False, 'msg': 'SKU y Nombre son requeridos'}), 400
+            
+            existing = Producto.query.filter_by(sku=data['sku']).first()
+            if existing:
+                return jsonify({'ok': False, 'msg': 'Ya existe un producto con ese SKU'}), 400
+            
+            producto = Producto(
+                sku=data['sku'],
+                nombre=data['nombre'],
+                tipo=data.get('tipo', 'P'),
+                estado=data.get('estado', 'A'),
+                stock=data.get('stock', 0),
+                stock_min=data.get('stock_min', 0),
+                deposito=data.get('deposito', 'Principal'),
+                precio=float(data.get('precio', 0) or 0),
+                costo=float(data.get('costo', 0) or 0),
+                rubro=data.get('rubro', ''),
+                cod_barra=data.get('cod_barra', '')
+            )
+            db.session.add(producto)
+            db.session.commit()
+            return jsonify({'ok': True, 'msg': 'Producto creado'})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'ok': False, 'msg': str(e)}), 500
 
 @app.route('/api/proveedores')
 @login_required
