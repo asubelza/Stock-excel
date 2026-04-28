@@ -73,18 +73,18 @@
             <img src="{{ url_for('static', filename='logo.png') }}" style="height:40px;">
             <h1>Gestion de Stock</h1>
         </div>
-        <div class="nav">
-            {% if session.get('rol') == 'admin' %}<a href="/stock/historico">Historico</a>{% endif %}
+<div class="nav">
+            {% if session.get('rol') == 'admin' or session.get('rol') == 'consulta' %}<a href="/stock/historico">Historico</a>{% endif %}
             <a href="/stock/">Stock</a>
-            <a href="/stock/nuevo_producto">+ Producto</a>
-            <a href="/stock/entrada">Entrada</a>
-            <a href="/stock/salida">Salida</a>
-            <a href="/stock/proveedores">Proveedores</a>
-            <a href="/stock/clientes">Clientes</a>
+            {% if session.get('rol') in ['admin', 'datainput', 'deposito'] %}<a href="/stock/nuevo_producto">+ Producto</a>{% endif %}
+            {% if session.get('rol') in ['admin', 'datainput', 'deposito'] %}<a href="/stock/entrada">Entrada</a>{% endif %}
+            {% if session.get('rol') in ['admin', 'deposito'] %}<a href="/stock/salida">Salida</a>{% endif %}
+            {% if session.get('rol') == 'admin' %}<a href="/stock/proveedores">Proveedores</a>{% endif %}
+            {% if session.get('rol') == 'admin' %}<a href="/stock/clientes">Clientes</a>{% endif %}
             {% if session.get('rol') == 'admin' %}<a href="/stock/usuarios">Usuarios</a>{% endif %}
-            <a href="/stock/nueva_entrada">+ Entrada</a>
-            <a href="/stock/nueva_salida">+ Salida</a>
-            <a href="/stock/importar_excel">Importar</a>
+            {% if session.get('rol') in ['admin', 'datainput', 'deposito'] %}<a href="/stock/nueva_entrada">+ Entrada</a>{% endif %}
+            {% if session.get('rol') in ['admin', 'deposito'] %}<a href="/stock/nueva_salida">+ Salida</a>{% endif %}
+            {% if session.get('rol') in ['admin', 'datainput'] %}<a href="/stock/importar_excel">Importar</a>{% endif %}
             <a href="/stock/logout">Salir ({{ session.get('nombre') }})</a>
         </div>
     </div>

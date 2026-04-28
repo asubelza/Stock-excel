@@ -61,7 +61,7 @@ swagger = Swagger(app, template={
                 "password": {"type": "string"},
                 "nombre": {"type": "string"},
                 "apellido": {"type": "string"},
-                "rol": {"type": "string", "enum": ["admin", "datainput", "deposito"]}
+                "rol": {"type": "string", "enum": ["admin", "datainput", "deposito", "consulta"]}
             }
         },
         "ProductoSchema": {
@@ -113,9 +113,11 @@ PERMISOS = {
               '/nueva_entrada', '/nueva_salida', '/nuevo_producto', '/nuevo_proveedor',
               '/nuevo_cliente', '/importar_excel', '/exportar_excel', '/usuarios', '/logout',
               '/api/'],
-    'datainput': ['/', '/historico', '/entrada', '/nueva_entrada', 
+    'datainput': ['/', '/historico', '/entrada', '/nueva_entrada', '/nuevo_producto', 
                   '/importar_excel', '/exportar_excel', '/logout', '/api/'],
-    'deposito': ['/', '/historico', '/salida', '/nueva_salida', '/logout', '/api/'],
+    'deposito': ['/', '/historico', '/entrada', '/nueva_entrada', '/salida', '/nueva_salida', '/nuevo_producto', 
+                '/logout', '/api/'],
+    'consulta': ['/', '/historico', '/logout', '/api/'],
 }
 
 def tiene_permiso(ruta):
