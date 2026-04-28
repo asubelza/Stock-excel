@@ -962,7 +962,7 @@ def api_producto():
         if existing:
             return jsonify({'ok': False, 'msg': 'Ya existe un producto con ese SKU'}), 400
         
-        producto = Producto(
+producto = Producto(
             sku=data['sku'],
             nombre=data['nombre'],
             tipo=data.get('tipo', 'P'),
@@ -972,7 +972,7 @@ def api_producto():
             deposito=data.get('deposito', 'Principal'),
             precio=float(data.get('precio', 0) or 0),
             costo=float(data.get('costo', 0) or 0),
-            rublo=data.get('rubro', ''),
+            rubro=data.get('rubro', ''),
             cod_barra=data.get('cod_barra', '')
         )
         db.session.add(producto)
