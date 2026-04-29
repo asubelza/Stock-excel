@@ -33,6 +33,7 @@
                 <th>Stock</th>
                 <th>Stock Min</th>
                 <th>Costo</th>
+                {% if session.get('rol') == 'admin' %}<th>Acciones</th>{% endif %}
             </tr>
         </thead>
         <tbody id="tabla_productos">
@@ -46,6 +47,11 @@
                 <td>{{ p.stock }}</td>
                 <td>{{ p.stock_min }}</td>
                 <td>${{ "%.2f"|format(p.costo or 0) }}</td>
+                {% if session.get('rol') == 'admin' %}
+                <td>
+                    <button onclick="eliminar('{{ p.sku }}')" style="background:#e74c3c;color:white;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;">Eliminar</button>
+                </td>
+                {% endif %}
             </tr>
             {% endfor %}
         </tbody>
@@ -84,7 +90,6 @@ function filtrar() {
         row.style.display = mostrar ? '' : 'none';
     });
     
-    // Si no hay resultados visibles, mostrar mensaje
     const emptyMsg = document.getElementById('empty_msg');
     if (visibleCount === 0 && rows.length > 0) {
         if (!emptyMsg) {
@@ -98,6 +103,24 @@ function filtrar() {
     } else if (emptyMsg) {
         emptyMsg.remove();
     }
+}
+
+function eliminar(sku) {
+    if (!confirm('¿Estás seguro de eliminar el producto ' + sku + '?')) return;
+    
+    fetch('/stock/api/producto/' + sku, {
+        method: 'DELETE',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        alert(data.msg);
+        if (data.ok) location.reload();
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        alert('Error al eliminar el producto');
+    });
 }
 </script>
 {% endblock %}
