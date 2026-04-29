@@ -89,12 +89,60 @@ function guardar() {
             costo: parseFloat(document.getElementById('prod_costo').value) || 0,
             precio: parseFloat(document.getElementById('prod_precio').value) || 0
         })
+    })
+    .then(r => r.json())
+    .then(data => {
+        alert(data.msg);
+        if (data.ok) location.href = '/stock/';
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        alert('Error al guardar el producto');
+    });
+}
+    
+    fetch('/stock/api/producto', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            sku: sku,
+            nombre: nombre,
+            tipo: document.getElementById('prod_tipo').value,
+            estado: 'A',
+            rubro: document.getElementById('prod_rubro').value,
+            cod_barra: document.getElementById('prod_cod_barra').value,
+            stock: parseInt(document.getElementById('prod_stock').value) || 0,
+            stock_min: parseInt(document.getElementById('prod_stock_min').value) || 0,
+            deposito: document.getElementById('prod_deposito').value,
+            costo: parseFloat(document.getElementById('prod_costo').value) || 0,
+            precio: parseFloat(document.getElementById('prod_precio').value) || 0
+        })
     }).then(r => r.json()).then(data => {
         alert(data.msg);
         if (data.ok) location.href = '/stock/';
     });
 }
-}
+    
+    fetch('/stock/api/producto', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            sku: sku,
+            nombre: nombre,
+            tipo: document.getElementById('prod_tipo').value,
+            estado: 'A',
+            rubro: document.getElementById('prod_rubro').value,
+            cod_barra: document.getElementById('prod_cod_barra').value,
+            stock: parseInt(document.getElementById('prod_stock').value) || 0,
+            stock_min: parseInt(document.getElementById('prod_stock_min').value) || 0,
+            deposito: document.getElementById('prod_deposito').value,
+            costo: parseFloat(document.getElementById('prod_costo').value) || 0,
+            precio: parseFloat(document.getElementById('prod_precio').value) || 0
+        })
+    }).then(r => r.json()).then(data => {
+        alert(data.msg);
+        if (data.ok) location.href = '/stock/';
+    });
 }
 </script>
 {% endblock %}
