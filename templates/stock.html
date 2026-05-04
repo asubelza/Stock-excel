@@ -110,7 +110,8 @@ function eliminar(sku) {
     
     fetch('/stock/api/producto/' + sku, {
         method: 'DELETE',
-        headers: {'Content-Type': 'application/json'}
+        headers: {'Content-Type': 'application/json'},
+        credentials: 'same-origin'
     })
     .then(r => r.json())
     .then(data => {
