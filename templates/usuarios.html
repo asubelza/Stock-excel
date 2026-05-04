@@ -79,6 +79,23 @@
                 <td>
                     <button class="btn" style="padding:4px 8px;" onclick="editar_usuario({{ u.id }}, '{{ u.username }}', '{{ u.nombre }}', '{{ u.apellido or '' }}', '{{ u.rol }}')">Editar</button>
                     <button class="btn" style="padding:4px 8px; background:#f39c12;" onclick="reset_password({{ u.id }})">Blanquear Pass</button>
+
+<div id="modal_reset" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+    <div style="background:white; max-width:400px; margin:100px auto; padding:20px; border-radius:8px;">
+        <h3>Blanquear Contraseña</h3>
+        <input type="hidden" id="reset_usu_id">
+        <div class="form-group">
+            <label>Nueva Contraseña *</label>
+            <input type="password" id="reset_nueva_pass" placeholder="Ingrese nueva contraseña">
+        </div>
+        <div class="form-group">
+            <label>Confirmar Contraseña *</label>
+            <input type="password" id="reset_confirm_pass" placeholder="Confirme la contraseña">
+        </div>
+        <button class="btn btn-success" onclick="guardar_reset()">Guardar</button>
+        <button class="btn" onclick="document.getElementById('modal_reset').style.display='none'">Cancelar</button>
+    </div>
+</div>
                     <button class="btn btn-danger" style="padding:4px 8px;" onclick="eliminar_usuario({{ u.id }})">Eliminar</button>
                 </td>
             </tr>
@@ -188,12 +205,26 @@ function guardar_edicion() {
 }
 
 function reset_password(id) {
-    if (!confirm('¿Blanquear contraseña del usuario?')) return;
+    document.getElementById('reset_usu_id').value = id;
+    document.getElementById('reset_nueva_pass').value = '';
+    document.getElementById('reset_confirm_pass').value = '';
+    document.getElementById('modal_reset').style.display = 'block';
+}
+
+function guardar_reset() {
+    const id = document.getElementById('reset_usu_id').value;
+    const nueva_pass = document.getElementById('reset_nueva_pass').value;
+    const confirm_pass = document.getElementById('reset_confirm_pass').value;
     
-    const nueva_pass = prompt('Ingrese nueva contraseña (o leave blank for default):');
-    if (nueva_pass === null) return;
+    if (!nueva_pass || !confirm_pass) {
+        alert('Debe ingresar y confirmar la nueva contraseña');
+        return;
+    }
     
-    if (!nueva_pass) nueva_pass = 'stock123';
+    if (nueva_pass !== confirm_pass) {
+        alert('Las contraseñas no coinciden');
+        return;
+    }
     
     fetch('/stock/api/usuario/' + id, {
         method: 'PUT',
@@ -204,7 +235,10 @@ function reset_password(id) {
         })
     }).then(r => r.json()).then(data => {
         alert(data.msg);
-        if (data.ok) alert('Nueva contraseña: ' + nueva_pass);
+        if (data.ok) {
+            document.getElementById('modal_reset').style.display = 'none';
+            alert('Contraseña actualizada');
+        }
     });
 }
 </script>
