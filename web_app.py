@@ -616,6 +616,24 @@ def api_producto():
         db.session.rollback()
         return jsonify({'ok': False, 'msg': str(e)}), 500
 
+@app.route('/stock/api/producto/<sku>', methods=['DELETE'])
+@login_required
+def api_producto_delete(sku):
+    try:
+        if session.get('rol') != 'admin':
+            return jsonify({'ok': False, 'msg': 'Solo el admin puede eliminar productos'}), 403
+        
+        producto = Producto.query.filter_by(sku=sku).first()
+        if not producto:
+            return jsonify({'ok': False, 'msg': 'Producto no encontrado'}), 404
+        
+        db.session.delete(producto)
+        db.session.commit()
+        return jsonify({'ok': True, 'msg': 'Producto eliminado'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'ok': False, 'msg': str(e)}), 500
+
 @app.route('/api/entrada', methods=['POST'])
 @login_required
 def api_entrada():
