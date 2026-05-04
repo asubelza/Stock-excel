@@ -47,7 +47,7 @@
                 <td>{{ p.stock }}</td>
                 <td>{{ p.stock_min }}</td>
                 <td>${{ "%.2f"|format(p.costo or 0) }}</td>
-                {% if session.get('rol') == 'admin' %}
+{% if session.get('rol') in ['admin', 'deposito'] %}
                 <td>
                     <button onclick="eliminar('{{ p.sku }}')" style="background:#e74c3c;color:white;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;">Eliminar</button>
                 </td>
