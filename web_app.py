@@ -617,7 +617,6 @@ def api_producto():
         return jsonify({'ok': False, 'msg': str(e)}), 500
 
 @app.route('/stock/api/producto/<sku>', methods=['DELETE'])
-@login_required
 def api_producto_delete(sku):
     try:
         if session.get('rol') != 'admin':
