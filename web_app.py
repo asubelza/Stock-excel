@@ -616,7 +616,7 @@ def api_producto():
         db.session.rollback()
         return jsonify({'ok': False, 'msg': str(e)}), 500
 
-@app.route('/stock/api/producto/<sku>', methods=['DELETE'])
+@app.route('/api/producto/<sku>', methods=['DELETE'])
 def api_producto_delete(sku):
     try:
         if session.get('rol') != 'admin':
