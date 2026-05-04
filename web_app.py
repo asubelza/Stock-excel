@@ -946,7 +946,7 @@ def api_movimiento_delete(id):
             pass
         elif rol == 'datainput' and movimiento.tipo == 'ENTRADA':
             pass
-        elif rol == 'deposito' and movimiento.tipo == 'SALIDA':
+        elif rol == 'deposito' and movimiento.tipo in ['ENTRADA', 'SALIDA']:
             pass
         else:
             return jsonify({'ok': False, 'msg': 'Sin permisos para eliminar este movimiento'}), 403
