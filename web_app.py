@@ -619,8 +619,8 @@ def api_producto():
 @app.route('/api/producto/<sku>', methods=['DELETE'])
 @login_required
 def api_producto_delete(sku):
-    try:
-if session.get('rol') not in ['admin', 'deposito']:
+try:
+        if session.get('rol') not in ['admin', 'deposito']:
             return jsonify({'ok': False, 'msg': 'Solo el admin puede eliminar productos'}), 403
         
         producto = Producto.query.filter_by(sku=sku).first()
