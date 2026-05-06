@@ -627,9 +627,22 @@ def api_producto_delete(sku):
         if not producto:
             return jsonify({'ok': False, 'msg': 'Producto no encontrado'}), 404
         
+        stock_actual = producto.stock or 0
+        
+        movimiento = Movimiento(
+            usuario=session.get('usuario', 'admin'),
+            sku=producto.sku,
+            producto=producto.nombre,
+            tipo='ELIMINACION_PRODUCTO',
+            cantidad=stock_actual,
+            deposito=producto.deposito or 'Principal',
+            observacion=f'Producto eliminado. Stock final: {stock_actual}'
+        )
+        db.session.add(movimiento)
+        
         db.session.delete(producto)
         db.session.commit()
-        return jsonify({'ok': True, 'msg': 'Producto eliminado'})
+        return jsonify({'ok': True, 'msg': f'Producto eliminado (stock: {stock_actual})'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'ok': False, 'msg': str(e)}), 500
