@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Registrarse - Gestión de Stock{% endblock %}
+
+{% block page_header %}{% endblock %}
+
+{% block content %}
+{% if g.design_system %}
+{# ==========================================================================
+   NEW DESIGN SYSTEM REGISTER PAGE
+   Uses render_card, render_form, render_field, render_button macros
+   No inline styles — all styling via design system tokens
+   Supports both light and dark mode via data-theme attribute
+   ========================================================================== #}
+<div class="app-layout app-layout--login">
+    <main class="app-layout__main" id="main-content" role="main">
+        <div class="container container-narrow">
+            {% from 'macros/cards.html' import render_card %}
+            {% from '_form_macros.html' import render_form, render_field, render_button %}
+            
+{% set register_form = render_form(
+                        fields=[
+                            render_field({
+                                "name": "username",
+                                "label": "Usuario",
+                                "type": "text",
+                                "required": true,
+                                "autofocus": true,
+                                "autocomplete": "username",
+                                "placeholder": "Elija un nombre de usuario"
+                            }),
+                            render_field({
+                                "name": "email",
+                                "label": "Email",
+                                "type": "email",
+                                "required": true,
+                                "autocomplete": "email",
+                                "placeholder": "correo@ejemplo.com"
+                            }),
+                            render_field({
+                                "name": "nombre",
+                                "label": "Nombre",
+                                "type": "text",
+                                "required": true,
+                                "autocomplete": "given-name",
+                                "placeholder": "Su nombre"
+                            }),
+                            render_field({
+                                "name": "apellido",
+                                "label": "Apellido",
+                                "type": "text",
+                                "required": false,
+                                "autocomplete": "family-name",
+                                "placeholder": "Su apellido"
+                            }),
+                            render_field({
+                                "name": "password",
+                                "label": "Contraseña",
+                                "type": "password",
+                                "required": true,
+                                "autocomplete": "new-password",
+                                "placeholder": "Mínimo 8 caracteres"
+                            }),
+                            render_field({
+                                "name": "password_confirm",
+                                "label": "Confirmar Contraseña",
+                                "type": "password",
+                                "required": true,
+                                "autocomplete": "new-password",
+                                "placeholder": "Repita la contraseña"
+                            })
+                        ],
+                        actions=[
+                            {"label": "Registrarse", "type": "submit", "variant": "primary", "size": "md", "full_width": true, "icon": "user-plus"}
+                        ]
+                    ) %}
+{% call render_card(
+                    title='Crear Cuenta',
+                    footer='<p class="text-center text-caption text-tertiary mt-4">¿Ya tiene cuenta? <a href="' ~ url_for('login') ~ '">Iniciar sesión</a></p>',
+                    variant="elevated",
+                    classes="login-card",
+                    content=('<div class="c-alert c-alert--danger" role="alert">' ~ error ~ '</div>' if error else '') ~ register_form
+                ) %}
+{% endcall %}
+        </div>
+    </main>
+</div>
+{% else %}
+{# ==========================================================================
+   LEGACY REGISTER PAGE (fallback)
+   Uses inline styles from base.html — no design system dependencies
+   ========================================================================== #}
+<div class="login-box">
+    <h2>Crear Cuenta</h2>
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    <form method="post">
+        <div class="form-group">
+            <label>Usuario</label>
+            <input type="text" name="username" required autofocus>
+        </div>
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" name="email" required>
+        </div>
+        <div class="form-group">
+            <label>Nombre</label>
+            <input type="text" name="nombre" required>
+        </div>
+        <div class="form-group">
+            <label>Apellido</label>
+            <input type="text" name="apellido">
+        </div>
+        <div class="form-group">
+            <label>Contraseña</label>
+            <input type="password" name="password" required minlength="8">
+        </div>
+        <div class="form-group">
+            <label>Confirmar Contraseña</label>
+            <input type="password" name="password_confirm" required>
+        </div>
+        <button type="submit" class="btn btn-success" style="width: 100%;">Registrarse</button>
+    </form>
+    <p style="margin-top: 20px; text-align: center; color: #666; font-size: 12px;">
+        ¿Ya tiene cuenta? <a href="{{ url_for('login') }}">Iniciar sesión</a>
+    </p>
+</div>
+{% endif %}
+{% endblock %}
