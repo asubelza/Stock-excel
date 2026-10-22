@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Iniciar Sesión - Gestión de Stock{% endblock %}
+
+{% block page_header %}{% endblock %}
+
+{% block content %}
+{% if g.design_system %}
+{# ==========================================================================
+   NEW DESIGN SYSTEM LOGIN PAGE
+   Uses render_card, render_form, render_field, render_button macros
+   No inline styles — all styling via design system tokens
+   Supports both light and dark mode via data-theme attribute
+   ========================================================================== #}
+<div class="app-layout app-layout--login">
+    <main class="app-layout__main" id="main-content" role="main">
+        <div class="container container-narrow">
+            {% from 'macros/cards.html' import render_card %}
+            {% from '_form_macros.html' import render_form, render_field, render_button %}
+            
+            {% set login_form = render_form(
+                    fields=[
+                        render_field({
+                            "name": "usuario",
+                            "label": "Usuario",
+                            "type": "text",
+                            "required": true,
+                            "autofocus": true,
+                            "autocomplete": "username",
+                            "placeholder": "Ingrese su usuario"
+                        }),
+                        render_field({
+                            "name": "password",
+                            "label": "Contraseña",
+                            "type": "password",
+                            "required": true,
+                            "autocomplete": "current-password",
+                            "placeholder": "Ingrese su contraseña"
+                        })
+                    ],
+                    actions=[
+                        {"label": "Ingresar", "type": "submit", "variant": "primary", "size": "md", "full_width": true, "icon": "login"}
+                    ]
+                ) %}
+{% call render_card(
+                title='Iniciar Sesión',
+                footer='<p class="text-center text-caption text-tertiary mt-4">Echo by subelzacg</p>',
+                variant="elevated",
+                classes="login-card",
+                content=('<div class="c-alert c-alert--danger" role="alert">' ~ error ~ '</div>' if error else '') ~ login_form
+            ) %}
+{% endcall %}
+        </div>
+    </main>
+</div>
+{% else %}
+{# ==========================================================================
+   LEGACY LOGIN PAGE (unchanged fallback)
+   Uses inline styles from base.html — no design system dependencies
+   ========================================================================== #}
+<div class="login-box">
+    <h2>Iniciar Sesion</h2>
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    <form method="post">
+        <div class="form-group">
+            <label>Usuario</label>
+            <input type="text" name="usuario" required autofocus>
+        </div>
+        <div class="form-group">
+            <label>Contrasena</label>
+            <input type="password" name="password" required>
+        </div>
+        <button type="submit" class="btn btn-success" style="width: 100%;">Ingresar</button>
+    </form>
+    <p style="margin-top: 20px; text-align: center; color: #666; font-size: 12px;">
+        Echo by subelzacg
+    </p>
+</div>
+{% endif %}
+{% endblock %}
