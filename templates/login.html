@@ -1,6 +1,72 @@
 {% extends "base.html" %}
 
+{% block title %}Iniciar Sesión - Gestión de Stock{% endblock %}
+
 {% block content %}
+{% if request and request.design_system == 'new' %}
+{# ==========================================================================
+   NEW DESIGN SYSTEM LOGIN PAGE
+   Uses render_card, render_button, form macros; no side nav; centered container
+   ========================================================================== #}
+<div class="app-layout app-layout--login">
+    <main class="app-layout__main" id="main-content" role="main">
+        <div class="container container-narrow">
+            {% from 'macros/cards.html' import render_card %}
+            {% from 'macros/forms.html' import render_input, render_form_layout, render_form_actions %}
+            {% from 'macros/buttons.html' import render_button %}
+            
+            {% call render_card(
+                header={
+                    'title': 'Iniciar Sesión',
+                    'subtitle': 'Ingrese sus credenciales para acceder al sistema'
+                },
+                footer='<p class="text-center text-caption text-tertiary mt-4">Echo by subelzacg</p>',
+                variant="elevated",
+                padding="lg",
+                classes="login-card"
+            ) %}
+                {% if error %}
+                <div class="alert alert-danger" role="alert">{{ error }}</div>
+                {% endif %}
+                <form method="post" novalidate>
+                    {{ render_form_layout([
+                        render_input({
+                            "name": "usuario",
+                            "label": "Usuario",
+                            "type": "text",
+                            "required": true,
+                            "autofocus": true,
+                            "autocomplete": "username",
+                            "placeholder": "Ingrese su usuario"
+                        }),
+                        render_input({
+                            "name": "password",
+                            "label": "Contraseña",
+                            "type": "password",
+                            "required": true,
+                            "autocomplete": "current-password",
+                            "placeholder": "Ingrese su contraseña"
+                        })
+                    ]) }}
+                    {{ render_form_actions([
+                        render_button({
+                            "type": "submit",
+                            "label": "Ingresar",
+                            "variant": "primary",
+                            "size": "md",
+                            "full_width": true,
+                            "icon": "login"
+                        })
+                    ]) }}
+                </form>
+            {% endcall %}
+        </div>
+    </main>
+</div>
+{% else %}
+{# ==========================================================================
+   LEGACY LOGIN PAGE (unchanged)
+   ========================================================================== #}
 <div class="login-box">
     <h2>Iniciar Sesion</h2>
     {% if error %}
@@ -21,4 +87,5 @@
         Echo by subelzacg
     </p>
 </div>
+{% endif %}
 {% endblock %}

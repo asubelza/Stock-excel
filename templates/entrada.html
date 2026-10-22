@@ -1,8 +1,324 @@
 {% extends "base.html" %}
+{% from 'macros.html' import macros %}
+
 {% block head %}
 <meta http-equiv="refresh" content="30">
 {% endblock %}
+
 {% block content %}
+{% if g.design_system %}
+{# ==========================================================================
+   NEW DESIGN SYSTEM — Entrada
+   ========================================================================== #}
+<div class="c-card" data-table>
+    <header class="c-card__header">
+        <h2 class="c-card__title">Entrada de Stock</h2>
+        <div class="c-card__actions">
+            {{ macros.render_button('+ Nueva Entrada', variant='success', type='button', href='/stock/nueva_entrada', icon='plus') }}
+        </div>
+    </header>
+
+    <div class="c-card__body">
+        <div class="c-table-toolbar" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center;">
+            {{ macros.render_search_input(
+                id='buscar',
+                placeholder='Buscar...',
+                data_table_search=true,
+                classes='c-table__search',
+                style='min-width: 250px; flex: 1; max-width: 400px;'
+            ) }}
+            <div class="c-select-wrapper" style="flex-shrink: 0;">
+                <select id="filtro_tipo" data-table-filter="tipo_comp" class="c-select" style="min-width: 180px;">
+                    <option value="">Todos los tipos</option>
+                    <option value="Factura">Factura</option>
+                    <option value="Remito">Remito</option>
+                    <option value="Presupuesto">Presupuesto</option>
+                    <option value="Orden de compra">Orden de compra</option>
+                </select>
+            </div>
+            <div class="c-input-wrapper" style="flex-shrink: 0;">
+                <input type="date" id="fecha_desde" data-table-filter="fecha_desde" class="c-input" placeholder="Desde" style="min-width: 160px;">
+            </div>
+            <div class="c-input-wrapper" style="flex-shrink: 0;">
+                <input type="date" id="fecha_hasta" data-table-filter="fecha_hasta" class="c-input" placeholder="Hasta" style="min-width: 160px;">
+            </div>
+        </div>
+
+        <div class="c-table__wrapper">
+            <div class="c-table__scroll" tabindex="0" role="region" aria-label="Tabla de entradas de stock">
+                <table class="c-table c-table--striped c-table--hoverable c-table--bordered c-table--stack">
+                    <thead>
+                        <tr>
+                            <th scope="col" data-sortable="true" data-sort-key="fecha" data-align="left">Fecha</th>
+                            <th scope="col" data-sortable="true" data-sort-key="usuario" data-align="left">Usuario</th>
+                            <th scope="col" data-sortable="true" data-sort-key="sku" data-align="left">SKU</th>
+                            <th scope="col" data-sortable="true" data-sort-key="producto" data-align="left">Producto</th>
+                            <th scope="col" data-sortable="true" data-sort-key="cantidad" data-align="right">Cantidad</th>
+                            <th scope="col" data-sortable="true" data-sort-key="costo" data-align="right">Costo</th>
+                            <th scope="col" data-sortable="true" data-sort-key="tipo_comp" data-align="left">Tipo Comp</th>
+                            <th scope="col" data-sortable="true" data-sort-key="nro_comp" data-align="left">Nro Comp</th>
+                            <th scope="col" data-sortable="true" data-sort-key="proveedor_nombre" data-align="left">Proveedor</th>
+                            <th scope="col" data-align="center" style="width: 1%; white-space: nowrap;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {# Rows loaded via DataTable component #}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Modal Editar Entrada #}
+{{ macros.render_form_modal(
+    id='modal_editar_entrada',
+    title='Editar Entrada',
+    form_content=render_form_editar_entrada(),
+    submit_text='Guardar',
+    cancel_text='Cancelar',
+    submit_variant='success',
+    cancel_variant='ghost',
+    size='md',
+    on_submit='guardar_edicion_entrada()'
+) }}
+
+{% macro render_form_editar_entrada() -%}
+<form id="form_editar_entrada" data-validation novalidate>
+    <input type="hidden" id="edit_id">
+    
+    {{ macros.render_input('edit_sku', label='SKU', disabled=true, id='edit_sku') }}
+    
+    {{ macros.render_input('edit_producto', label='Producto', disabled=true, id='edit_producto') }}
+    
+    {{ macros.render_field_group([
+        macros.render_input('edit_cantidad', label='Cantidad *', type='number', min=1, required=true, id='edit_cantidad'),
+        macros.render_input('edit_costo', label='Costo', type='number', step='0.01', id='edit_costo'),
+    ], layout='horizontal', gap='md') }}
+    
+    {{ macros.render_input('edit_nro_comp', label='Nro Comprobante', id='edit_nro_comp') }}
+    
+    {{ macros.render_select('edit_tipo_comp',
+        [
+            {'value': 'Factura', 'label': 'Factura'},
+            {'value': 'Remito', 'label': 'Remito'},
+            {'value': 'Presupuesto', 'label': 'Presupuesto'},
+            {'value': 'Orden de compra', 'label': 'Orden de compra'},
+        ],
+        label='Tipo Comprobante *',
+        required=true,
+        id='edit_tipo_comp'
+    ) }}
+    
+    {{ macros.render_field_group([
+        macros.render_input('edit_prov_cuit', label='Proveedor CUIT', id='edit_prov_cuit'),
+        macros.render_input('edit_prov_nombre', label='Proveedor Nombre', id='edit_prov_nombre'),
+    ], layout='horizontal', gap='md') }}
+</form>
+{%- endmacro %}
+
+<script>
+let modalEditarEntrada;
+
+document.addEventListener('DOMContentLoaded', () => {
+    modalEditarEntrada = document.getElementById('modal_editar_entrada');
+    
+    // Initialize DataTable
+    const tableWrapper = document.querySelector('[data-table]');
+    if (tableWrapper && window.DesignSystem && DesignSystem.DataTable) {
+        tableWrapper._dsDataTable = new DesignSystem.ClientDataTable(tableWrapper, {
+            pageSize: 25,
+            sortable: true,
+            defaultSort: { field: 'fecha', direction: 'desc' },
+            globalSearch: true,
+            columnFilters: true,
+            responsive: 'stack',
+            actions: [
+                {
+                    type: 'icon',
+                    props: (row) => ({
+                        variant: 'ghost',
+                        size: 'sm',
+                        ariaLabel: 'Editar entrada',
+                        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
+                        onClick: (r) => editar_movimiento(r)
+                    })
+                },
+                {
+                    type: 'icon',
+                    props: (row) => ({
+                        variant: 'danger',
+                        size: 'sm',
+                        ariaLabel: 'Eliminar entrada',
+                        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>',
+                        onClick: (r) => eliminar_movimiento(r.id, r.producto, r.cantidad)
+                    })
+                }
+            ],
+            onDataLoad: (data, meta) => {
+                // Apply tipo_comp badges
+                document.querySelectorAll('tr[data-row-key]').forEach(tr => {
+                    const rowData = data.find(d => d.id == tr.dataset.rowKey);
+                    if (rowData) {
+                        const tipoCell = tr.querySelector('td[data-key="tipo_comp"] .c-table__cell-content');
+                        if (tipoCell && rowData.tipo_comp) {
+                            let variant = 'neutral';
+                            if (['Factura'].includes(rowData.tipo_comp)) variant = 'success';
+                            else if (['Remito'].includes(rowData.tipo_comp)) variant = 'info';
+                            else if (['Presupuesto'].includes(rowData.tipo_comp)) variant = 'warning';
+                            else if (['Orden de compra'].includes(rowData.tipo_comp)) variant = 'primary';
+                            tipoCell.innerHTML = `{{ macros.render_status_pill(rowData.tipo_comp, variant) | safe }}`;
+                        }
+                    }
+                });
+            }
+        });
+    }
+    
+    if (modalEditarEntrada) {
+        modalEditarEntrada.addEventListener('modal:open', () => {
+            const form = document.getElementById('form_editar_entrada');
+            if (form && !form._dsFormValidation) {
+                form._dsFormValidation = new DesignSystem.FormValidation(form);
+            }
+        });
+    }
+});
+
+function editar_movimiento(row) {
+    document.getElementById('edit_id').value = row.id;
+    document.getElementById('edit_sku').value = row.sku;
+    document.getElementById('edit_producto').value = row.producto;
+    document.getElementById('edit_cantidad').value = row.cantidad;
+    document.getElementById('edit_costo').value = row.costo || '';
+    document.getElementById('edit_nro_comp').value = row.nro_comp || '';
+    document.getElementById('edit_tipo_comp').value = row.tipo_comp || 'Factura';
+    document.getElementById('edit_prov_cuit').value = row.proveedor_cuit || '';
+    document.getElementById('edit_prov_nombre').value = row.proveedor_nombre || '';
+    
+    if (modalEditarEntrada && modalEditarEntrada._dsModal) {
+        modalEditarEntrada._dsModal.open();
+    } else if (modalEditarEntrada) {
+        modalEditarEntrada.classList.add('c-modal--open');
+    }
+}
+
+async function guardar_edicion_entrada() {
+    const form = document.getElementById('form_editar_entrada');
+    const validation = form._dsFormValidation;
+    
+    if (validation) {
+        const isValid = await validation.validateForm();
+        if (!isValid) return;
+    }
+    
+    const btn = modalEditarEntrada.querySelector('footer .c-btn--success');
+    btn.disabled = true;
+    
+    try {
+        const id = document.getElementById('edit_id').value;
+        const response = await fetch('/stock/api/movimiento/' + id, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                cantidad: parseInt(document.getElementById('edit_cantidad').value),
+                costo: parseFloat(document.getElementById('edit_costo').value) || 0,
+                nro_comp: document.getElementById('edit_nro_comp').value,
+                tipo_comp: document.getElementById('edit_tipo_comp').value,
+                proveedor_cuit: document.getElementById('edit_prov_cuit').value,
+                proveedor_nombre: document.getElementById('edit_prov_nombre').value
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.success(data.msg);
+            } else {
+                alert(data.msg);
+            }
+            if (modalEditarEntrada && modalEditarEntrada._dsModal) {
+                modalEditarEntrada._dsModal.close();
+            }
+            const tableWrapper = document.querySelector('[data-table]');
+            if (tableWrapper && tableWrapper._dsDataTable) {
+                tableWrapper._dsDataTable.refresh();
+            } else {
+                location.reload();
+            }
+        } else {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.error(data.msg || 'Error al guardar');
+            } else {
+                alert(data.msg || 'Error al guardar');
+            }
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        if (window.DesignSystem && DesignSystem.Toast) {
+            DesignSystem.Toast.error('Error al guardar la edición');
+        } else {
+            alert('Error al guardar la edición');
+        }
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function eliminar_movimiento(id, producto, cantidad) {
+    if (!(window.DesignSystem && DesignSystem.Toast && await DesignSystem.Toast.show({
+        message: `¿Eliminar entrada de ${cantidad} unidades de "${producto}"?`,
+        type: 'warning',
+        action: { label: 'Eliminar', variant: 'danger', onclick: () => confirmarEliminar(id) }
+    }))) {
+        if (!confirm(`¿Eliminar entrada de ${cantidad} unidades de "${producto}"?`)) return;
+        if (!confirm('¿CONFIRMA la eliminación? Esta acción no se puede deshacer.')) return;
+        confirmarEliminar(id);
+    }
+}
+
+async function confirmarEliminar(id) {
+    try {
+        const response = await fetch('/stock/api/movimiento/' + id, {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'}
+        });
+        const data = await response.json();
+        
+        if (data.ok) {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.success(data.msg);
+            } else {
+                alert(data.msg);
+            }
+            const tableWrapper = document.querySelector('[data-table]');
+            if (tableWrapper && tableWrapper._dsDataTable) {
+                tableWrapper._dsDataTable.refresh();
+            } else {
+                location.reload();
+            }
+        } else {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.error(data.msg);
+            } else {
+                alert(data.msg);
+            }
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        if (window.DesignSystem && DesignSystem.Toast) {
+            DesignSystem.Toast.error('Error al eliminar');
+        } else {
+            alert('Error: ' + err);
+        }
+    }
+}
+</script>
+{% else %}
+{# ==========================================================================
+   LEGACY — Entrada (original template)
+   ========================================================================== #}
 <div class="card">
     <div class="card-header">
         <h2>Entrada de Stock</h2>
@@ -203,4 +519,5 @@ function filtrar() {
     }
 }
 </script>
+{% endif %}
 {% endblock %}

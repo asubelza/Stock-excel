@@ -1,8 +1,191 @@
 {% extends "base.html" %}
+{% from 'macros.html' import macros %}
+
 {% block head %}
 <meta http-equiv="refresh" content="30">
 {% endblock %}
+
 {% block content %}
+{% if g.design_system %}
+{# ==========================================================================
+   NEW DESIGN SYSTEM — Histórico
+   ========================================================================== #}
+<div class="c-card" data-table>
+    <header class="c-card__header">
+        <h2 class="c-card__title">Histórico de Movimientos</h2>
+        <div class="c-card__actions">
+            <div class="c-btn-group" role="group" style="--c-btn-group-gap: var(--space-2);">
+                {{ macros.render_button('Limpiar Histórico', variant='danger', type='button', onclick='limpiar_historico()', icon='trash') }}
+            </div>
+        </div>
+    </header>
+
+    <div class="c-card__body">
+        <div class="c-table-toolbar" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center;">
+            {{ macros.render_search_input(
+                id='buscar',
+                placeholder='Buscar por SKU, producto, proveedor, cliente...',
+                data_table_search=true,
+                classes='c-table__search',
+                style='min-width: 300px; flex: 1; max-width: 500px;'
+            ) }}
+            <div class="c-select-wrapper" style="flex-shrink: 0;">
+                <select id="filtro_tipo" data-table-filter="tipo" class="c-select" style="min-width: 180px;">
+                    <option value="">Todos los tipos</option>
+                    <option value="ENTRADA">Entrada</option>
+                    <option value="SALIDA">Salida</option>
+                    <option value="Factura">Factura</option>
+                    <option value="Remito">Remito</option>
+                    <option value="Presupuesto">Presupuesto</option>
+                </select>
+            </div>
+            <div class="c-input-wrapper" style="flex-shrink: 0;">
+                <input type="date" id="fecha_desde" data-table-filter="fecha_desde" class="c-input" style="min-width: 160px;">
+            </div>
+            <div class="c-input-wrapper" style="flex-shrink: 0;">
+                <input type="date" id="fecha_hasta" data-table-filter="fecha_hasta" class="c-input" style="min-width: 160px;">
+            </div>
+        </div>
+
+        <div class="c-table__wrapper">
+            <div class="c-table__scroll" tabindex="0" role="region" aria-label="Tabla histórico de movimientos">
+                <table class="c-table c-table--striped c-table--hoverable c-table--bordered c-table--scroll">
+                    <thead>
+                        <tr>
+                            <th scope="col" data-sortable="true" data-sort-key="fecha" data-align="left">Fecha</th>
+                            <th scope="col" data-sortable="true" data-sort-key="tipo" data-align="left">Tipo</th>
+                            <th scope="col" data-sortable="true" data-sort-key="usuario" data-align="left">Usuario</th>
+                            <th scope="col" data-sortable="true" data-sort-key="sku" data-align="left">SKU</th>
+                            <th scope="col" data-sortable="true" data-sort-key="producto" data-align="left">Producto</th>
+                            <th scope="col" data-sortable="true" data-sort-key="cantidad" data-align="right">Cantidad</th>
+                            <th scope="col" data-sortable="true" data-sort-key="costo" data-align="right">Costo</th>
+                            <th scope="col" data-sortable="true" data-sort-key="tipo_comp" data-align="left">Tipo Comp</th>
+                            <th scope="col" data-sortable="true" data-sort-key="nro_comp" data-align="left">Nro Comp</th>
+                            <th scope="col" data-sortable="true" data-sort-key="proveedor_cliente" data-align="left">Proveedor/Cliente</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {# Rows loaded via DataTable component #}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize DataTable
+    const tableWrapper = document.querySelector('[data-table]');
+    if (tableWrapper && window.DesignSystem && DesignSystem.DataTable) {
+        tableWrapper._dsDataTable = new DesignSystem.ClientDataTable(tableWrapper, {
+            pageSize: 50,
+            sortable: true,
+            defaultSort: { field: 'fecha', direction: 'desc' },
+            globalSearch: true,
+            columnFilters: true,
+            responsive: 'scroll',
+            virtualized: true,
+            rowHeight: 48,
+            actions: null,
+            onDataLoad: (data, meta) => {
+                // Apply badges and formatting
+                document.querySelectorAll('tr[data-row-key]').forEach(tr => {
+                    const rowData = data.find(d => d.id == tr.dataset.rowKey);
+                    if (!rowData) return;
+                    
+                    // Tipo badge
+                    const tipoCell = tr.querySelector('td[data-key="tipo"] .c-table__cell-content');
+                    if (tipoCell && rowData.tipo) {
+                        let variant = 'neutral';
+                        let label = rowData.tipo;
+                        if (rowData.tipo === 'ENTRADA') variant = 'success';
+                        else if (rowData.tipo === 'SALIDA') variant = 'danger';
+                        else if (rowData.tipo === 'CORRECCION') variant = 'warning';
+                        else if (rowData.tipo === 'ANULADO') variant = 'neutral';
+                        tipoCell.innerHTML = `{{ macros.render_badge(label, variant, 'sm', true) | safe }}`;
+                    }
+                    
+                    // Cantidad with color
+                    const cantCell = tr.querySelector('td[data-key="cantidad"] .c-table__cell-content');
+                    if (cantCell) {
+                        const isSalida = ['SALIDA', 'CORRECCION', 'ANULADO'].includes(rowData.tipo);
+                        cantCell.innerHTML = `<span class="${isSalida ? 'c-text--danger' : 'c-text--success'}" style="font-weight: 500;">${rowData.cantidad}</span>`;
+                    }
+                    
+                    // Costo formatting
+                    const costoCell = tr.querySelector('td[data-key="costo"] .c-table__cell-content');
+                    if (costoCell) {
+                        costoCell.textContent = '$' + (rowData.costo || 0).toFixed(2);
+                    }
+                    
+                    // Fecha formatting
+                    const fechaCell = tr.querySelector('td[data-key="fecha"] .c-table__cell-content');
+                    if (fechaCell && rowData.fecha) {
+                        const date = new Date(rowData.fecha);
+                        fechaCell.textContent = date.toLocaleString('es-AR', {
+                            year: 'numeric', month: '2-digit', day: '2-digit',
+                            hour: '2-digit', minute: '2-digit', hour12: false
+                        });
+                    }
+                });
+            }
+        });
+    }
+});
+
+async function limpiar_historico() {
+    if (!(window.DesignSystem && DesignSystem.Toast && await DesignSystem.Toast.show({
+        message: '¿Eliminar TODO el histórico de movimientos? Esta acción no se puede deshacer.',
+        type: 'warning',
+        action: { label: 'Eliminar', variant: 'danger', onclick: confirmarLimpiar }
+    }))) {
+        if (!confirm('¿Eliminar TODO el histórico de movimientos? Esta acción no se puede deshacer.')) return;
+        if (!confirm('¿CONFIRMA? Se eliminarán todos los movimientos.')) return;
+        confirmarLimpiar();
+    }
+}
+
+async function confirmarLimpiar() {
+    try {
+        const response = await fetch('/stock/api/historico/limpiar', {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (data.ok) {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.success(data.msg);
+            } else {
+                alert(data.msg);
+            }
+            const tableWrapper = document.querySelector('[data-table]');
+            if (tableWrapper && tableWrapper._dsDataTable) {
+                tableWrapper._dsDataTable.refresh();
+            } else {
+                location.reload();
+            }
+        } else {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.error(data.msg);
+            } else {
+                alert(data.msg);
+            }
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        if (window.DesignSystem && DesignSystem.Toast) {
+            DesignSystem.Toast.error('Error al limpiar histórico');
+        } else {
+            alert('Error al limpiar histórico');
+        }
+    }
+}
+</script>
+{% else %}
+{# ==========================================================================
+   LEGACY — Histórico (original template)
+   ========================================================================== #}
 <div class="card">
     <div class="card-header">
         <h2>Histórico de Movimientos</h2>
@@ -103,4 +286,5 @@ function limpiar_historico() {
     });
 }
 </script>
+{% endif %}
 {% endblock %}
