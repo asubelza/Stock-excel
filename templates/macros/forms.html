@@ -1,0 +1,647 @@
+{# ==========================================================================
+   ECJY Design System — Form Macros
+   ==========================================================================
+   Renders accessible form components with consistent styling.
+   Uses BEM-ish class prefix: c-input, c-form
+   ========================================================================== #}
+
+{% from 'macros/_helpers.html' import render_attrs, merge_classes %}
+{% from 'macros/buttons.html' import render_button %}
+
+{%- macro render_input(
+    name,
+    label=null,
+    type='text',
+    value='',
+    placeholder=null,
+    required=false,
+    disabled=false,
+    readonly=false,
+    error=null,
+    hint=null,
+    autocomplete=null,
+    inputmode=null,
+    pattern=null,
+    minlength=null,
+    maxlength=null,
+    min=null,
+    max=null,
+    step=null,
+    aria_describedby=null,
+    aria_label=null,
+    classes='',
+    wrapper_classes='',
+    label_classes='',
+    input_classes='',
+    id=null,
+    wrapper_id=null
+) -%}
+{%- set field_id = id or 'input-' ~ name | replace('.', '-') | replace('[', '-') | replace(']', '') -%}
+{%- set describedby = [] -%}
+{%- if hint %} -%}
+    {{ describedby.append(field_id ~ '-hint') }}
+{% endif -%}
+{%- if error %} -%}
+    {{ describedby.append(field_id ~ '-error') }}
+{% endif -%}
+{%- if aria_describedby %} -%}
+    {{ describedby.append(aria_describedby) }}
+{% endif -%}
+
+{%- set input_classes_list = ['c-input'] -%}
+{%- if error %} -%}
+    {{ input_classes_list.append('c-input--error') }}
+{% endif -%}
+{%- if disabled %} -%}
+    {{ input_classes_list.append('c-input--disabled') }}
+{% endif -%}
+{%- if readonly %} -%}
+    {{ input_classes_list.append('c-input--readonly') }}
+{% endif -%}
+{%- if input_classes %} -%}
+    {{ input_classes_list.append(input_classes) }}
+{% endif -%}
+
+{%- set wrapper_classes_list = ['c-form__field'] -%}
+{%- if wrapper_classes %} -%}
+    {{ wrapper_classes_list.append(wrapper_classes) }}
+{% endif -%}
+
+<div class="{{ wrapper_classes_list | join(' ') }}" id="{{ wrapper_id }}">
+    {%- if label -%}
+        <label class="c-form__label {{ label_classes }}" for="{{ field_id }}">
+            {{ label }}
+            {%- if required -%}
+                <span class="c-form__required" aria-hidden="true">*</span>
+                <span class="visually-hidden">(requerido)</span>
+            {%- endif -%}
+        </label>
+    {%- endif -%}
+    
+    {%- set input_attrs = {
+        'type': type,
+        'name': name,
+        'id': field_id,
+        'value': value,
+        'placeholder': placeholder,
+        'required': required,
+        'disabled': disabled,
+        'readonly': readonly,
+        'autocomplete': autocomplete,
+        'inputmode': inputmode,
+        'pattern': pattern,
+        'minlength': minlength,
+        'maxlength': maxlength,
+        'min': min,
+        'max': max,
+        'step': step,
+        'class': input_classes_list | join(' '),
+        'aria-invalid': 'true' if error else 'false',
+        'aria-describedby': describedby | join(' ') if describedby else '',
+        'aria-label': aria_label,
+        'aria-required': 'true' if required else 'false',
+    } -%}
+    <input {{ render_attrs(input_attrs) }}>
+    
+    {%- if hint -%}
+        <span class="c-form__hint" id="{{ field_id }}-hint">{{ hint }}</span>
+    {%- endif -%}
+    {%- if error -%}
+        <span class="c-form__error" id="{{ field_id }}-error" role="alert">{{ error }}</span>
+    {%- endif -%}
+</div>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Select / Dropdown
+   ========================================================================== #}
+{% macro render_select(
+    name,
+    options,
+    label=null,
+    value='',
+    placeholder='Seleccionar...',
+    required=false,
+    disabled=false,
+    error=null,
+    hint=null,
+    multiple=false,
+    searchable=false,
+    aria_describedby=null,
+    aria_label=null,
+    classes='',
+    wrapper_classes='',
+    label_classes='',
+    select_classes='',
+    id=null,
+    wrapper_id=null,
+    option_key='value',
+    option_label='label',
+    option_disabled='disabled',
+    optgroup_key=null,
+    optgroup_label='label'
+) -%}
+{%- set field_id = id or 'select-' ~ name | replace('.', '-') | replace('[', '-') | replace(']', '') -%}
+{%- set describedby = [] -%}
+{%- if hint %} -%}
+    {{ describedby.append(field_id ~ '-hint') }}
+{% endif -%}
+{%- if error %} -%}
+    {{ describedby.append(field_id ~ '-error') }}
+{% endif -%}
+{%- if aria_describedby %} -%}
+    {{ describedby.append(aria_describedby) }}
+{% endif -%}
+
+{%- set select_classes_list = ['c-select'] -%}
+{%- if error %} -%}
+    {{ select_classes_list.append('c-select--error') }}
+{% endif -%}
+{%- if disabled %} -%}
+    {{ select_classes_list.append('c-select--disabled') }}
+{% endif -%}
+{%- if searchable %} -%}
+    {{ select_classes_list.append('c-select--searchable') }}
+{% endif -%}
+{%- if select_classes %} -%}
+    {{ select_classes_list.append(select_classes) }}
+{% endif -%}
+
+{%- set wrapper_classes_list = ['c-form__field'] -%}
+{%- if wrapper_classes %} -%}
+    {{ wrapper_classes_list.append(wrapper_classes) }}
+{% endif -%}
+
+<div class="{{ wrapper_classes_list | join(' ') }}" id="{{ wrapper_id }}">
+    {%- if label -%}
+        <label class="c-form__label {{ label_classes }}" for="{{ field_id }}">
+            {{ label }}
+            {%- if required -%}
+                <span class="c-form__required" aria-hidden="true">*</span>
+                <span class="visually-hidden">(requerido)</span>
+            {%- endif -%}
+        </label>
+    {%- endif -%}
+    
+    <div class="c-select__wrapper">
+        {%- set select_attrs = {
+            'name': name,
+            'id': field_id,
+            'class': select_classes_list | join(' '),
+            'required': required,
+            'disabled': disabled,
+            'multiple': multiple,
+            'aria-invalid': 'true' if error else 'false',
+            'aria-describedby': describedby | join(' ') if describedby else '',
+            'aria-label': aria_label,
+            'aria-required': 'true' if required else 'false',
+        } -%}
+        <select {{ render_attrs(select_attrs) }}>
+            {%- if placeholder and not multiple -%}
+                <option value="" disabled {{ 'selected' if not value else '' }}>{{ placeholder }}</option>
+            {%- endif -%}
+            
+            {%- if optgroup_key -%}
+                {%- for group in options -%}
+                    <optgroup label="{{ group[optgroup_label] }}">
+                        {%- for opt in group[optgroup_key] -%}
+                            <option value="{{ opt[option_key] }}"
+                                    disabled="{{ opt.get(option_disabled, false) }}"
+                                    selected="{{ opt[option_key] == value if not multiple else opt[option_key] in value }}">
+                                {{ opt[option_label] }}
+                            </option>
+                        {%- endfor -%}
+                    </optgroup>
+                {%- endfor -%}
+            {%- else -%}
+                {%- for opt in options -%}
+                    <option value="{{ opt[option_key] }}"
+                            disabled="{{ opt.get(option_disabled, false) }}"
+                            selected="{{ opt[option_key] == value if not multiple else opt[option_key] in value }}">
+                        {{ opt[option_label] }}
+                    </option>
+                {%- endfor -%}
+            {%- endif -%}
+        </select>
+        <span class="c-select__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+        </span>
+    </div>
+    
+    {%- if hint -%}
+        <span class="c-form__hint" id="{{ field_id }}-hint">{{ hint }}</span>
+    {%- endif -%}
+    {%- if error -%}
+        <span class="c-form__error" id="{{ field_id }}-error" role="alert">{{ error }}</span>
+    {%- endif -%}
+</div>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Textarea
+   ========================================================================== #}
+{% macro render_textarea(
+    name,
+    label=null,
+    value='',
+    placeholder=null,
+    required=false,
+    disabled=false,
+    readonly=false,
+    error=null,
+    hint=null,
+    rows=4,
+    cols=null,
+    maxlength=null,
+    minlength=null,
+    resize='vertical',
+    aria_describedby=null,
+    aria_label=null,
+    classes='',
+    wrapper_classes='',
+    label_classes='',
+    textarea_classes='',
+    id=null,
+    wrapper_id=null
+) -%}
+{%- set field_id = id or 'textarea-' ~ name | replace('.', '-') | replace('[', '-') | replace(']', '') -%}
+{%- set describedby = [] -%}
+{%- if hint %} -%}
+    {{ describedby.append(field_id ~ '-hint') }}
+{% endif -%}
+{%- if error %} -%}
+    {{ describedby.append(field_id ~ '-error') }}
+{% endif -%}
+{%- if aria_describedby %} -%}
+    {{ describedby.append(aria_describedby) }}
+{% endif -%}
+
+{%- set textarea_classes_list = ['c-textarea'] -%}
+{%- if error -%}
+    {{ textarea_classes_list.append('c-textarea--error') }}
+{%- endif -%}
+{%- if disabled -%}
+    {{ textarea_classes_list.append('c-textarea--disabled') }}
+{%- endif -%}
+{%- if readonly -%}
+    {{ textarea_classes_list.append('c-textarea--readonly') }}
+{%- endif -%}
+{%- if textarea_classes -%}
+    {{ textarea_classes_list.append(textarea_classes) }}
+{%- endif -%}
+
+{%- set wrapper_classes_list = ['c-form__field'] -%}
+{%- if wrapper_classes -%}
+    {{ wrapper_classes_list.append(wrapper_classes) }}
+{%- endif -%}
+
+<div class="{{ wrapper_classes_list | join(' ') }}" id="{{ wrapper_id }}">
+    {%- if label -%}
+        <label class="c-form__label {{ label_classes }}" for="{{ field_id }}">
+            {{ label }}
+            {%- if required -%}
+                <span class="c-form__required" aria-hidden="true">*</span>
+                <span class="visually-hidden">(requerido)</span>
+            {%- endif -%}
+        </label>
+    {%- endif -%}
+    
+    {%- set textarea_attrs = {
+        'name': name,
+        'id': field_id,
+        'class': textarea_classes_list | join(' '),
+        'placeholder': placeholder,
+        'required': required,
+        'disabled': disabled,
+        'readonly': readonly,
+        'rows': rows,
+        'cols': cols,
+        'maxlength': maxlength,
+        'minlength': minlength,
+        'style': 'resize: ' ~ resize ~ ';',
+        'aria-invalid': 'true' if error else 'false',
+        'aria-describedby': describedby | join(' ') if describedby else '',
+        'aria-label': aria_label,
+        'aria-required': 'true' if required else 'false',
+    } -%}
+    <textarea {{ render_attrs(textarea_attrs) }}>{{ value }}</textarea>
+    
+    {%- if hint -%}
+        <span class="c-form__hint" id="{{ field_id }}-hint">{{ hint }}</span>
+    {%- endif -%}
+    {%- if error -%}
+        <span class="c-form__error" id="{{ field_id }}-error" role="alert">{{ error }}</span>
+    {%- endif -%}
+</div>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Checkbox
+   ========================================================================== #}
+{% macro render_checkbox(
+    name,
+    label,
+    value='1',
+    checked=false,
+    required=false,
+    disabled=false,
+    error=null,
+    hint=null,
+    indeterminate=false,
+    aria_describedby=null,
+    aria_label=null,
+    classes='',
+    wrapper_classes='',
+    label_classes='',
+    input_classes='',
+    id=null,
+    wrapper_id=null
+) -%}
+{%- set field_id = id or 'checkbox-' ~ name | replace('.', '-') | replace('[', '-') | replace(']', '') -%}
+{%- set describedby = [] -%}
+{%- if hint -%}
+    {{ describedby.append(field_id ~ '-hint') }}
+{%- endif -%}
+{%- if error -%}
+    {{ describedby.append(field_id ~ '-error') }}
+{%- endif -%}
+{%- if aria_describedby -%}
+    {{ describedby.append(aria_describedby) }}
+{%- endif -%}
+
+{%- set wrapper_classes_list = ['c-form__field', 'c-form__field--checkbox'] -%}
+{%- if wrapper_classes -%}
+    {{ wrapper_classes_list.append(wrapper_classes) }}
+{%- endif -%}
+
+{%- set input_classes_list = ['c-checkbox__input'] -%}
+{%- if error -%}
+    {{ input_classes_list.append('c-checkbox__input--error') }}
+{%- endif -%}
+{%- if disabled -%}
+    {{ input_classes_list.append('c-checkbox__input--disabled') }}
+{%- endif -%}
+{%- if input_classes -%}
+    {{ input_classes_list.append(input_classes) }}
+{%- endif -%}
+
+<div class="{{ wrapper_classes_list | join(' ') }}" id="{{ wrapper_id }}">
+    <div class="c-checkbox">
+        {%- set checkbox_attrs = {
+            'type': 'checkbox',
+            'name': name,
+            'id': field_id,
+            'value': value,
+            'class': input_classes_list | join(' '),
+            'checked': checked,
+            'required': required,
+            'disabled': disabled,
+            'aria-invalid': 'true' if error else 'false',
+            'aria-describedby': describedby | join(' ') if describedby else '',
+            'aria-label': aria_label,
+            'aria-required': 'true' if required else 'false',
+            'data-indeterminate': indeterminate,
+        } -%}
+        <input {{ render_attrs(checkbox_attrs) }}>
+        <span class="c-checkbox__box" aria-hidden="true">
+            <svg class="c-checkbox__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <svg class="c-checkbox__indeterminate" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+        </span>
+        <label class="c-checkbox__label {{ label_classes }}" for="{{ field_id }}">{{ label }}</label>
+    </div>
+    
+    {%- if hint -%}
+        <span class="c-form__hint" id="{{ field_id }}-hint">{{ hint }}</span>
+    {%- endif -%}
+    {%- if error -%}
+        <span class="c-form__error" id="{{ field_id }}-error" role="alert">{{ error }}</span>
+    {%- endif -%}
+</div>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Radio Group
+   ========================================================================== #}
+{% macro render_radio_group(
+    name,
+    options,
+    label=null,
+    value='',
+    required=false,
+    disabled=false,
+    error=null,
+    hint=null,
+    inline=false,
+    aria_describedby=null,
+    aria_label=null,
+    classes='',
+    wrapper_classes='',
+    label_classes='',
+    legend_classes='',
+    option_key='value',
+    option_label='label',
+    option_disabled='disabled',
+    id=null,
+    wrapper_id=null
+) -%}
+{%- set field_id = id or 'radio-' ~ name | replace('.', '-') | replace('[', '-') | replace(']', '') -%}
+{%- set describedby = [] -%}
+{%- if hint -%}
+    {{ describedby.append(field_id ~ '-hint') }}
+{%- endif -%}
+{%- if error -%}
+    {{ describedby.append(field_id ~ '-error') }}
+{%- endif -%}
+{%- if aria_describedby -%}
+    {{ describedby.append(aria_describedby) }}
+{%- endif -%}
+
+{%- set wrapper_classes_list = ['c-form__field', 'c-form__field--radio-group'] -%}
+{%- if inline -%}
+    {{ wrapper_classes_list.append('c-radio-group--inline') }}
+{%- endif -%}
+{%- if wrapper_classes -%}
+    {{ wrapper_classes_list.append(wrapper_classes) }}
+{%- endif -%}
+
+<div class="{{ wrapper_classes_list | join(' ') }}" id="{{ wrapper_id }}" role="radiogroup" aria-labelledby="{{ field_id }}-legend" aria-describedby="{{ describedby | join(' ') if describedby else '' }}" aria-invalid="{{ 'true' if error else 'false' }}" aria-required="{{ 'true' if required else 'false' }}">
+    {%- if label -%}
+        <legend class="c-form__legend {{ legend_classes }}" id="{{ field_id }}-legend">
+            {{ label }}
+            {%- if required -%}
+                <span class="c-form__required" aria-hidden="true">*</span>
+                <span class="visually-hidden">(requerido)</span>
+            {%- endif -%}
+        </legend>
+    {%- endif -%}
+    
+    <div class="c-radio-group">
+        {%- for opt in options -%}
+            {%- set opt_id = field_id ~ '-' ~ loop.index -%}
+            <label class="c-radio {% if opt.get(option_disabled, false) %}c-radio--disabled{% endif %} {{ classes }}">
+                {%- set radio_attrs = {
+                    'type': 'radio',
+                    'name': name,
+                    'id': opt_id,
+                    'value': opt[option_key],
+                    'class': 'c-radio__input',
+                    'checked': opt[option_key] == value,
+                    'required': required and loop.first,
+                    'disabled': disabled or opt.get(option_disabled, false),
+                } -%}
+                <input {{ render_attrs(radio_attrs) }}>
+                <span class="c-radio__box" aria-hidden="true">
+                    <span class="c-radio__dot"></span>
+                </span>
+                <span class="c-radio__label">{{ opt[option_label] }}</span>
+            </label>
+        {%- endfor -%}
+    </div>
+    
+    {%- if hint -%}
+        <span class="c-form__hint" id="{{ field_id }}-hint">{{ hint }}</span>
+    {%- endif -%}
+    {%- if error -%}
+        <span class="c-form__error" id="{{ field_id }}-error" role="alert">{{ error }}</span>
+    {%- endif -%}
+</div>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Field Group — Combines multiple fields in a row
+   ========================================================================== #}
+{% macro render_field_group(
+    fields,
+    layout='vertical',
+    gap='md',
+    classes='',
+    aria_label=null
+) -%}
+{%- set layout_classes = {
+    'vertical': 'c-field-group--vertical',
+    'horizontal': 'c-field-group--horizontal',
+    'inline': 'c-field-group--inline',
+} -%}
+{%- set group_classes = ['c-field-group', layout_classes.get(layout, layout_classes['vertical'])] -%}
+{%- if classes -%}
+    {{ group_classes.append(classes) }}
+{%- endif -%}
+
+<div class="{{ group_classes | join(' ') }}" role="group" aria-label="{{ aria_label }}" style="--c-field-group-gap: var(--space-{{ gap }});">
+    {%- for field in fields -%}
+        {{ field }}
+    {%- endfor -%}
+</div>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Form Layout — Wrapper for full forms with consistent spacing
+   ========================================================================== #}
+{% macro render_form_layout(
+    fields,
+    layout='vertical',
+    gap='lg',
+    novalidate=false,
+    classes='',
+    id=null,
+    action=null,
+    method='POST',
+    enctype=null,
+    autocomplete='on'
+) -%}
+{%- set layout_classes = {
+    'vertical': 'c-form--vertical',
+    'horizontal': 'c-form--horizontal',
+    'inline': 'c-form--inline',
+} -%}
+{%- set form_classes = ['c-form', layout_classes.get(layout, layout_classes['vertical'])] -%}
+{%- if classes -%}
+    {{ form_classes.append(classes) }}
+{%- endif -%}
+
+{%- set form_attrs = {
+    'class': form_classes | join(' '),
+    'id': id,
+    'action': action,
+    'method': method,
+    'enctype': enctype,
+    'autocomplete': autocomplete,
+    'novalidate': novalidate,
+} -%}
+<form {{ render_attrs(form_attrs) }}>
+    <div class="c-form__fields" style="--c-form-gap: var(--space-{{ gap }});">
+        {%- for field in fields -%}
+            {{ field }}
+        {%- endfor -%}
+    </div>
+</form>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Field Errors — Renders validation errors for a field
+   ========================================================================== #}
+{% macro render_field_errors(
+    errors,
+    field_id=null,
+    classes=''
+) -%}
+{%- if errors -%}
+    {%- set error_classes = ['c-form__field-errors'] -%}
+    {%- if classes %} -%}
+        {{ error_classes.append(classes) }}
+    {%- endif -%}
+    <div class="{{ error_classes | join(' ') }}" id="{{ field_id }}-errors" role="alert" aria-live="polite" style="color: var(--color-error);">
+        {%- if errors is string -%}
+            <span class="c-form__error">{{ errors }}</span>
+        {%- else -%}
+            {%- for error in errors -%}
+                <span class="c-form__error">{{ error }}</span>
+            {%- endfor -%}
+        {%- endif -%}
+    </div>
+{%- endif -%}
+{%- endmacro -%}
+
+{# ==========================================================================
+   Form Actions — Standardized button row for forms
+   ========================================================================== #}
+{% macro render_form_actions(
+    actions,
+    alignment='end',
+    gap='md',
+    classes=''
+) -%}
+{%- set alignment_classes = {
+    'start': 'c-form__actions--start',
+    'center': 'c-form__actions--center',
+    'end': 'c-form__actions--end',
+    'between': 'c-form__actions--between',
+} -%}
+{%- set action_classes = ['c-form__actions', alignment_classes.get(alignment, alignment_classes['end'])] -%}
+{%- if classes -%}
+    {{ action_classes.append(classes) }}
+{%- endif -%}
+
+<div class="{{ action_classes | join(' ') }}" style="--c-form-actions-gap: var(--space-{{ gap }});">
+    {%- for action in actions -%}
+        {{ render_button(
+            label=action.label,
+            type=action.type,
+            variant=action.variant,
+            size=action.size,
+            disabled=action.disabled,
+            loading=action.loading,
+            icon=action.icon,
+            icon_position=action.icon_position,
+            full_width=action.full_width,
+            aria_label=action.aria_label
+        ) }}
+    {%- endfor -%}
+</div>
+{%- endmacro -%}

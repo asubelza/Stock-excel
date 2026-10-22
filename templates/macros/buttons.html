@@ -1,0 +1,180 @@
+{# ==========================================================================
+   ECJY Design System — Button Macro
+   ==========================================================================
+   Renders accessible buttons with variants, sizes, loading state, and icon support.
+   Uses BEM-ish class prefix: c-btn
+   ========================================================================== #}
+
+{% from 'macros/_helpers.html' import render_attrs, merge_classes %}
+
+{% macro render_button(
+    label,
+    variant='primary',
+    size='md',
+    type='button',
+    disabled=false,
+    loading=false,
+    icon=null,
+    icon_position='left',
+    full_width=false,
+    aria_label=null,
+    aria_describedby=null,
+    href=null,
+    target=null,
+    rel=null,
+    classes='',
+    id=null,
+    name=null,
+    value=null,
+    form=null,
+    onclick=null
+) -%}
+{%- set variant_classes = {
+    'primary': 'c-btn--primary',
+    'secondary': 'c-btn--secondary',
+    'success': 'c-btn--success',
+    'danger': 'c-btn--danger',
+    'ghost': 'c-btn--ghost',
+    'link': 'c-btn--link',
+} -%}
+{%- set size_classes = {
+    'sm': 'c-btn--sm',
+    'md': 'c-btn--md',
+    'lg': 'c-btn--lg',
+} -%}
+{%- set btn_classes = [
+    'c-btn',
+    variant_classes.get(variant, variant_classes['primary']),
+    size_classes.get(size, size_classes['md']),
+] -%}
+{%- if full_width %} -%}
+    {{ btn_classes.append('c-btn--full') }}
+{% endif -%}
+{%- if disabled or loading %} -%}
+    {{ btn_classes.append('c-btn--disabled') }}
+{% endif -%}
+{%- if classes %} -%}
+    {{ btn_classes.append(classes) }}
+{% endif -%}
+
+{%- set attrs = {
+    'class': btn_classes | join(' '),
+    'type': type if not href else '',
+    'disabled': disabled or loading,
+    'aria-label': aria_label,
+    'aria-describedby': aria_describedby,
+    'aria-busy': loading,
+    'id': id,
+    'name': name,
+    'value': value,
+    'form': form,
+    'onclick': onclick,
+} -%}
+
+{%- if href -%}
+    {%- set tag = 'a' -%}
+    {%- set attrs = dict(attrs, href=href, role='button') -%}
+    {%- if target %} -%}
+    {{ attrs.__setitem__('target', target) }}
+{% endif -%}
+    {%- if rel %} -%}
+    {{ attrs.__setitem__('rel', rel) }}
+{% endif -%}
+    {%- set attrs = dict(attrs, type='') -%}
+{%- else -%}
+    {%- set tag = 'button' -%}
+{%- endif -%}
+
+<{{ tag }} {{ render_attrs(attrs) }}>
+    {%- if loading -%}
+        <span class="c-btn__spinner" aria-hidden="true">
+            <svg class="c-btn__spinner-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle class="c-btn__spinner-circle" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="31.4 31.4" />
+            </svg>
+        </span>
+        <span class="c-btn__loading-text visually-hidden">Cargando...</span>
+    {%- elif icon -%}
+        <span class="c-btn__icon c-btn__icon--{{ icon_position }}" aria-hidden="true">
+            {{ icon if icon is not string else '<svg class="c-btn__icon-svg" aria-hidden="true"><use href="#' ~ icon ~ '"></use></svg>' | safe }}
+        </span>
+    {%- endif -%}
+    <span class="c-btn__text">{{ label }}</span>
+</{{ tag }}>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Helper: Render button group
+   ========================================================================== #}
+{% macro render_button_group(buttons, alignment='left', gap='md', classes='', aria_label=null) -%}
+{%- set group_classes = ['c-btn-group', 'c-btn-group--' ~ alignment] -%}
+{%- if classes %} -%}
+    {{ group_classes.append(classes) }}
+{% endif -%}
+<div class="{{ group_classes | join(' ') }}" role="group" aria-label="{{ aria_label or 'Grupo de botones' }}" style="--c-btn-group-gap: var(--space-{{ gap }});">
+    {%- for btn in buttons -%}
+        {{ render_button(**btn) }}
+    {%- endfor -%}
+</div>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Helper: Render icon button (compact, icon-only)
+   ========================================================================== #}
+{% macro render_icon_button(
+    icon,
+    variant='ghost',
+    size='md',
+    disabled=false,
+    loading=false,
+    aria_label=null,
+    title=null,
+    classes='',
+    id=null,
+    onclick=null
+) -%}
+{%- set variant_classes = {
+    'primary': 'c-btn--primary',
+    'secondary': 'c-btn--secondary',
+    'success': 'c-btn--success',
+    'danger': 'c-btn--danger',
+    'ghost': 'c-btn--ghost',
+    'link': 'c-btn--link',
+} -%}
+{%- set size_classes = {
+    'sm': 'c-btn--sm',
+    'md': 'c-btn--md',
+    'lg': 'c-btn--lg',
+} -%}
+{%- set btn_classes = [
+    'c-btn', 'c-btn--icon',
+    variant_classes.get(variant, variant_classes['ghost']),
+    size_classes.get(size, size_classes['md']),
+] -%}
+{%- if disabled or loading %} -%}
+    {{ btn_classes.append('c-btn--disabled') }}
+{% endif -%}
+{%- if classes %} -%}
+    {{ btn_classes.append(classes) }}
+{% endif -%}
+
+<button class="{{ btn_classes | join(' ') }}"
+        type="button"
+        disabled="{{ disabled or loading }}"
+        aria-label="{{ aria_label }}"
+        aria-busy="{{ loading }}"
+        title="{{ title }}"
+        id="{{ id }}"
+        onclick="{{ onclick }}">
+    {%- if loading -%}
+        <span class="c-btn__spinner" aria-hidden="true">
+            <svg class="c-btn__spinner-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle class="c-btn__spinner-circle" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="31.4 31.4" />
+            </svg>
+        </span>
+    {%- else -%}
+        <span class="c-btn__icon" aria-hidden="true">
+            {{ icon if icon is not string else '<svg class="c-btn__icon-svg" aria-hidden="true"><use href="#' ~ icon ~ '"></use></svg>' | safe }}
+        </span>
+    {%- endif -%}
+</button>
+{%- endmacro -%}

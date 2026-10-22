@@ -1,0 +1,19 @@
+{# ==========================================================================
+   ECJY Design System — Macros Index
+   ==========================================================================
+   Central import file for all macros. Use this in templates:
+   {% import 'macros.html' as macros %}
+   ========================================================================== #}
+
+{# Import all macro files #}
+{% from 'macros/buttons.html' import render_button, render_button_group, render_icon_button %}
+{% from 'macros/forms.html' import render_input, render_select, render_textarea, render_checkbox, render_radio_group, render_field_group, render_form_layout, render_form_actions %}
+{% from 'macros/tables.html' import render_table, render_simple_table %}
+{% from 'macros/cards.html' import render_card, render_card_grid, render_card_list, render_stat_card %}
+{% from 'macros/badges.html' import render_badge, render_status_indicator, render_status_pill, render_tag %}
+{% from 'macros/nav.html' import render_top_bar, render_side_nav, render_page_header, render_search_input %}
+{% from 'macros/modal.html' import render_modal, render_confirm_modal, render_alert_modal, render_form_modal %}
+{% from 'macros/toast.html' import render_toast_container, render_toast, render_toast_script %}
+{% from 'macros/autocomplete.html' import render_autocomplete, render_simple_autocomplete %}
+{% from 'macros/dropdown.html' import render_dropdown, render_dropdown_menu %}
+{% from 'macros/loading.html' import render_skeleton, render_spinner, render_spinner_overlay, render_empty_state, render_progress, render_step_indicator, render_skeleton_card, render_skeleton_table_row, render_skeleton_list_item, render_skeleton_form %}

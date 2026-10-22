@@ -1,0 +1,328 @@
+{# ==========================================================================
+   ECJY Design System — Table Macro
+   ==========================================================================
+   Renders accessible, responsive tables with sorting, selection, and actions.
+   Uses BEM-ish class prefix: c-table
+   ========================================================================== #}
+
+{% from 'macros/_helpers.html' import render_attrs, merge_classes %}
+
+{% macro render_table(
+    columns,
+    rows,
+    key_field='id',
+    actions=null,
+    empty_state=null,
+    sortable=true,
+    selectable=false,
+    selection_key=null,
+    responsive='stack',
+    striped=true,
+    hoverable=true,
+    bordered=true,
+    caption=null,
+    caption_classes='',
+    classes='',
+    wrapper_classes='',
+    table_classes='',
+    thead_classes='',
+    tbody_classes='',
+    tr_classes='',
+    td_classes='',
+    th_classes='',
+    on_sort=null,
+    on_select=null,
+    on_select_all=null,
+    sort_field=null,
+    sort_direction='asc',
+    selected_rows=[]
+) -%}
+{%- set responsive_classes = {
+    'stack': 'c-table--stack',
+    'scroll': 'c-table--scroll',
+    'collapse': 'c-table--collapse',
+} -%}
+
+{%- set table_classes_list = ['c-table'] -%}
+{%- if striped -%}
+    {{ table_classes_list.append('c-table--striped') }}
+{%- endif -%}
+{%- if hoverable -%}
+    {{ table_classes_list.append('c-table--hoverable') }}
+{%- endif -%}
+{%- if bordered -%}
+    {{ table_classes_list.append('c-table--bordered') }}
+{%- endif -%}
+{%- if responsive -%}
+    {{ table_classes_list.append(responsive_classes.get(responsive, responsive_classes['stack'])) }}
+{%- endif -%}
+{%- if selectable -%}
+    {{ table_classes_list.append('c-table--selectable') }}
+{%- endif -%}
+{%- if table_classes -%}
+    {{ table_classes_list.append(table_classes) }}
+{%- endif -%}
+{%- if classes -%}
+    {{ table_classes_list.append(classes) }}
+{%- endif -%}
+
+{%- set wrapper_classes_list = ['c-table__wrapper'] -%}
+{%- if wrapper_classes -%}
+    {{ wrapper_classes_list.append(wrapper_classes) }}
+{%- endif -%}
+
+<div class="{{ wrapper_classes_list | join(' ') }}">
+    {%- if caption -%}
+        <caption class="c-table__caption {{ caption_classes }}">{{ caption }}</caption>
+    {%- endif -%}
+    
+    <div class="c-table__scroll" tabindex="0" role="region" aria-label="{{ caption or 'Tabla de datos' }}">
+        {%- set table_attrs = {'class': table_classes_list | join(' ')} -%}
+        <table {{ render_attrs(table_attrs) }}>
+            <thead class="{{ thead_classes }}">
+                <tr class="c-table__header-row">
+                    {%- if selectable -%}
+                        <th class="c-table__th c-table__th--select {{ th_classes }}" scope="col">
+                            <label class="c-checkbox c-checkbox--small">
+                                <input type="checkbox"
+                                       class="c-checkbox__input c-table__select-all"
+                                       aria-label="Seleccionar todas las filas"
+                                       {% if on_select_all %}onclick="{{ on_select_all }}"{% endif %}>
+                                <span class="c-checkbox__box" aria-hidden="true">
+                                    <svg class="c-checkbox__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </span>
+                            </label>
+                        </th>
+                    {%- endif -%}
+                    
+                    {%- for col in columns -%}
+                        {%- set sort_attrs = {} -%}
+                        {%- if sortable and col.sortable != false -%}
+                            {%- set current_sort = sort_field == col.key -%}
+                            {%- set sort_icon = 'none' -%}
+                            {%- if current_sort -%}
+                                {%- set sort_icon = 'asc' if sort_direction == 'asc' else 'desc' -%}
+                            {%- endif -%}
+                            {%- set sort_attrs = {'data-sortable': 'true', 'data-sort-key': col.key, 'data-sort-direction': sort_icon} -%}
+                        {%- endif -%}
+                        
+{%- set th_attrs = {
+    'class': 'c-table__th ' ~ th_classes,
+    'scope': 'col',
+    'data-align': col.align,
+} -%}
+{%- if col.width %} -%}
+    {{ th_attrs.__setitem__('style', 'width: ' ~ col.width ~ ' }}{{ ') }}
+{% endif -%}
+{%- if col.min_width %} -%}
+    {{ th_attrs.__setitem__('style', (th_attrs.style or '') ~ 'min-width: ' ~ col.min_width ~ ' }}{{ ') }}
+{% endif -%}
+{%- if col.max_width %} -%}
+    {{ th_attrs.__setitem__('style', (th_attrs.style or '') ~ 'max-width: ' ~ col.max_width ~ ' }}{{ ') }}
+{% endif -%}
+<th {{ render_attrs(th_attrs) }}>
+                            <div class="c-table__th-content">
+                                <span class="c-table__th-text">{{ col.label }}</span>
+                                {%- if sortable and col.sortable != false -%}
+                                    {%- set sort_btn_attrs = {
+                                        'type': 'button',
+                                        'class': 'c-table__sort-btn',
+                                        'aria-label': 'Ordenar por ' ~ col.label ~ ' ' ~ ('ascendente' if (sort_field != col.key or sort_direction == 'desc') else 'descendente'),
+                                    } -%}
+                                    {%- if on_sort %} -%}
+    {{ sort_btn_attrs.__setitem__('onclick', on_sort ~ '(\'' ~ col.key ~ '\')') }}
+{% endif -%}
+                                    <button {{ render_attrs(sort_btn_attrs) }}>
+                                        <svg class="c-table__sort-icon c-table__sort-icon--asc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 5 5 12"></polyline>
+                                        </svg>
+                                        <svg class="c-table__sort-icon c-table__sort-icon--desc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="5 12 12 19 19 12"></polyline>
+                                        </svg>
+                                    </button>
+                                {%- endif -%}
+                            </div>
+                        </th>
+                    {%- endfor -%}
+                    
+                    {%- if actions -%}
+                        <th class="c-table__th c-table__th--actions {{ th_classes }}" scope="col" style="width: 1%; white-space: nowrap;">
+                            <span class="visually-hidden">Acciones</span>
+                        </th>
+                    {%- endif -%}
+                </tr>
+            </thead>
+            
+            <tbody class="{{ tbody_classes }}">
+                {%- if rows|length == 0 -%}
+                    <tr class="c-table__empty-row">
+                        {%- set colspan = (columns|length) + (1 if selectable else 0) + (1 if actions else 0) -%}
+                        <td colspan="{{ colspan }}" class="c-table__empty {{ td_classes }}">
+                            <div class="c-empty-state">
+                                {%- if empty_state -%}
+                                    {{ empty_state }}
+                                {%- else -%}
+                                    <svg class="c-empty-state__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                                    </svg>
+                                    <p class="c-empty-state__text">No hay datos disponibles</p>
+                                {%- endif -%}
+                            </div>
+                        </td>
+                    </tr>
+                {%- else -%}
+                    {%- for row in rows -%}
+                        {%- set row_key = row[key_field] if key_field in row else row.id if row.id is defined else loop.index -%}
+                        {%- set is_selected = selected_rows and row_key in selected_rows -%}
+{%- set tr_attrs = {'class': 'c-table__row ' ~ tr_classes, 'data-row-key': row_key} -%}
+{%- if is_selected -%}
+    {{ tr_attrs.__setitem__('class', tr_attrs.class ~ ' c-table__row--selected') }}
+{%- endif -%}
+<tr {{ render_attrs(tr_attrs) }}>
+                            
+                            {%- if selectable -%}
+                                <td class="c-table__td c-table__td--select {{ td_classes }}">
+                                    <label class="c-checkbox c-checkbox--small">
+                                        <input type="checkbox"
+                                               class="c-checkbox__input c-table__row-select"
+                                               value="{{ row_key }}"
+                                               {% if is_selected %}checked{% endif %}
+                                               {% if on_select %}onclick="event.stopPropagation(); dispatchEvent(new CustomEvent('row-select', {detail: {key: '{{ row_key }}', checked: this.checked, row: {{ row | tojson }} }}))"{% endif %}>
+                                        <span class="c-checkbox__box" aria-hidden="true">
+                                            <svg class="c-checkbox__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </span>
+                                    </label>
+                                </td>
+                            {%- endif -%}
+                            
+                            {%- for col in columns -%}
+                                {%- set cell_value = row[col.key] if col.key in row else '' -%}
+                                {%- set cell_content = col.render(row) if col.render is defined else cell_value -%}
+                                {%- set cell_align = col.align or 'left' -%}
+                                
+                                {%- set td_attrs = {
+                                    'class': 'c-table__td ' ~ td_classes,
+                                    'data-key': col.key,
+                                    'data-label': col.label,
+                                    'style': 'text-align: ' ~ cell_align ~ ';',
+                                } -%}
+                                <td {{ render_attrs(td_attrs) }}>
+                                    <div class="c-table__cell-content">{{ cell_content }}</div>
+                                </td>
+                            {%- endfor -%}
+                            
+                            {%- if actions -%}
+                                <td class="c-table__td c-table__td--actions {{ td_classes }}">
+                                    <div class="c-table__actions">
+                                        {%- for action in actions -%}
+                                            {%- set action_visible = action.visible(row) if action.visible is defined else true -%}
+                                            {%- if action_visible -%}
+                                                {%- set action_props = action.props(row) if action.props is mapping else action.props -%}
+                                                {%- if action.type == 'button' -%}
+                                                    {{ render_button(**action_props) }}
+                                                {%- elif action.type == 'link' -%}
+                                                    <a href="{{ action_props.href(row) if action_props.href is callable else action_props.href }}"
+                                                       class="c-btn c-btn--link c-btn--sm {{ action_props.classes or '' }}"
+                                                       {% if action_props.target %}target="{{ action_props.target }}"{% endif %}
+                                                       {% if action_props.rel %}rel="{{ action_props.rel }}"{% endif %}>
+                                                        {{ action_props.label }}
+                                                    </a>
+                                                {%- elif action.type == 'icon' -%}
+                                                    {{ render_icon_button(**action_props) }}
+                                                {%- else -%}
+                                                    {{ render_button(**action_props) }}
+                                                {%- endif -%}
+                                            {%- endif -%}
+                                        {%- endfor -%}
+                                    </div>
+                                </td>
+                            {%- endif -%}
+                        </tr>
+                    {%- endfor -%}
+                {%- endif -%}
+            </tbody>
+        </table>
+    </div>
+    
+    {%- if selectable and rows|length > 0 -%}
+        <div class="c-table__selection-bar" aria-live="polite">
+            <span class="c-table__selection-count">
+                {{ selected_rows|length }} de {{ rows|length }} seleccionadas
+            </span>
+            <div class="c-table__selection-actions">
+                {%- if on_select_all -%}
+                    <button type="button" class="c-btn c-btn--ghost c-btn--sm" onclick="{{ on_select_all }}('all')">
+                        Seleccionar todas
+                    </button>
+                {%- endif -%}
+                <button type="button" class="c-btn c-btn--ghost c-btn--sm" onclick="{{ on_select_all }}('none')">
+                    Limpiar selección
+                </button>
+            </div>
+        </div>
+    {%- endif -%}
+</div>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Simple Table — Lightweight version for simple data display
+   ========================================================================== #}
+{% macro render_simple_table(
+    headers,
+    rows,
+    caption=null,
+    striped=true,
+    hoverable=true,
+    bordered=true,
+    classes=''
+) -%}
+{%- set table_classes_list = ['c-table', 'c-table--simple'] -%}
+{%- if striped %} -%}
+    {{ table_classes_list.append('c-table--striped') }}
+{% endif -%}
+{%- if hoverable %} -%}
+    {{ table_classes_list.append('c-table--hoverable') }}
+{% endif -%}
+{%- if bordered %} -%}
+    {{ table_classes_list.append('c-table--bordered') }}
+{% endif -%}
+{%- if classes %} -%}
+    {{ table_classes_list.append(classes) }}
+{% endif -%}
+
+<div class="c-table__wrapper">
+    {%- if caption -%}
+        <caption class="c-table__caption">{{ caption }}</caption>
+    {%- endif -%}
+    
+    <div class="c-table__scroll" tabindex="0" role="region" aria-label="{{ caption or 'Tabla de datos' }}">
+        {%- set table_attrs = {'class': table_classes_list | join(' ')} -%}
+        <table {{ render_attrs(table_attrs) }}>
+            <thead>
+                <tr>
+                    {%- for header in headers -%}
+                        <th scope="col">{{ header }}</th>
+                    {%- endfor -%}
+                </tr>
+            </thead>
+            <tbody>
+                {%- for row in rows -%}
+                    <tr>
+                        {%- for cell in row -%}
+                            <td>{{ cell }}</td>
+                        {%- endfor -%}
+                    </tr>
+                {%- endfor -%}
+            </tbody>
+        </table>
+    </div>
+</div>
+{%- endmacro -%}
