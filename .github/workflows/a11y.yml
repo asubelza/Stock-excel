@@ -77,23 +77,10 @@ jobs:
         with:
           fetch-depth: 0
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-      
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-          run_install: false
-      
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
+      - name: Install deps & browsers (via npx pnpm@9)
+        run: |
+          npx pnpm@9 install --frozen-lockfile
+          npx pnpm@9 exec playwright install --with-deps ${{ matrix.browser }}
       
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -170,23 +157,10 @@ jobs:
         with:
           fetch-depth: 0
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-      
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-          run_install: false
-      
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium firefox
+      - name: Install deps & browsers (via npx pnpm@9)
+        run: |
+          npx pnpm@9 install --frozen-lockfile
+          npx pnpm@9 exec playwright install --with-deps chromium firefox
       
       - name: Start Flask application
         run: |
@@ -202,7 +176,7 @@ jobs:
       
       - name: Run baseline update
         run: |
-          UPDATE_BASELINE=true pnpm a11y:baseline
+          npx pnpm@9 a11y:baseline
         env:
           BASE_URL: ${{ env.BASE_URL }}
       
