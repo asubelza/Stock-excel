@@ -116,6 +116,10 @@ jobs:
           fetch-depth: 0
           lfs: true
       
+      - name: Setup Python & install requirements
+        run: |
+          python -m pip install -r requirements.txt 2>/dev/null || pip install -r requirements.txt
+      
       - name: Install deps & browsers (via npx pnpm@9)
         run: |
           npx pnpm@9 install --frozen-lockfile
@@ -145,7 +149,6 @@ with app.app_context():
       
       - name: Start Flask application
         run: |
-          python -m pip install -r requirements.txt 2>/dev/null || pip install -r requirements.txt
           nohup python web_app.py > flask.log 2>&1 &
           echo "Flask PID: $!"
           sleep 10
