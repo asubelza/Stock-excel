@@ -136,16 +136,16 @@ jobs:
       - name: Initialize database
         run: |
           python -c "
-import os
-os.environ['DATABASE_URL'] = 'sqlite:///test.db'
-os.environ['FLASK_ENV'] = 'development'
-os.environ['SECRET_KEY'] = 'test-secret-key'
-os.environ['DESIGN_SYSTEM_ENABLED'] = 'true'
-from web_app import app, db
-with app.app_context():
-    db.create_all()
-    print('Database tables created successfully')
-"
+            import os
+            os.environ['DATABASE_URL'] = 'sqlite:///test.db'
+            os.environ['FLASK_ENV'] = 'development'
+            os.environ['SECRET_KEY'] = 'test-secret-key'
+            os.environ['DESIGN_SYSTEM_ENABLED'] = 'true'
+            from web_app import app, db
+            with app.app_context():
+                db.create_all()
+                print('Database tables created successfully')
+          "
       
       - name: Start Flask application
         run: |
@@ -308,7 +308,7 @@ with app.app_context():
                   status=$(cat "$result_file" | jq -r '.suites[]?.specs[]?.results[0]?.outcome // "unknown"' | sort | uniq -c | head -1 | awk '{print $2}')
                   echo "| $browser | $viewport | $theme | $status |" >> $GITHUB_STEP_SUMMARY
                 else
-                  echo "| $browser | $viewport | $theme | ❌ No results |" >> $GITHUB_STEP_SUMMARY
+                  echo "| $browser | $viewport | $theme | X No results |" >> $GITHUB_STEP_SUMMARY
                 fi
               done
             done
