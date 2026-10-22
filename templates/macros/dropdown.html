@@ -1,0 +1,318 @@
+{# ==========================================================================
+   ECJY Design System — Dropdown Macro
+   ==========================================================================
+   Renders accessible dropdown menus with trigger, items, alignment, keyboard nav, click-outside close.
+   Uses BEM-ish class prefix: c-dropdown
+   ========================================================================== #}
+
+{% from 'macros/_helpers.html' import render_attrs, merge_classes %}
+{% from 'macros/buttons.html' import render_button, render_icon_button %}
+{% from 'macros/badges.html' import render_badge %}
+
+{% macro render_dropdown(
+    trigger,
+    items,
+    align='end',
+    trigger_type='button',
+    trigger_variant='ghost',
+    trigger_size='md',
+    trigger_classes='',
+    menu_classes='',
+    item_classes='',
+    divider_classes='',
+    header_classes='',
+    footer_classes='',
+    close_on_select=true,
+    close_on_outside_click=true,
+    close_on_escape=true,
+    disabled=false,
+    open=false,
+    classes='',
+    id=null,
+    aria_label=null
+) -%}
+{%- set dropdown_id = id or 'dropdown-' ~ (timestamp | default(0)) -%}
+{%- set menu_id = dropdown_id ~ '-menu' -%}
+{%- set trigger_id = dropdown_id ~ '-trigger' -%}
+
+{%- set align_classes = {
+    'start': 'c-dropdown--align-start',
+    'center': 'c-dropdown--align-center',
+    'end': 'c-dropdown--align-end',
+    'stretch': 'c-dropdown--align-stretch',
+} -%}
+
+{%- set dropdown_classes = ['c-dropdown', align_classes.get(align, align_classes['end'])] -%}
+{%- if disabled -%}
+    {{ dropdown_classes.append('c-dropdown--disabled') }}
+{% endif -%}
+{%- if open -%}
+    {{ dropdown_classes.append('c-dropdown--open') }}
+{% endif -%}
+{%- if classes -%}
+    {{ dropdown_classes.append(classes) }}
+{% endif -%}
+
+{%- set menu_classes_list = ['c-dropdown__menu', menu_classes] -%}
+
+{%- set dropdown_attrs = {
+    'class': dropdown_classes | join(' '),
+    'id': dropdown_id,
+    'role': 'menu',
+    'aria-label': aria_label or 'Menú desplegable',
+    'data-dropdown': '',
+    'data-dropdown-close-on-select': 'true' if close_on_select else 'false',
+    'data-dropdown-close-on-outside': 'true' if close_on_outside_click else 'false',
+    'data-dropdown-close-on-escape': 'true' if close_on_escape else 'false',
+} -%}
+<div {{ render_attrs(dropdown_attrs) }}>
+    
+    {%- if trigger_type == 'button' -%}
+        {%- set trigger_attrs = {
+            'type': 'button',
+            'id': trigger_id,
+            'class': 'c-dropdown__trigger c-btn c-btn--' ~ trigger_variant ~ ' c-btn--' ~ trigger_size ~ ' ' ~ trigger_classes,
+            'aria-haspopup': 'true',
+            'aria-expanded': 'true' if open else 'false',
+            'aria-controls': menu_id,
+            'disabled': disabled,
+            'data-dropdown-trigger': '',
+        } -%}
+        <button {{ render_attrs(trigger_attrs) }}>
+            {{ trigger if trigger is not mapping else render_button(**trigger) }}
+        </button>
+    {%- elif trigger_type == 'link' -%}
+        {%- set trigger_attrs = {
+            'id': trigger_id,
+            'class': 'c-dropdown__trigger c-btn c-btn--link c-btn--' ~ trigger_size ~ ' ' ~ trigger_classes,
+            'href': trigger.href,
+            'aria-haspopup': 'true',
+            'aria-expanded': 'true' if open else 'false',
+            'aria-controls': menu_id,
+            'data-dropdown-trigger': '',
+        } -%}
+        {%- if disabled -%}
+    {{ trigger_attrs.__setitem__('aria-disabled', 'true') }}
+    {{ trigger_attrs.__setitem__('tabindex', '-1') }}
+{% endif -%}
+        <a {{ render_attrs(trigger_attrs) }}>
+            {{ trigger.label if trigger is mapping else trigger }}
+        </a>
+    {%- else -%}
+        {%- set trigger_attrs = {
+            'id': trigger_id,
+            'class': 'c-dropdown__trigger ' ~ trigger_classes,
+            'aria-haspopup': 'true',
+            'aria-expanded': 'true' if open else 'false',
+            'aria-controls': menu_id,
+            'tabindex': '0',
+            'role': 'button',
+            'data-dropdown-trigger': '',
+        } -%}
+        <div {{ render_attrs(trigger_attrs) }}>
+            {{ trigger }}
+        </div>
+    {%- endif -%}
+    
+    {%- set menu_attrs = {
+        'class': menu_classes_list | join(' '),
+        'id': menu_id,
+        'role': 'menu',
+        'aria-orientation': 'vertical',
+    } -%}
+    {%- if not open -%}
+    {{ menu_attrs.__setitem__('hidden', true) }}
+{% endif -%}
+    <div {{ render_attrs(menu_attrs) }}>
+        
+        {%- if items.header -%}
+            <div class="c-dropdown__header {{ header_classes }}">
+                {{ items.header }}
+            </div>
+            <hr class="c-dropdown__divider {{ divider_classes }}" role="separator">
+        {%- endif -%}
+        
+        <div class="c-dropdown__list" role="none">
+            {%- set dropdown_items = items.list if items.list is defined else items -%}
+            {%- for item in dropdown_items -%}
+                {%- if item.divider -%}
+                    <hr class="c-dropdown__divider {{ divider_classes }}" role="separator">
+                {%- elif item.header -%}
+                    <div class="c-dropdown__section-header {{ header_classes }}">{{ item.header }}</div>
+                {%- else -%}
+                    {%- set item_role = 'menuitem' -%}
+                    {%- set item_tag = 'button' -%}
+                    {%- set item_attrs = {
+                        'class': 'c-dropdown__item ' ~ (item_classes or ''),
+                        'role': item_role,
+                        'tabindex': '-1',
+                        'data-value': item.value | default(''),
+                        'data-action': item.action | default(''),
+                    } -%}
+                    
+                    {%- if item.disabled -%}
+                        {{ item_attrs.__setitem__('aria-disabled', 'true') }}
+                    {%- endif -%}
+                    {%- if item.selected -%}
+                        {{ item_attrs.__setitem__('aria-selected', 'true') }}
+                    {%- endif -%}
+                    {%- if item.href -%}
+                        {{ item_attrs.__setitem__('href', item.href) }}
+                        {{ item_attrs.__setitem__('role', 'menuitem') }}
+                        {{ item_attrs.__setitem__('tabindex', '-1') }}
+                    {%- endif -%}
+                    
+                    <{{ item_tag }} {{ render_attrs(item_attrs) }}>
+                        {%- if item.icon -%}
+                            <span class="c-dropdown__item-icon" aria-hidden="true">
+                                {{ item.icon if item.icon is not string else '<svg class="c-dropdown__item-icon-svg" aria-hidden="true"><use href="#' ~ item.icon ~ '"></use></svg>' | safe }}
+                            </span>
+                        {%- endif -%}
+                        <span class="c-dropdown__item-label">{{ item.label }}</span>
+                        {%- if item.shortcut -%}
+                            <kbd class="c-dropdown__item-shortcut">{{ item.shortcut }}</kbd>
+                        {%- endif -%}
+                        {%- if item.badge -%}
+                            {{ render_badge(item.badge.label, variant=item.badge.variant, size='sm', classes='c-dropdown__item-badge') }}
+                        {%- endif -%}
+                        {%- if item.description -%}
+                            <span class="c-dropdown__item-description">{{ item.description }}</span>
+                        {%- endif -%}
+                    </{{ item_tag }}>
+                {%- endif -%}
+            {%- endfor -%}
+        </div>
+        
+        {%- if items.footer -%}
+            <hr class="c-dropdown__divider {{ divider_classes }}" role="separator">
+            <div class="c-dropdown__footer {{ footer_classes }}">
+                {{ items.footer }}
+            </div>
+        {%- endif -%}
+    </div>
+</div>
+
+<script type="application/json" data-dropdown-config="{{ dropdown_id }}">
+{
+    "id": "{{ dropdown_id }}",
+    "triggerId": "{{ trigger_id }}",
+    "menuId": "{{ menu_id }}",
+    "align": "{{ align }}",
+    "closeOnSelect": {{ 'true' if close_on_select else 'false' }},
+    "closeOnOutsideClick": {{ 'true' if close_on_outside_click else 'false' }},
+    "closeOnEscape": {{ 'true' if close_on_escape else 'false' }}
+}
+</script>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Dropdown Menu — For use with existing trigger element
+   ========================================================================== #}
+{% macro render_dropdown_menu(
+    trigger_selector,
+    items,
+    align='end',
+    close_on_select=true,
+    close_on_outside_click=true,
+    close_on_escape=true,
+    classes='',
+    id=null,
+    aria_label=null
+) -%}
+{%- set dropdown_id = id or 'dropdown-menu-' ~ (timestamp | default(0)) -%}
+{%- set menu_id = dropdown_id ~ '-menu' -%}
+
+{%- set align_classes = {
+    'start': 'c-dropdown--align-start',
+    'center': 'c-dropdown--align-center',
+    'end': 'c-dropdown--align-end',
+    'stretch': 'c-dropdown--align-stretch',
+} -%}
+
+{%- set dropdown_classes = ['c-dropdown', align_classes.get(align, align_classes['end']), 'c-dropdown--external-trigger'] -%}
+{%- if classes -%}
+    {{ dropdown_classes.append(classes) }}
+{% endif -%}
+
+{%- set dropdown_attrs = {
+    'class': dropdown_classes | join(' '),
+    'id': dropdown_id,
+    'role': 'menu',
+    'aria-label': aria_label or 'Menú desplegable',
+    'data-dropdown': '',
+    'data-dropdown-trigger-selector': trigger_selector,
+    'data-dropdown-close-on-select': 'true' if close_on_select else 'false',
+    'data-dropdown-close-on-outside': 'true' if close_on_outside_click else 'false',
+    'data-dropdown-close-on-escape': 'true' if close_on_escape else 'false',
+} -%}
+<div {{ render_attrs(dropdown_attrs) }}>
+    
+    {%- set menu_attrs = {'class': 'c-dropdown__menu', 'id': menu_id, 'role': 'menu', 'aria-orientation': 'vertical', 'hidden': 'true'} -%}
+    <div {{ render_attrs(menu_attrs) }}>
+        {%- if items.header -%}
+            <div class="c-dropdown__header">{{ items.header }}</div>
+            <hr class="c-dropdown__divider" role="separator">
+        {%- endif -%}
+        
+        <div class="c-dropdown__list" role="none">
+            {%- set dropdown_items = items.list if items.list is defined else items -%}
+            {%- for item in dropdown_items -%}
+                {%- if item.divider -%}
+                    <hr class="c-dropdown__divider" role="separator">
+                {%- elif item.header -%}
+                    <div class="c-dropdown__section-header">{{ item.header }}</div>
+                {%- else -%}
+                    {%- set item_attrs = {
+                        'type': 'button',
+                        'class': 'c-dropdown__item ' ~ (item.classes or ''),
+                        'role': 'menuitem',
+                        'tabindex': '-1',
+                        'data-value': item.value | default(''),
+                        'data-action': item.action | default(''),
+                    } -%}
+                    {%- if item.disabled -%}
+                        {{ item_attrs.__setitem__('aria-disabled', 'true') }}
+                    {%- endif -%}
+                    {%- if item.selected -%}
+                        {{ item_attrs.__setitem__('aria-selected', 'true') }}
+                    {%- endif -%}
+                    <button {{ render_attrs(item_attrs) }}>
+                        {%- if item.icon -%}
+                            <span class="c-dropdown__item-icon" aria-hidden="true">
+                                {{ item.icon if item.icon is not string else '<svg class="c-dropdown__item-icon-svg" aria-hidden="true"><use href="#' ~ item.icon ~ '"></use></svg>' | safe }}
+                            </span>
+                        {%- endif -%}
+                        <span class="c-dropdown__item-label">{{ item.label }}</span>
+                        {%- if item.shortcut -%}
+                            <kbd class="c-dropdown__item-shortcut">{{ item.shortcut }}</kbd>
+                        {%- endif -%}
+                        {%- if item.badge -%}
+                            {{ render_badge(item.badge.label, variant=item.badge.variant, size='sm', classes='c-dropdown__item-badge') }}
+                        {%- endif -%}
+                        {%- if item.description -%}
+                            <span class="c-dropdown__item-description">{{ item.description }}</span>
+                        {%- endif -%}
+                    </button>
+                {%- endif -%}
+            {%- endfor -%}
+        </div>
+        
+        {%- if items.footer -%}
+            <hr class="c-dropdown__divider" role="separator">
+            <div class="c-dropdown__footer">{{ items.footer }}</div>
+        {%- endif -%}
+    </div>
+</div>
+
+<script type="application/json" data-dropdown-config="{{ dropdown_id }}">
+{
+    "id": "{{ dropdown_id }}",
+    "triggerSelector": "{{ trigger_selector }}",
+    "menuId": "{{ menu_id }}",
+    "align": "{{ align }}",
+    "closeOnSelect": {{ 'true' if close_on_select else 'false' }},
+    "closeOnOutsideClick": {{ 'true' if close_on_outside_click else 'false' }},
+    "closeOnEscape": {{ 'true' if close_on_escape else 'false' }}
+}
+</script>
+{%- endmacro -%}

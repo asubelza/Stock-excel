@@ -1,0 +1,230 @@
+{# ==========================================================================
+   ECJY Design System — Badge & Status Indicator Macros
+   ==========================================================================
+   Renders badges and status indicators with semantic colors.
+   Uses BEM-ish class prefix: c-badge, c-status
+   ========================================================================== #}
+
+{% from 'macros/_helpers.html' import render_attrs, merge_classes %}
+
+{% macro render_badge(
+    label,
+    variant='neutral',
+    size='md',
+    dot=false,
+    removable=false,
+    on_remove=null,
+    classes='',
+    id=null,
+    aria_label=null
+) -%}
+{%- set variant_classes = {
+    'neutral': 'c-badge--neutral',
+    'success': 'c-badge--success',
+    'warning': 'c-badge--warning',
+    'danger': 'c-badge--danger',
+    'info': 'c-badge--info',
+} -%}
+
+{%- set size_classes = {
+    'sm': 'c-badge--sm',
+    'md': 'c-badge--md',
+    'lg': 'c-badge--lg',
+} -%}
+
+{%- set badge_classes = ['c-badge', variant_classes.get(variant, variant_classes['neutral']), size_classes.get(size, size_classes['md'])] -%}
+{%- if dot -%}
+    {{ badge_classes.append('c-badge--dot') }}
+{%- endif -%}
+{%- if removable -%}
+    {{ badge_classes.append('c-badge--removable') }}
+{%- endif -%}
+{%- if classes -%}
+    {{ badge_classes.append(classes) }}
+{%- endif -%}
+
+{%- set badge_attrs = {
+    'class': badge_classes | join(' '),
+    'id': id,
+    'role': 'button' if removable else 'status',
+    'aria-label': aria_label or (label ~ ' etiqueta'),
+} -%}
+<span {{ render_attrs(badge_attrs) }}>
+    {%- if dot -%}
+        <span class="c-badge__dot" aria-hidden="true"></span>
+    {%- endif -%}
+    <span class="c-badge__text">{{ label }}</span>
+    {%- if removable -%}
+        <button type="button"
+                class="c-badge__remove"
+                aria-label="Eliminar {{ label }}"
+                onclick="{{ on_remove or 'this.parentElement.remove()' }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
+    {%- endif -%}
+</span>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Status Indicator — Animated dot with label for live status
+   ========================================================================== #}
+{% macro render_status_indicator(
+    label,
+    status='neutral',
+    size='md',
+    animated=true,
+    classes='',
+    id=null,
+    aria_label=null
+) -%}
+{%- set status_classes = {
+    'neutral': 'c-status--neutral',
+    'success': 'c-status--success',
+    'warning': 'c-status--warning',
+    'danger': 'c-status--danger',
+    'info': 'c-status--info',
+    'pending': 'c-status--pending',
+    'processing': 'c-status--processing',
+} -%}
+
+{%- set size_classes = {
+    'sm': 'c-status--sm',
+    'md': 'c-status--md',
+    'lg': 'c-status--lg',
+} -%}
+
+{%- set indicator_classes = ['c-status-indicator', status_classes.get(status, status_classes['neutral']), size_classes.get(size, size_classes['md'])] -%}
+{%- if animated and status in ['success', 'warning', 'danger', 'info', 'pending', 'processing'] -%}
+    {{ indicator_classes.append('c-status-indicator--animated') }}
+{%- endif -%}
+{%- if classes -%}
+    {{ indicator_classes.append(classes) }}
+{%- endif -%}
+
+{%- set indicator_attrs = {
+    'class': indicator_classes | join(' '),
+    'id': id,
+    'role': 'status',
+    'aria-label': aria_label or (label ~ ', estado ' ~ status),
+    'aria-live': 'polite',
+} -%}
+<span {{ render_attrs(indicator_attrs) }}>
+    <span class="c-status-indicator__dot" aria-hidden="true">
+        {%- if animated and status in ['pending', 'processing'] -%}
+            <span class="c-status-indicator__pulse"></span>
+        {%- endif -%}
+    </span>
+    <span class="c-status-indicator__label">{{ label }}</span>
+</span>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Status Pill — Compact status for table cells, lists
+   ========================================================================== #}
+{% macro render_status_pill(
+    label,
+    status='neutral',
+    icon=null,
+    classes='',
+    id=null
+) -%}
+{%- set status_map = {
+    'neutral': { 'variant': 'neutral', 'icon': 'circle' },
+    'success': { 'variant': 'success', 'icon': 'check-circle' },
+    'warning': { 'variant': 'warning', 'icon': 'alert-triangle' },
+    'danger': { 'variant': 'danger', 'icon': 'x-circle' },
+    'info': { 'variant': 'info', 'icon': 'info' },
+    'pending': { 'variant': 'warning', 'icon': 'clock' },
+    'processing': { 'variant': 'info', 'icon': 'loader' },
+} -%}
+
+{%- set config = status_map.get(status, status_map['neutral']) -%}
+{%- set variant = config.variant -%}
+{%- set default_icon = config.icon -%}
+
+{%- set pill_classes = ['c-status-pill', 'c-status-pill--' ~ variant] -%}
+{%- if classes -%}
+    {{ pill_classes.append(classes) }}
+{%- endif -%}
+
+{%- set pill_attrs = {'class': pill_classes | join(' '), 'id': id, 'role': 'status', 'aria-label': label} -%}
+<span {{ render_attrs(pill_attrs) }}>
+    {%- if icon or default_icon -%}
+        <span class="c-status-pill__icon" aria-hidden="true">
+            {{ icon if icon is not string else '<svg class="c-status-pill__icon-svg" aria-hidden="true"><use href="#' ~ icon ~ '"></use></svg>' | safe }}
+            {%- if not icon and default_icon -%}
+                <svg class="c-status-pill__icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    {%- if default_icon == 'circle' -%}
+                        <circle cx="12" cy="12" r="10"></circle>
+                    {%- elif default_icon == 'check-circle' -%}
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="16 8 12 12 8 16"></polyline>
+                    {%- elif default_icon == 'alert-triangle' -%}
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    {%- elif default_icon == 'x-circle' -%}
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    {%- elif default_icon == 'info' -%}
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    {%- elif default_icon == 'clock' -%}
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    {%- elif default_icon == 'loader' -%}
+                        <circle cx="12" cy="12" r="10" stroke-dasharray="31.4 31.4"></circle>
+                    {%- endif -%}
+                </svg>
+            {%- endif -%}
+        </span>
+    {%- endif -%}
+    <span class="c-status-pill__label">{{ label }}</span>
+</span>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Tag — Lightweight label for categorization
+   ========================================================================== #}
+{% macro render_tag(
+    label,
+    variant='neutral',
+    size='sm',
+    icon=null,
+    classes='',
+    id=null
+) -%}
+{%- set variant_classes = {
+    'neutral': 'c-tag--neutral',
+    'success': 'c-tag--success',
+    'warning': 'c-tag--warning',
+    'danger': 'c-tag--danger',
+    'info': 'c-tag--info',
+    'brand': 'c-tag--brand',
+} -%}
+
+{%- set size_classes = {
+    'sm': 'c-tag--sm',
+    'md': 'c-tag--md',
+} -%}
+
+{%- set tag_classes = ['c-tag', variant_classes.get(variant, variant_classes['neutral']), size_classes.get(size, size_classes['sm'])] -%}
+{%- if classes -%}
+    {{ tag_classes.append(classes) }}
+{%- endif -%}
+
+{%- set tag_attrs = {'class': tag_classes | join(' '), 'id': id} -%}
+<span {{ render_attrs(tag_attrs) }}>
+    {%- if icon -%}
+        <span class="c-tag__icon" aria-hidden="true">
+            {{ icon if icon is not string else '<svg class="c-tag__icon-svg" aria-hidden="true"><use href="#' ~ icon ~ '"></use></svg>' | safe }}
+        </span>
+    {%- endif -%}
+    <span class="c-tag__text">{{ label }}</span>
+</span>
+{%- endmacro -%}

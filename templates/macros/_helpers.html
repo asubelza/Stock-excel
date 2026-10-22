@@ -1,0 +1,44 @@
+{# ==========================================================================
+   ECJY Design System — Macro Helpers
+   ==========================================================================
+   Helper macros for rendering HTML attributes and common patterns.
+   ========================================================================== #}
+
+{# Render HTML attributes from a dict, skipping None/false values #}
+{% macro render_attrs(attrs) -%}
+{%- for key, val in attrs.items() -%}
+    {%- if val is not none and val is not sameas(false) -%}
+        {%- if val is sameas(true) -%}
+             {{ key }}
+        {%- else -%}
+             {{ key }}="{{ val }}"
+        {%- endif -%}
+    {%- endif -%}
+{%- endfor -%}
+{%- endmacro -%}
+
+{# Render boolean attributes #}
+{% macro render_bool_attrs(attrs) -%}
+{%- for key, val in attrs.items() -%}
+    {%- if val is sameas(true) -%}
+         {{ key }}
+    {%- endif -%}
+{%- endfor -%}
+{%- endmacro -%}
+
+{# Merge class lists #}
+{% macro merge_classes(class_lists) -%}
+{%- set result = [] -%}
+{%- for cls in class_lists -%}
+    {%- if cls -%}
+        {%- if cls is string -%}
+            {{ result.append(cls) }}
+        {%- else -%}
+            {%- for c in cls -%}
+                {{ result.append(c) }}
+            {%- endfor -%}
+        {%- endif -%}
+    {%- endif -%}
+{%- endfor -%}
+{{ result | join(' ') }}
+{%- endmacro -%}

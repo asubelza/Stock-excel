@@ -1,0 +1,343 @@
+{# ==========================================================================
+   ECJY Design System — Toast Macros
+   ==========================================================================
+   Renders toast container and provides JS API for showing toasts.
+   Uses BEM-ish class prefix: c-toast
+   ========================================================================== #}
+
+{% from 'macros/_helpers.html' import render_attrs, merge_classes %}
+
+{% macro render_toast_container(
+    position='top-right',
+    max_visible=5,
+    gap='sm',
+    classes='',
+    id='toast-container',
+    aria_label='Notificaciones'
+) -%}
+{%- set position_classes = {
+    'top-right': 'c-toast-container--top-right',
+    'top-left': 'c-toast-container--top-left',
+    'bottom-right': 'c-toast-container--bottom-right',
+    'bottom-left': 'c-toast-container--bottom-left',
+    'top-center': 'c-toast-container--top-center',
+    'bottom-center': 'c-toast-container--bottom-center',
+} -%}
+
+{%- set container_classes = ['c-toast-container', position_classes.get(position, position_classes['top-right'])] -%}
+{%- if classes -%}
+    {{ container_classes.append(classes) }}
+{% endif -%}
+
+{%- set container_attrs = {
+    'class': container_classes | join(' '),
+    'id': id,
+    'role': 'region',
+    'aria-label': aria_label,
+    'aria-live': 'polite',
+    'aria-atomic': 'true',
+    'data-toast-container': '',
+    'data-max-visible': max_visible,
+    'style': '--c-toast-gap: var(--space-' ~ gap ~ ');',
+} -%}
+<div {{ render_attrs(container_attrs) }}>
+    <!-- Toasts are inserted here by JS -->
+</div>
+{%- endmacro -%}
+
+{% macro render_toast(
+    message,
+    type='info',
+    title=null,
+    icon=null,
+    dismissible=true,
+    duration=5000,
+    action=null,
+    classes='',
+    id=null
+) -%}
+{%- set type_classes = {
+    'info': 'c-toast--info',
+    'success': 'c-toast--success',
+    'warning': 'c-toast--warning',
+    'danger': 'c-toast--danger',
+    'error': 'c-toast--danger',
+} -%}
+
+{%- set default_icons = {
+    'info': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>',
+    'success': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="16 8 12 12 8 16"></polyline></svg>',
+    'warning': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>',
+    'danger': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+} -%}
+
+{%- set toast_classes = ['c-toast', type_classes.get(type, type_classes['info'])] -%}
+{%- if classes -%}
+    {{ toast_classes.append(classes) }}
+{% endif -%}
+
+{%- set toast_id = id or 'toast-' ~ (timestamp | default(0)) -%}
+
+{%- set toast_attrs = {
+    'class': toast_classes | join(' '),
+    'id': toast_id,
+    'role': 'alert',
+    'aria-live': 'assertive',
+    'aria-atomic': 'true',
+    'data-toast': '',
+    'data-type': type,
+    'data-duration': duration,
+} -%}
+<div {{ render_attrs(toast_attrs) }}>
+    <div class="c-toast__content">
+        <div class="c-toast__icon" aria-hidden="true">
+            {{ icon if icon is not none else default_icons.get(type, default_icons['info']) | safe }}
+        </div>
+        <div class="c-toast__message">
+            {%- if title -%}
+                <div class="c-toast__title">{{ title }}</div>
+            {%- endif -%}
+            <div class="c-toast__text">{{ message }}</div>
+        </div>
+        {%- if dismissible -%}
+            <button type="button"
+                    class="c-toast__dismiss"
+                    aria-label="Cerrar notificación"
+                    onclick="this.closest('.c-toast').dispatchEvent(new CustomEvent('toast:dismiss'))">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        {%- endif -%}
+    </div>
+    {%- if action -%}
+        <div class="c-toast__action">
+            {{ render_button(label=action.label, variant=action.variant or 'ghost', size='sm', onclick=action.onclick, classes='c-toast__action-btn') }}
+        </div>
+    {%- endif -%}
+    <div class="c-toast__progress" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="--c-toast-duration: {{ duration }}ms;"></div>
+</div>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Toast JS API — Inline script for toast.show() functionality
+   ========================================================================== #}
+{% macro render_toast_script() -%}
+<script type="module">
+    // Toast API - Available as DesignSystem.Toast
+    (function() {
+        'use strict';
+        
+        const DEFAULT_DURATION = 5000;
+        const MAX_VISIBLE = 5;
+        
+        let container = null;
+        let toastCount = 0;
+        
+        function getContainer() {
+            if (!container) {
+                container = document.getElementById('toast-container');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = 'toast-container';
+                    container.className = 'c-toast-container c-toast-container--top-right';
+                    container.setAttribute('role', 'region');
+                    container.setAttribute('aria-label', 'Notificaciones');
+                    container.setAttribute('aria-live', 'polite');
+                    container.setAttribute('aria-atomic', 'true');
+                    container.style.setProperty('--c-toast-gap', 'var(--space-2)');
+                    document.body.appendChild(container);
+                }
+            }
+            return container;
+        }
+        
+        function createToastElement(options) {
+            const { message, type = 'info', title, icon, dismissible = true, duration = DEFAULT_DURATION, action, id } = options;
+            
+            const typeClasses = {
+                info: 'c-toast--info',
+                success: 'c-toast--success',
+                warning: 'c-toast--warning',
+                danger: 'c-toast--danger',
+                error: 'c-toast--danger',
+            };
+            
+            const defaultIcons = {
+                info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>',
+                success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="16 8 12 12 8 16"></polyline></svg>',
+                warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>',
+                danger: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+            };
+            
+            const toastId = id || 'toast-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9);
+            const toastEl = document.createElement('div');
+            toastEl.className = 'c-toast ' + (typeClasses[type] || typeClasses.info);
+            toastEl.id = toastId;
+            toastEl.setAttribute('role', 'alert');
+            toastEl.setAttribute('aria-live', 'assertive');
+            toastEl.setAttribute('aria-atomic', 'true');
+            toastEl.setAttribute('data-toast', '');
+            toastEl.setAttribute('data-type', type);
+            toastEl.setAttribute('data-duration', duration);
+            
+            let actionHtml = '';
+            if (action) {
+                const actionVariant = action.variant || 'ghost';
+                actionHtml = `
+                    <div class="c-toast__action">
+                        <button type="button" class="c-btn c-btn--${actionVariant} c-btn--sm c-toast__action-btn" onclick="${action.onclick || ''}">
+                            ${action.label}
+                        </button>
+                    </div>
+                `;
+            }
+            
+            toastEl.innerHTML = `
+                <div class="c-toast__content">
+                    <div class="c-toast__icon" aria-hidden="true">
+                        ${icon || defaultIcons[type] || defaultIcons.info}
+                    </div>
+                    <div class="c-toast__message">
+                        ${title ? '<div class="c-toast__title">' + escapeHtml(title) + '</div>' : ''}
+                        <div class="c-toast__text">${escapeHtml(message)}</div>
+                    </div>
+                    ${dismissible ? `
+                        <button type="button" class="c-toast__dismiss" aria-label="Cerrar notificación">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    ` : ''}
+                </div>
+                ${actionHtml}
+                <div class="c-toast__progress" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="--c-toast-duration: ${duration}ms;"></div>
+            `;
+            
+            // Add event listeners
+            if (dismissible) {
+                const dismissBtn = toastEl.querySelector('.c-toast__dismiss');
+                dismissBtn.addEventListener('click', () => dismissToast(toastEl));
+            }
+            
+            if (action && action.onclick) {
+                const actionBtn = toastEl.querySelector('.c-toast__action-btn');
+                actionBtn.addEventListener('click', () => {
+                    if (action.onclick instanceof Function) {
+                        action.onclick();
+                    }
+                    dismissToast(toastEl);
+                });
+            }
+            
+            // Auto-dismiss
+            if (duration > 0) {
+                setTimeout(() => dismissToast(toastEl), duration);
+            }
+            
+            // Pause on hover
+            toastEl.addEventListener('mouseenter', () => {
+                toastEl.style.setProperty('--c-toast-paused', 'true');
+            });
+            toastEl.addEventListener('mouseleave', () => {
+                toastEl.style.removeProperty('--c-toast-paused');
+            });
+            
+            return toastEl;
+        }
+        
+        function dismissToast(toastEl) {
+            if (toastEl.classList.contains('c-toast--dismissing')) return;
+            
+            toastEl.classList.add('c-toast--dismissing');
+            toastEl.addEventListener('transitionend', () => {
+                toastEl.remove();
+                enforceMaxVisible();
+            }, { once: true });
+        }
+        
+        function enforceMaxVisible() {
+            const container = getContainer();
+            const toasts = container.querySelectorAll('.c-toast:not(.c-toast--dismissing)');
+            const maxVisible = parseInt(container.dataset.maxVisible || MAX_VISIBLE, 10);
+            
+            if (toasts.length > maxVisible) {
+                const toRemove = toasts[0];
+                dismissToast(toRemove);
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Public API
+        const ToastAPI = {
+            show(message, options = {}) {
+                if (typeof message === 'object') {
+                    options = message;
+                } else {
+                    options.message = message;
+                }
+                
+                const container = getContainer();
+                const toastEl = createToastElement(options);
+                container.appendChild(toastEl);
+                enforceMaxVisible();
+                
+                // Trigger entrance animation
+                requestAnimationFrame(() => {
+                    toastEl.classList.add('c-toast--visible');
+                });
+                
+                return {
+                    dismiss: () => dismissToast(toastEl),
+                    element: toastEl,
+                    id: toastEl.id,
+                };
+            },
+            
+            info(message, options = {}) {
+                return this.show({ ...options, message, type: 'info' });
+            },
+            
+            success(message, options = {}) {
+                return this.show({ ...options, message, type: 'success' });
+            },
+            
+            warning(message, options = {}) {
+                return this.show({ ...options, message, type: 'warning' });
+            },
+            
+            error(message, options = {}) {
+                return this.show({ ...options, message, type: 'danger' });
+            },
+            
+            dismissAll() {
+                const container = getContainer();
+                const toasts = container.querySelectorAll('.c-toast:not(.c-toast--dismissing)');
+                toasts.forEach(dismissToast);
+            },
+        };
+        
+        // Register with DesignSystem
+        if (window.DesignSystem) {
+            window.DesignSystem.Toast = ToastAPI;
+        }
+        
+        // Global access for inline scripts
+        window.toast = ToastAPI;
+        
+        // Initialize container on DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', getContainer);
+        } else {
+            getContainer();
+        }
+    })();
+</script>
+{%- endmacro -%}
