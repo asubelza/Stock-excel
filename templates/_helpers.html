@@ -1,0 +1,43 @@
+{# ==========================================================================
+   ECJY Design System — Helper Macros
+   ==========================================================================
+   Utility macros for rendering HTML attributes and merging CSS classes.
+   ========================================================================== #}
+
+{% macro render_attrs(attrs) -%}
+{%- for key, value in attrs.items() -%}
+    {%- if value is not none and value is not false and value != '' -%}
+        {%- if value is sameas true -%}
+            {{ ' ' ~ key }}
+        {%- else -%}
+            {{ ' ' ~ key ~ '="' ~ value|e ~ '"' }}
+        {%- endif -%}
+    {%- endif -%}
+{%- endfor -%}
+{%- endmacro -%}
+
+{% macro merge_classes(classes=[]) -%}
+{%- set result = [] -%}
+{%- for cls in classes -%}
+    {%- if cls -%}
+        {%- if cls is iterable and cls is not string -%}
+            {%- for c in cls -%}
+                {%- if c -%}{{ result.append(c) }}{% endif -%}
+            {%- endfor -%}
+        {%- else -%}
+            {{ result.append(cls) }}
+        {%- endif -%}
+    {%- endif -%}
+{%- endfor -%}
+{{ result | join(' ') }}
+{%- endmacro -%}
+
+{% macro css_var(name, fallback='') -%}
+var(--{{ name }}{% if fallback %}, {{ fallback }}{% endif %})
+{%- endmacro -%}
+
+{% macro data_attrs(data) -%}
+{%- for key, value in data.items() -%}
+    {{ ' data-' ~ key ~ '="' ~ value|e ~ '"' }}
+{%- endfor -%}
+{%- endmacro -%}

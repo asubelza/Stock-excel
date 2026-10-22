@@ -1,0 +1,226 @@
+{# ==========================================================================
+   ECJY Design System — Autocomplete Macro
+   ==========================================================================
+   Renders accessible autocomplete combobox with keyboard navigation, ARIA, debounce, and min_chars.
+   Uses BEM-ish class prefix: c-autocomplete
+   ========================================================================== #}
+
+{% from 'macros/_helpers.html' import render_attrs, merge_classes %}
+
+{% macro render_autocomplete(
+    name,
+    label=null,
+    placeholder='Escribe para buscar...',
+    value='',
+    options=[],
+    fetch_url=null,
+    fetch_params={},
+    min_chars=2,
+    debounce_ms=150,
+    max_results=10,
+    required=false,
+    disabled=false,
+    readonly=false,
+    error=null,
+    hint=null,
+    clearable=true,
+    multiple=false,
+    option_value='value',
+    option_label='label',
+    option_description=null,
+    option_group=null,
+    no_results_text='No se encontraron resultados',
+    loading_text='Buscando...',
+    aria_describedby=null,
+    aria_label=null,
+    classes='',
+    wrapper_classes='',
+    label_classes='',
+    input_classes='',
+    list_classes='',
+    id=null,
+    wrapper_id=null
+) -%}
+{%- set field_id = id or 'autocomplete-' ~ name | replace('.', '-') | replace('[', '-') | replace(']', '') -%}
+{%- set listbox_id = field_id ~ '-listbox' -%}
+{%- set describedby = [] -%}
+{%- if hint -%}
+    {{ describedby.append(field_id ~ '-hint') }}
+{% endif -%}
+{%- if error -%}
+    {{ describedby.append(field_id ~ '-error') }}
+{% endif -%}
+{%- if aria_describedby -%}
+    {{ describedby.append(aria_describedby) }}
+{% endif -%}
+
+{%- set wrapper_classes_list = ['c-form__field', 'c-form__field--autocomplete'] -%}
+{%- if wrapper_classes -%}
+    {{ wrapper_classes_list.append(wrapper_classes) }}
+{% endif -%}
+
+{%- set input_classes_list = ['c-autocomplete__input'] -%}
+{%- if error -%}
+    {{ input_classes_list.append('c-autocomplete__input--error') }}
+{% endif -%}
+{%- if disabled -%}
+    {{ input_classes_list.append('c-autocomplete__input--disabled') }}
+{% endif -%}
+{%- if readonly -%}
+    {{ input_classes_list.append('c-autocomplete__input--readonly') }}
+{% endif -%}
+{%- if input_classes -%}
+    {{ input_classes_list.append(input_classes) }}
+{% endif -%}
+
+{%- set list_classes_list = ['c-autocomplete__listbox'] -%}
+{%- if list_classes -%}
+    {{ list_classes_list.append(list_classes) }}
+{% endif -%}
+
+{%- set wrapper_attrs = {'class': wrapper_classes_list | join(' '), 'id': wrapper_id, 'data-autocomplete-wrapper': ''} -%}
+<div {{ render_attrs(wrapper_attrs) }}>
+    {%- if label -%}
+        <label class="c-form__label {{ label_classes }}" for="{{ field_id }}">
+            {{ label }}
+            {%- if required -%}
+                <span class="c-form__required" aria-hidden="true">*</span>
+                <span class="visually-hidden">(requerido)</span>
+            {%- endif -%}
+        </label>
+    {%- endif -%}
+    
+    {%- set autocomplete_attrs = {'class': 'c-autocomplete', 'role': 'combobox', 'aria-haspopup': 'listbox', 'aria-expanded': 'false', 'aria-controls': listbox_id, 'aria-autocomplete': 'list'} -%}
+    <div {{ render_attrs(autocomplete_attrs) }}>
+        <div class="c-autocomplete__input-wrapper">
+            {%- set input_attrs = {
+                'type': 'text',
+                'name': name,
+                'id': field_id,
+                'class': input_classes_list | join(' '),
+                'placeholder': placeholder,
+                'value': value,
+                'autocomplete': 'off',
+                'autocorrect': 'off',
+                'autocapitalize': 'off',
+                'spellcheck': 'false',
+                'required': required,
+                'disabled': disabled,
+                'readonly': readonly,
+                'aria-invalid': 'true' if error else 'false',
+                'aria-describedby': describedby | join(' ') if describedby else '',
+                'aria-label': aria_label,
+                'aria-controls': listbox_id,
+                'aria-activedescendant': '',
+            } -%}
+            <input {{ render_attrs(input_attrs) }}>
+            
+            {%- if clearable and value and not disabled and not readonly -%}
+                {%- set clear_attrs = {
+                    'type': 'button',
+                    'class': 'c-autocomplete__clear',
+                    'aria-label': 'Limpiar',
+                    'onclick': "this.closest('.c-autocomplete').querySelector('input').value=''; this.closest('.c-autocomplete').querySelector('input').dispatchEvent(new Event('input')); this.hidden=true;",
+                    'hidden': 'true',
+                } -%}
+                <button {{ render_attrs(clear_attrs) }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            {%- endif -%}
+            
+            <span class="c-autocomplete__loading" aria-hidden="true" hidden>
+                <svg class="c-autocomplete__spinner" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle class="c-autocomplete__spinner-circle" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="31.4 31.4" />
+                </svg>
+            </span>
+            
+            <svg class="c-autocomplete__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+        </div>
+        
+        {%- set listbox_attrs = {
+            'class': list_classes_list | join(' '),
+            'id': listbox_id,
+            'role': 'listbox',
+            'aria-label': label or 'Opciones de autocompletado',
+            'hidden': 'true',
+        } -%}
+        <div {{ render_attrs(listbox_attrs) }}>
+            <!-- Options are populated by JS -->
+            <div class="c-autocomplete__loading-state" hidden>
+                <span class="c-autocomplete__spinner" aria-hidden="true"></span>
+                <span>{{ loading_text }}</span>
+            </div>
+            <div class="c-autocomplete__no-results" hidden>
+                {{ no_results_text }}
+            </div>
+        </div>
+        
+        {%- if multiple -%}
+            <input type="hidden" name="{{ name }}_values" id="{{ field_id }}-values" value="">
+        {%- endif -%}
+    </div>
+    
+    {%- if hint -%}
+        <span class="c-form__hint" id="{{ field_id }}-hint">{{ hint }}</span>
+    {%- endif -%}
+    {%- if error -%}
+        <span class="c-form__error" id="{{ field_id }}-error" role="alert">{{ error }}</span>
+    {%- endif -%}
+    
+    <script type="application/json" data-autocomplete-config="{{ field_id }}">
+    {
+        "id": "{{ field_id }}",
+        "name": "{{ name }}",
+        "fetchUrl": {{ fetch_url | tojson }},
+        "fetchParams": {{ fetch_params | tojson }},
+        "minChars": {{ min_chars }},
+        "debounceMs": {{ debounce_ms }},
+        "maxResults": {{ max_results }},
+        "multiple": {{ 'true' if multiple else 'false' }},
+        "optionValue": "{{ option_value }}",
+        "optionLabel": "{{ option_label }}",
+        "optionDescription": {{ option_description | tojson }},
+        "optionGroup": {{ option_group | tojson }},
+        "initialOptions": {{ options | tojson }},
+        "initialValue": {{ value | tojson }}
+    }
+    </script>
+</div>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Simple Autocomplete — For static options without fetch
+   ========================================================================== #}
+{% macro render_simple_autocomplete(
+    name,
+    label=null,
+    options=[],
+    placeholder='Seleccionar...',
+    value='',
+    required=false,
+    disabled=false,
+    error=null,
+    hint=null,
+    clearable=true,
+    classes=''
+) -%}
+{{ render_autocomplete(
+    name=name,
+    label=label,
+    placeholder=placeholder,
+    value=value,
+    options=options,
+    fetch_url=none,
+    required=required,
+    disabled=disabled,
+    error=error,
+    hint=hint,
+    clearable=clearable,
+    classes=classes
+) }}
+{%- endmacro -%}
