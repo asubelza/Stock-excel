@@ -121,14 +121,17 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       
-      - name: Enable pnpm via corepack
-        run: corepack enable && corepack prepare pnpm@9 --activate
-      
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup pnpm and install dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@9 --activate
+          pnpm install --frozen-lockfile
       
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
+        run: |
+          corepack enable
+          corepack prepare pnpm@9 --activate
+          pnpm exec playwright install --with-deps ${{ matrix.browser }}
       
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -224,14 +227,17 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       
-      - name: Enable pnpm via corepack
-        run: corepack enable && corepack prepare pnpm@9 --activate
-      
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup pnpm and install dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@9 --activate
+          pnpm install --frozen-lockfile
       
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium firefox
+        run: |
+          corepack enable
+          corepack prepare pnpm@9 --activate
+          pnpm exec playwright install --with-deps chromium firefox
       
       - name: Start Flask application
         run: |
