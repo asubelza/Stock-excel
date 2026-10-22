@@ -8,7 +8,7 @@ name: A11y Gate
 
 on:
   pull_request:
-    branches: [main, develop, 'rediseño_aws*']
+    branches: [main, develop, 'rediseño_aws', 'rediseño_aws-tracker', 'rediseño_aws-phase-*']
     paths:
       - 'templates/**'
       - 'static/src/**'
@@ -17,7 +17,7 @@ on:
       - 'package.json'
       - 'playwright.config.ts'
   push:
-    branches: [main, 'rediseño_aws*']
+    branches: [main, 'rediseño_aws', 'rediseño_aws-tracker', 'rediseño_aws-phase-*']
     paths:
       - 'templates/**'
       - 'static/src/**'
