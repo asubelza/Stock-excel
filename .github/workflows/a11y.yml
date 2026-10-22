@@ -1,0 +1,274 @@
+# A11y Gate CI Workflow (AG-03)
+# Runs on PR: axe-core scan on new-design pages only
+# Fails on critical/serious, warns on moderate/minor
+# Uploads JSON + HTML report artifacts
+# Runtime ≤3 min
+
+name: A11y Gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'templates/**'
+      - 'static/src/**'
+      - 'tests/a11y/**'
+      - '.github/workflows/a11y.yml'
+      - 'package.json'
+      - 'playwright.config.ts'
+  push:
+    branches: [main]
+    paths:
+      - 'templates/**'
+      - 'static/src/**'
+      - 'tests/a11y/**'
+  workflow_dispatch:
+    inputs:
+      update_baseline:
+        description: 'Update a11y baseline (requires manual approval)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  BASE_URL: http://localhost:5000
+  NODE_VERSION: '20'
+  PLAYWRIGHT_BROWSERS_PATH: 0
+
+jobs:
+  a11y-scan:
+    name: A11y Scan (${{ matrix.browser }}/${{ matrix.viewport }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox]
+        viewport: [mobile, tablet, desktop]
+        include:
+          - browser: chromium
+            viewport: mobile
+            viewport_width: 375
+            viewport_height: 667
+          - browser: chromium
+            viewport: tablet
+            viewport_width: 768
+            viewport_height: 1024
+          - browser: chromium
+            viewport: desktop
+            viewport_width: 1440
+            viewport_height: 900
+          - browser: firefox
+            viewport: mobile
+            viewport_width: 375
+            viewport_height: 667
+          - browser: firefox
+            viewport: tablet
+            viewport_width: 768
+            viewport_height: 1024
+          - browser: firefox
+            viewport: desktop
+            viewport_width: 1440
+            viewport_height: 900
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+          run_install: false
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
+      
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-${{ matrix.browser }}-
+      
+      - name: Start Flask application
+        run: |
+          python -m pip install -r requirements.txt 2>/dev/null || pip install -r requirements.txt
+          nohup python web_app.py > flask.log 2>&1 &
+          echo "Flask PID: $!"
+          sleep 10
+          curl -f http://localhost:5000/stock/login || exit 1
+        env:
+          DESIGN_SYSTEM_ENABLED: 'true'
+          FLASK_ENV: development
+          SECRET_KEY: 'test-secret-key'
+          DATABASE_URL: 'sqlite:///test.db'
+      
+      - name: Wait for application readiness
+        run: |
+          for i in {1..30}; do
+            if curl -s -f http://localhost:5000/stock/login > /dev/null; then
+              echo "Application ready!"
+              exit 0
+            fi
+            echo "Waiting for application... ($i/30)"
+            sleep 2
+          done
+          echo "Application failed to start"
+          cat flask.log
+          exit 1
+      
+      - name: Run A11y Scan
+        run: |
+          pnpm a11y:scan --project=a11y-${{ matrix.browser }}-${{ matrix.viewport }}
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+          UPDATE_BASELINE: ${{ github.event.inputs.update_baseline || 'false' }}
+      
+      - name: Upload A11y report artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a11y-report-${{ matrix.browser }}-${{ matrix.viewport }}
+          path: |
+            test-results/a11y/${{ matrix.browser }}/${{ matrix.viewport }}/*.json
+            test-results/a11y/${{ matrix.browser }}/${{ matrix.viewport }}/*.html
+          retention-days: 7
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a11y-results-${{ matrix.browser }}-${{ matrix.viewport }}
+          path: |
+            test-results/results.json
+            test-results/results.xml
+          retention-days: 7
+
+  # Baseline update job (manual)
+  update-baseline:
+    name: Update A11y Baseline (Manual)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event.inputs.update_baseline == 'true'
+    needs: a11y-scan
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+          run_install: false
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium firefox
+      
+      - name: Start Flask application
+        run: |
+          python -m pip install -r requirements.txt 2>/dev/null || pip install -r requirements.txt
+          nohup python web_app.py > flask.log 2>&1 &
+          sleep 10
+          curl -f http://localhost:5000/stock/login || exit 1
+        env:
+          DESIGN_SYSTEM_ENABLED: 'true'
+          FLASK_ENV: development
+          SECRET_KEY: 'test-secret-key'
+          DATABASE_URL: 'sqlite:///test.db'
+      
+      - name: Run baseline update
+        run: |
+          UPDATE_BASELINE=true pnpm a11y:baseline
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      
+      - name: Commit new baseline
+        run: |
+          git add tests/a11y/__baselines__/a11y-baseline.json tests/a11y/__baselines__/a11y-baseline-summary.json
+          if git diff --staged --quiet; then
+            echo "No baseline changes to commit"
+          else
+            git commit -m "chore(a11y): update accessibility baseline [skip ci]"
+            git push
+          fi
+
+  # Summary job
+  summary:
+    name: A11y Gate Summary
+    runs-on: ubuntu-latest
+    needs: [a11y-scan]
+    if: always()
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: a11y-*
+      
+      - name: Aggregate results
+        run: |
+          echo "## A11y Gate Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Matrix (6 configurations)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Browser | Viewport | Status | Critical | Serious | Moderate | Minor |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|----------|--------|----------|---------|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          
+          # Check each matrix result
+          for browser in chromium firefox; do
+            for viewport in mobile tablet desktop; do
+              result_file="artifacts/a11y-results-${browser}-${viewport}/results.json"
+              if [ -f "$result_file" ]; then
+                # Parse results
+                critical=$(cat "$result_file" | jq -r '.suites[]?.specs[]? | select(.title | contains("scan:")) | .results[0]?.errors[]? | select(.message | contains("CRITICAL")) | .message' | wc -l)
+                serious=$(cat "$result_file" | jq -r '.suites[]?.specs[]? | select(.title | contains("scan:")) | .results[0]?.errors[]? | select(.message | contains("SERIOUS")) | .message' | wc -l)
+                status=$(cat "$result_file" | jq -r '.suites[]?.specs[]?.results[0]?.outcome // "unknown"' | sort | uniq -c | head -1 | awk '{print $2}')
+                echo "| $browser | $viewport | $status | $critical | $serious | - | - |" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "| $browser | $viewport | ❌ No results | - | - | - | - |" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          done
+      
+      - name: Comment summary on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync(process.env.GITHUB_STEP_SUMMARY, 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            })
