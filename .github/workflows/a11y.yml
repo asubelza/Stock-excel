@@ -100,9 +100,23 @@ jobs:
       - name: Start Flask application
         run: |
           nohup python web_app.py > flask.log 2>&1 &
-          echo "Flask PID: $!"
-          sleep 10
-          curl -f http://localhost:5000/stock/login || exit 1
+          FLASK_PID=$!
+          echo "Flask PID: $FLASK_PID"
+          # Wait for Flask to fully start
+          for i in {1..30}; do
+            if curl -s -f http://localhost:5000/stock/login > /dev/null 2>&1; then
+              echo "Application ready!"
+              exit 0
+            fi
+            echo "Waiting for application... ($i/30)"
+            sleep 2
+          done
+          echo "Application failed to start"
+          echo "=== Flask log ==="
+          cat flask.log
+          echo "=== End log ==="
+          kill $FLASK_PID 2>/dev/null || true
+          exit 1
         env:
           DESIGN_SYSTEM_ENABLED: 'true'
           FLASK_ENV: development
