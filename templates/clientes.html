@@ -1,6 +1,283 @@
 {% extends "base.html" %}
+{% from 'macros.html' import macros %}
 
 {% block content %}
+{% if g.design_system %}
+{# ==========================================================================
+   NEW DESIGN SYSTEM — Clientes
+   ========================================================================== #}
+<div class="c-card" data-table data-table-api="/stock/api/clientes" data-table-data-key="rows" data-table-total-key="total">
+    <header class="c-card__header">
+        <h2 class="c-card__title">Clientes</h2>
+        <div class="c-card__actions">
+            <div class="c-btn-group" role="group" style="--c-btn-group-gap: var(--space-2);">
+                {{ macros.render_button('Importar Excel', variant='secondary', type='button', onclick="document.getElementById('import_file').click()", icon='upload') }}
+                <input type="file" id="import_file" accept=".xlsx" hidden onchange="importar_excel(this)">
+                {{ macros.render_button('+ Nuevo Cliente', variant='success', type='button', hx_get='/stock/clientes/create-modal', hx_target='#modal-container', hx_swap='innerHTML', icon='plus') }}
+            </div>
+        </div>
+    </header>
+
+    <div class="c-card__body">
+        <div class="c-table-toolbar" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center;">
+            {{ macros.render_search_input(
+                id='buscar_cliente',
+                placeholder='Buscar cliente...',
+                data_table_search=true,
+                classes='c-table__search',
+                style='min-width: 250px; flex: 1; max-width: 400px;'
+            ) }}
+        </div>
+
+        <div class="c-table__wrapper" id="clientes_table_wrapper">
+            <div class="c-table__scroll" tabindex="0" role="region" aria-label="Tabla de clientes">
+                <table class="c-table c-table--striped c-table--hoverable c-table--bordered c-table--stack">
+                    <thead>
+                        <tr>
+                            <th scope="col" data-sortable="true" data-sort-key="nombre" data-align="left">Nombre</th>
+                            <th scope="col" data-sortable="true" data-sort-key="cuit" data-align="left">CUIT</th>
+                            <th scope="col" data-sortable="true" data-sort-key="telefono" data-align="left">Teléfono</th>
+                            <th scope="col" data-sortable="true" data-sort-key="email" data-align="left">Email</th>
+                            <th scope="col" data-sortable="true" data-sort-key="direccion" data-align="left">Dirección</th>
+                            <th scope="col" data-align="center" style="width: 1%; white-space: nowrap;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {# Rows loaded via DataTable component #}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {# Mobile Card View #}
+        <div class="c-card-list c-card-list--divided" id="clientes_card_list" style="display: none;">
+            {# Cards rendered by JS #}
+        </div>
+    </div>
+</div>
+
+{# Modal Container - HTMX will swap modal content here #}
+<div id="modal-container"></div>
+
+<script>
+let clientesData = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize DataTable
+    const tableWrapper = document.querySelector('[data-table]');
+    if (tableWrapper && window.DesignSystem && DesignSystem.DataTable) {
+        tableWrapper._dsDataTable = new DesignSystem.DataTable(tableWrapper, {
+            apiUrl: tableWrapper.dataset.tableApi,
+            dataKey: tableWrapper.dataset.tableDataKey,
+            totalKey: tableWrapper.dataset.tableTotalKey,
+            pageSize: 25,
+            sortable: true,
+            defaultSort: { field: 'nombre', direction: 'asc' },
+            globalSearch: true,
+            columnFilters: false,
+            responsive: 'stack',
+            actions: [
+                {
+                    type: 'icon',
+                    props: (row) => ({
+                        variant: 'ghost',
+                        size: 'sm',
+                        ariaLabel: 'Editar cliente',
+                        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
+                        attributes: {
+                            'hx-get': '/stock/clientes/' + row.id + '/edit-modal',
+                            'hx-target': '#modal-container',
+                            'hx-swap': 'innerHTML'
+                        }
+                    })
+                },
+                {
+                    type: 'icon',
+                    props: (row) => ({
+                        variant: 'danger',
+                        size: 'sm',
+                        ariaLabel: 'Eliminar cliente',
+                        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>',
+                        onClick: (r) => eliminar_cliente(r.id, r.nombre)
+                    })
+                }
+            ],
+            onDataLoad: (data, meta) => {
+                clientesData = data;
+                renderCardView(data);
+                updateViewVisibility();
+            }
+        });
+    }
+    
+    // Handle HTMX events for modals
+    document.body.addEventListener('htmx:afterSwap', (evt) => {
+        if (evt.target.id === 'modal-container') {
+            const modal = evt.target.querySelector('[data-modal]');
+            if (modal && modal._dsModal) {
+                modal._dsModal.open();
+            }
+        }
+    });
+    
+    // Listen for modal close trigger to refresh table
+    document.body.addEventListener('reloadTable', () => {
+        const tableWrapper = document.querySelector('[data-table]');
+        if (tableWrapper && tableWrapper._dsDataTable) {
+            tableWrapper._dsDataTable.refresh();
+        }
+    });
+    
+    // Handle responsive view switching
+    window.addEventListener('resize', updateViewVisibility);
+    updateViewVisibility();
+});
+
+function updateViewVisibility() {
+    const isMobile = window.innerWidth < 768;
+    const tableWrapper = document.getElementById('clientes_table_wrapper');
+    const cardList = document.getElementById('clientes_card_list');
+    
+    if (tableWrapper) tableWrapper.style.display = isMobile ? 'none' : 'block';
+    if (cardList) cardList.style.display = isMobile ? 'block' : 'none';
+}
+
+function renderCardView(data) {
+    const cardList = document.getElementById('clientes_card_list');
+    if (!cardList) return;
+    
+    if (data.length === 0) {
+        cardList.innerHTML = `
+            <div class="c-empty-state" style="padding: var(--space-8); text-align: center;">
+                <svg class="c-empty-state__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <h3 class="c-empty-state__title">No hay clientes registrados</h3>
+                <p class="c-empty-state__description">Agrega el primer cliente para comenzar</p>
+                <button type="button" class="c-btn c-btn--success" hx-get="/stock/clientes/create-modal" hx-target="#modal-container" hx-swap="innerHTML">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width: 1em; height: 1em; margin-right: var(--space-2);"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Nuevo Cliente
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    cardList.innerHTML = data.map(c => `
+        <article class="c-card c-card--default">
+            <div class="c-card__body">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-3);">
+                    <h3 class="c-card__title" style="margin: 0;">${c.nombre}</h3>
+                    <div class="c-btn-group" role="group" style="--c-btn-group-gap: var(--space-1);">
+                        <button type="button" class="c-btn c-btn--ghost c-btn--sm" aria-label="Editar cliente" hx-get="/stock/clientes/${c.id}/edit-modal" hx-target="#modal-container" hx-swap="innerHTML">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        </button>
+                        <button type="button" class="c-btn c-btn--danger c-btn--sm" aria-label="Eliminar cliente" onclick="eliminar_cliente(${c.id}, '${c.nombre.replace(/'/g, "\\'")}')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                    </div>
+                </div>
+                <dl style="display: grid; grid-template-columns: auto 1fr; gap: var(--space-2) var(--space-4); font-size: var(--text-sm);">
+                    <dt class="c-text--muted">CUIT:</dt>
+                    <dd>${c.cuit || '-'}</dd>
+                    <dt class="c-text--muted">Teléfono:</dt>
+                    <dd>${c.telefono || '-'}</dd>
+                    <dt class="c-text--muted">Email:</dt>
+                    <dd>${c.email || '-'}</dd>
+                    <dt class="c-text--muted">Dirección:</dt>
+                    <dd style="grid-column: span 2;">${c.direccion || '-'}</dd>
+                </dl>
+            </div>
+        </article>
+    `).join('');
+}
+
+async function eliminar_cliente(id, nombre) {
+    if (!(window.DesignSystem && DesignSystem.Toast && await DesignSystem.Toast.show({
+        message: `¿Eliminar cliente "${nombre}"?`,
+        type: 'warning',
+        action: { label: 'Eliminar', variant: 'danger', onclick: () => confirmarEliminarCliente(id) }
+    }))) {
+        if (!confirm(`¿Eliminar cliente "${nombre}"?`)) return;
+        confirmarEliminarCliente(id);
+    }
+}
+
+async function confirmarEliminarCliente(id) {
+    try {
+        const response = await fetch('/stock/api/cliente/' + id, {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'}
+        });
+        const data = await response.json();
+        
+        if (data.ok) {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.success(data.msg);
+            } else {
+                alert(data.msg);
+            }
+            const tableWrapper = document.querySelector('[data-table]');
+            if (tableWrapper && tableWrapper._dsDataTable) {
+                tableWrapper._dsDataTable.refresh();
+            } else {
+                location.reload();
+            }
+        } else {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.error(data.msg);
+            } else {
+                alert(data.msg);
+            }
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        if (window.DesignSystem && DesignSystem.Toast) {
+            DesignSystem.Toast.error('Error al eliminar cliente');
+        } else {
+            alert('Error al eliminar cliente');
+        }
+    }
+}
+
+function importar_excel(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('archivo', file);
+    
+    fetch('/stock/api/importar_clientes', {
+        method: 'POST',
+        body: formData
+    }).then(r => r.json()).then(data => {
+        if (window.DesignSystem && DesignSystem.Toast) {
+            if (data.ok) {
+                DesignSystem.Toast.success(data.msg);
+            } else {
+                DesignSystem.Toast.error(data.msg);
+            }
+        } else {
+            alert(data.msg);
+        }
+        if (data.ok) {
+            const tableWrapper = document.queryessor('[data-table]');
+            if (tableWrapper && tableWrapper._dsDataTable) {
+                tableWrapper._dsDataTable.refresh();
+            } else {
+                location.reload();
+            }
+        }
+    });
+}
+</script>
+{% else %}
+{# ==========================================================================
+   LEGACY — Clientes (original template)
+   ========================================================================== #}
 <div class="card">
     <div class="card-header">
         <h2>Clientes</h2>
@@ -122,4 +399,5 @@ function importar_excel(input) {
     });
 }
 </script>
+{% endif %}
 {% endblock %}
