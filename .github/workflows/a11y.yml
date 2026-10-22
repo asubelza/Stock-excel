@@ -77,13 +77,17 @@ jobs:
         with:
           fetch-depth: 0
       
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      
-      - name: Install pnpm
-        run: npm install -g pnpm@9
+          cache: 'pnpm'
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -166,13 +170,17 @@ jobs:
         with:
           fetch-depth: 0
       
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      
-      - name: Install pnpm
-        run: npm install -g pnpm@9
+          cache: 'pnpm'
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
