@@ -116,23 +116,11 @@ jobs:
           fetch-depth: 0
           lfs: true
       
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-      
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
+      - name: Setup Node.js, pnpm, deps & browsers
+        run: |
+          npm install -g pnpm@9
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps ${{ matrix.browser }}
       
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -223,23 +211,11 @@ jobs:
           fetch-depth: 0
           lfs: true
       
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-      
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium firefox
+      - name: Setup Node.js, pnpm, deps & browsers
+        run: |
+          npm install -g pnpm@9
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium firefox
       
       - name: Start Flask application
         run: |
@@ -252,6 +228,12 @@ jobs:
           FLASK_ENV: development
           SECRET_KEY: 'test-secret-key'
           DATABASE_URL: 'sqlite:///test.db'
+      
+      - name: Run baseline update
+        run: |
+          UPDATE_BASELINE=true pnpm vr:update
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
       
       - name: Run baseline update
         run: |
