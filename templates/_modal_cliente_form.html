@@ -1,0 +1,74 @@
+{# ==========================================================================
+   ECJY Design System — Cliente Form Modal Partial
+   Used by HTMX to load create/edit modals
+   ========================================================================== #}
+{% from 'macros.html' import macros %}
+{% from 'macros/forms.html' import render_input, render_field_group %}
+
+{%- set form_id = 'form_cliente_' ~ action -%}
+{%- set modal_id = 'modal_cliente_' ~ action -%}
+{%- set title = 'Nuevo Cliente' if action == 'create' else 'Editar Cliente' -%}
+{%- set errors = errors or {} -%}
+{%- set c = cliente -%}
+
+{{ macros.render_form_modal(
+    id=modal_id,
+    title=title,
+    form_content=render_form_cliente(),
+    submit_label=submit_label,
+    cancel_label=cancel_label,
+    submit_variant='success',
+    cancel_variant='ghost',
+    size='md',
+    on_submit='guardarClienteModal("' ~ action ~ '")'
+) }}
+
+{% macro render_form_cliente() -%}
+<form id="{{ form_id }}" data-validation novalidate hx-post="{{ url_for('cliente_create') if action == 'create' else url_for('cliente_edit', id=c.id) }}" hx-target="#{{ modal_id }}-content" hx-swap="innerHTML">
+    {%- if action == 'edit' -%}
+    <input type="hidden" name="id" value="{{ c.id }}">
+    {%- endif -%}
+    
+    {{ render_input('nombre', label='Nombre *', required=true, value=c.nombre if c else '', placeholder='Nombre del cliente', id='cli_nombre', autocomplete='off', error=errors.get('nombre')) }}
+    
+    {{ render_input('cuit', label='CUIT', value=c.cuit if c else '', placeholder='XX-XXXXXXXX-X', id='cli_cuit', autocomplete='off', pattern='^\d{2}-?\d{8}-?\d$', title='Formato: XX-XXXXXXXX-X', error=errors.get('cuit')) }}
+    
+    {{ macros.render_field_group([
+        render_input('telefono', label='Teléfono', value=c.telefono if c else '', placeholder='Teléfono de contacto', id='cli_telefono', autocomplete='off', error=errors.get('telefono')),
+        render_input('email', label='Email', type='email', value=c.email if c else '', placeholder='email@cliente.com', id='cli_email', autocomplete='off', error=errors.get('email')),
+    ], layout='horizontal', gap='md') }}
+    
+    {{ render_input('direccion', label='Dirección', value=c.direccion if c else '', placeholder='Dirección completa', id='cli_direccion', autocomplete='off', error=errors.get('direccion')) }}
+</form>
+{%- endmacro -%}
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('{{ modal_id }}');
+    const form = document.getElementById('{{ form_id }}');
+    
+    if (modal && modal._dsModal) {
+        modal._dsModal.updateFocusableElements();
+        modal._dsModal.focusFirstElement();
+    }
+    
+    if (form && !form._dsFormValidation && window.DesignSystem && DesignSystem.FormValidation) {
+        form._dsFormValidation = new DesignSystem.FormValidation(form, {
+            customValidators: {
+                email: (value) => {
+                    if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                        return 'Email inválido';
+                    }
+                    return true;
+                },
+                cuit: (value) => {
+                    if (value && !/^\d{2}-?\d{8}-?\d$/.test(value)) {
+                        return 'CUIT inválido (formato: XX-XXXXXXXX-X)';
+                    }
+                    return true;
+                }
+            }
+        });
+    }
+});
+</script>

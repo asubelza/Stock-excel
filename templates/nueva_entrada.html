@@ -1,11 +1,254 @@
 {% extends "base.html" %}
 
+{% from 'macros.html' import macros %}
+
 {% block content %}
+{% if g.design_system %}
+{# ==========================================================================
+   NEW DESIGN SYSTEM — Nueva Entrada
+   ========================================================================== #}
+<div class="c-card">
+    <header class="c-card__header">
+        <h2 class="c-card__title">Nueva Entrada de Stock</h2>
+    </header>
+
+    <div class="c-card__body">
+        <form id="form_entrada" data-validation novalidate>
+            {# Comprobante fields #}
+            {% set tipo_options = [
+                {'value': 'Factura', 'label': 'Factura'},
+                {'value': 'Remito', 'label': 'Remito'},
+                {'value': 'Presupuesto', 'label': 'Presupuesto'},
+                {'value': 'Orden de compra', 'label': 'Orden de compra'},
+            ] %}
+            {{ macros.render_field_group([
+                macros.render_select('entrada_tipo', tipo_options, label='Tipo Comprobante', required=true, id='entrada_tipo'),
+                macros.render_input('entrada_nro', label='Nro Comprobante', placeholder='Número de comprobante', required=true, id='entrada_nro'),
+            ], layout='horizontal', gap='md') }}
+
+            {# Proveedor (optional) #}
+            <div class="c-field-group c-field-group--vertical" style="margin-top: var(--space-lg); padding-top: var(--space-lg); border-top: 1px solid var(--color-border);">
+                <h3 style="margin-bottom: var(--space-md); font-size: var(--text-lg); font-weight: 600;">Proveedor (opcional)</h3>
+                {{ macros.render_field_group([
+                    macros.render_input('prov_cuit', label='CUIT', readonly=true, placeholder='Se completa al seleccionar proveedor', id='prov_cuit'),
+                    macros.render_autocomplete(
+                        'prov_nombre_buscar',
+                        label='Nombre (buscar o escribir)',
+                        placeholder='Buscar proveedor...',
+                        fetch_url='/stock/api/autocomplete/proveedores',
+                        min_chars=2,
+                        debounce_ms=150,
+                        option_value='cuit',
+                        option_label='nombre',
+                        option_description='cuit',
+                        id='prov_nombre_buscar'
+                    ),
+                ], layout='horizontal', gap='md') }}
+                <input type="hidden" name="prov_nombre" id="prov_nombre">
+            </div>
+
+            {# Agregar Productos #}
+            <div class="c-field-group c-field-group--vertical" style="margin-top: var(--space-lg); padding-top: var(--space-lg); border-top: 1px solid var(--color-border);">
+                <h3 style="margin-bottom: var(--space-md); font-size: var(--text-lg); font-weight: 600;">Agregar Productos</h3>
+                {{ macros.render_field_group([
+                    macros.render_autocomplete(
+                        'prod_sku',
+                        label='SKU o Nombre',
+                        placeholder='Buscar producto por SKU o nombre...',
+                        fetch_url='/stock/api/autocomplete/productos',
+                        min_chars=2,
+                        debounce_ms=150,
+                        option_value='sku',
+                        option_label='nombre',
+                        option_description='stock',
+                        id='prod_sku'
+                    ),
+                    macros.render_input('prod_cant', label='Cantidad', type='number', value='1', min='1', required=true, inputmode='numeric', id='prod_cant'),
+                    macros.render_input('prod_costo', label='Costo Unitario', type='number', value='0', step='0.01', min='0', inputmode='decimal', id='prod_costo'),
+                ], layout='horizontal', gap='md') }}
+                {{ macros.render_button('+ Agregar', variant='success', type='button', id='btn_agregar', onclick='agregar_item()') }}
+            </div>
+
+            {# Items Table #}
+            <h3 style="margin-top: var(--space-xl); margin-bottom: var(--space-md);">Items a Entrar</h3>
+            <div class="c-table-container">
+                <table class="c-table" id="items_tabla">
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Nombre</th>
+                            <th>Cantidad</th>
+                            <th>Costo</th>
+                            <th>Subtotal</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="c-card c-card--outlined" style="margin-top: var(--space-lg); background: var(--color-surface-variant);">
+                <div class="c-card__body" style="padding: var(--space-md);">
+                    <strong>Total: </strong>
+                    <span id="total_cant">0</span> unidades -
+                    $<span id="total_importe">0</span>
+                </div>
+            </div>
+
+            {# Form Actions #}
+            {{ macros.render_form_actions([
+                {'type': 'button', 'props': {'label': 'Confirmar Entrada', 'variant': 'success', 'type': 'button', 'onclick': 'confirmar_entrada()'}},
+                {'type': 'link', 'props': {'label': 'Cancelar', 'href': '/stock/', 'variant': 'ghost'}},
+            ], alignment='end', gap='md') }}
+        </form>
+    </div>
+</div>
+
+<script>
+let items = [];
+
+function agregar_item() {
+    const texto = document.getElementById('prod_sku').value;
+    const parts = texto.split(' - ');
+    const sku = parts[0] ? parts[0].trim() : '';
+    const nombre = parts[1] ? parts[1].trim() : texto;
+    const cant = parseInt(document.getElementById('prod_cant').value) || 0;
+    const costo = parseFloat(document.getElementById('prod_costo').value) || 0;
+
+    if (!sku || cant < 1) {
+        if (window.DesignSystem && DesignSystem.Toast) {
+            DesignSystem.Toast.error('Ingrese SKU y cantidad válidos');
+        } else {
+            alert('Ingrese SKU y cantidad válidos');
+        }
+        return;
+    }
+
+    items.push({sku, nombre, cantidad: cant, costo});
+    actualizar_tabla();
+
+    document.getElementById('prod_sku').value = '';
+    document.getElementById('prod_cant').value = '1';
+    document.getElementById('prod_costo').value = '0';
+    document.getElementById('prod_sku').focus();
+}
+
+function actualizar_tabla() {
+    const tbody = document.querySelector('#items_tabla tbody');
+    let total_cant = 0, total_importe = 0;
+
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--color-text-muted);">No hay items agregados</td></tr>';
+    } else {
+        tbody.innerHTML = items.map((item, idx) => {
+            total_cant += item.cantidad;
+            total_importe += item.cantidad * item.costo;
+            return '<tr><td>' + item.sku + '</td><td>' + item.nombre + '</td><td>' + item.cantidad + '</td><td>$' + item.costo.toFixed(2) + '</td><td>$' + (item.cantidad * item.costo).toFixed(2) + '</td><td><button class="c-btn c-btn--danger c-btn--sm" onclick="eliminar_item(' + idx + ')">Eliminar</button></td></tr>';
+        }).join('');
+    }
+
+    document.getElementById('total_cant').textContent = total_cant;
+    document.getElementById('total_importe').textContent = total_importe.toFixed(2);
+}
+
+function eliminar_item(idx) {
+    items.splice(idx, 1);
+    actualizar_tabla();
+}
+
+async function confirmar_entrada() {
+    if (items.length === 0) {
+        if (window.DesignSystem && DesignSystem.Toast) {
+            DesignSystem.Toast.error('No hay items para registrar');
+        } else {
+            alert('No hay items para registrar');
+        }
+        return;
+    }
+
+    const btn = document.getElementById('btn_confirmar');
+    if (btn) btn.disabled = true;
+
+    try {
+        const response = await fetch('/stock/api/entrada', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                nro_comp: document.getElementById('entrada_nro').value,
+                tipo_comp: document.getElementById('entrada_tipo').value,
+                proveedor_cuit: document.getElementById('prov_cuit').value,
+                proveedor_nombre: document.getElementById('prov_nombre').value || document.getElementById('prov_nombre_buscar').value,
+                items: items
+            })
+        });
+
+        if (response.status === 401) {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.error('Sesión expirada. Redirigiendo a login...');
+            } else {
+                alert('Sesión expirada. Redirigiendo a login...');
+            }
+            location.href = '/stock/login';
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.ok) {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.success(data.msg);
+            } else {
+                alert(data.msg);
+            }
+            location.href = '/stock/entrada';
+        } else {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.error(data.msg || 'Error al registrar entrada');
+            } else {
+                alert('Error: ' + (data.msg || 'Error al registrar entrada'));
+            }
+        }
+    } catch (err) {
+        console.error('Error en confirmar_entrada:', err);
+        if (window.DesignSystem && DesignSystem.Toast) {
+            DesignSystem.Toast.error('Error al registrar entrada: ' + err.message);
+        } else {
+            alert('Error al registrar entrada: ' + err.message);
+        }
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+// Initialize autocomplete selection handlers
+document.addEventListener('DOMContentLoaded', () => {
+    const provAutocomplete = document.querySelector('#prov_nombre_buscar').closest('[data-autocomplete-wrapper]');
+    if (provAutocomplete && provAutocomplete._dsAutocomplete) {
+        provAutocomplete._dsAutocomplete.input.addEventListener('autocomplete:select', (e) => {
+            const { option } = e.detail;
+            document.getElementById('prov_cuit').value = option.cuit || '';
+            document.getElementById('prov_nombre').value = option.nombre;
+        });
+    }
+
+    const prodAutocomplete = document.querySelector('#prod_sku').closest('[data-autocomplete-wrapper]');
+    if (prodAutocomplete && prodAutocomplete._dsAutocomplete) {
+        prodAutocomplete._dsAutocomplete.input.addEventListener('autocomplete:select', (e) => {
+            const { option } = e.detail;
+            // Option selected, value is in input
+        });
+    }
+});
+</script>
+{% else %}
+{# ==========================================================================
+   LEGACY — Nueva Entrada (original template)
+   ========================================================================== #}
 <div class="card">
     <div class="card-header">
         <h2>Nueva Entrada de Stock</h2>
     </div>
-    
+
     <div class="row" style="margin-bottom:20px;">
         <div class="col">
             <div class="form-group">
@@ -25,7 +268,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="card" style="background:#f8f9fa;">
         <h3 style="margin-bottom:15px;">Proveedor (opcional)</h3>
         <div class="row">
@@ -45,7 +288,7 @@
         </div>
         <input type="hidden" id="prov_nombre">
     </div>
-    
+
     <div class="card" style="background:#fff; border:1px solid #ddd;">
         <h3 style="margin-bottom:15px;">Agregar Productos</h3>
         <div class="row">
@@ -71,7 +314,7 @@
         </div>
         <button class="btn btn-success" onclick="agregar_item()">+ Agregar</button>
     </div>
-    
+
     <h3 style="margin-top:20px;">Items a Entrar</h3>
     <table class="items-table">
         <thead>
@@ -87,11 +330,11 @@
         <tbody id="items_tabla">
         </tbody>
     </table>
-    
+
     <div class="totales">
         <strong>Total: </strong><span id="total_cant">0</span> unidades - $<span id="total_importe">0</span>
     </div>
-    
+
     <div style="margin-top:20px;">
         <button class="btn btn-success" onclick="confirmar_entrada()">Confirmar Entrada</button>
         <a href="/stock/" class="btn">Cancelar</a>
@@ -107,7 +350,7 @@ function buscar_productos() {
         document.getElementById('prod_resultados').style.display = 'none';
         return;
     }
-    
+
     fetch('/stock/api/productos?q=' + encodeURIComponent(q))
         .then(r => r.json())
         .then(data => {
@@ -116,8 +359,8 @@ function buscar_productos() {
                 div.style.display = 'none';
                 return;
             }
-            div.innerHTML = data.map(p => 
-                '<div onclick="seleccionar_producto(\'' + p.sku + '\',\'' + p.nombre + '\',' + p.stock + ')">' + 
+            div.innerHTML = data.map(p =>
+                '<div onclick="seleccionar_producto(\'' + p.sku + '\',\'' + p.nombre + '\',' + p.stock + ')">' +
                 p.sku + ' - ' + p.nombre + ' (Stock: ' + p.stock + ')</div>'
             ).join('');
             div.style.display = 'block';
@@ -135,7 +378,7 @@ function buscar_proveedores() {
         document.getElementById('prov_resultados').style.display = 'none';
         return;
     }
-    
+
     fetch('/stock/api/proveedores?q=' + encodeURIComponent(q))
         .then(r => r.json())
         .then(data => {
@@ -143,8 +386,8 @@ function buscar_proveedores() {
             if (data.length === 0) {
                 div.innerHTML = '<div style="padding:8px; color:#999;">Sin resultados - escriba manualmente</div>';
             } else {
-                div.innerHTML = data.map(p => 
-                    '<div onclick="seleccionar_proveedor(\'' + (p.cuit || '') + '\',\'' + p.nombre.replace(/'/g, "\\'") + '\')">' + 
+                div.innerHTML = data.map(p =>
+                    '<div onclick="seleccionar_proveedor(\'' + (p.cuit || '') + '\',\'' + p.nombre.replace(/'/g, "\\'") + '\')">' +
                     (p.cuit ? p.cuit + ' - ' : '') + p.nombre + '</div>'
                 ).join('');
             }
@@ -166,15 +409,15 @@ function agregar_item() {
     const nombre = parts[1] ? parts[1].trim() : texto;
     const cant = parseInt(document.getElementById('prod_cant').value) || 0;
     const costo = parseFloat(document.getElementById('prod_costo').value) || 0;
-    
+
     if (!sku || cant < 1) {
         alert('Ingrese SKU y cantidad validos');
         return;
     }
-    
+
     items.push({sku, nombre, cantidad: cant, costo});
     actualizar_tabla();
-    
+
     document.getElementById('prod_sku').value = '';
     document.getElementById('prod_cant').value = '1';
     document.getElementById('prod_costo').value = '0';
@@ -184,7 +427,7 @@ function agregar_item() {
 function actualizar_tabla() {
     const tbody = document.getElementById('items_tabla');
     let total_cant = 0, total_importe = 0;
-    
+
     if (items.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#999;">No hay items agregados</td></tr>';
     } else {
@@ -194,7 +437,7 @@ function actualizar_tabla() {
             return '<tr><td>' + item.sku + '</td><td>' + item.nombre + '</td><td>' + item.cantidad + '</td><td>$' + item.costo.toFixed(2) + '</td><td>$' + (item.cantidad * item.costo).toFixed(2) + '</td><td><button class="btn btn-danger" style="padding:4px 8px;" onclick="eliminar_item(' + idx + ')">X</button></td></tr>';
         }).join('');
     }
-    
+
     document.getElementById('total_cant').textContent = total_cant;
     document.getElementById('total_importe').textContent = total_importe.toFixed(2);
 }
@@ -209,7 +452,7 @@ function confirmar_entrada() {
         alert('No hay items para registrar');
         return;
     }
-    
+
     fetch('/stock/api/entrada', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -244,4 +487,5 @@ function confirmar_entrada() {
     });
 }
 </script>
+{% endif %}
 {% endblock %}
