@@ -1,11 +1,138 @@
 {% extends "base.html" %}
 
+{% from 'macros.html' import macros %}
+
 {% block content %}
+{% if g.design_system %}
+{# ==========================================================================
+   NEW DESIGN SYSTEM — Nuevo Producto
+   ========================================================================== #}
+<div class="c-card">
+    <header class="c-card__header">
+        <h2 class="c-card__title">Nuevo Producto</h2>
+    </header>
+
+    <div class="c-card__body">
+        <form id="form_producto" data-validation novalidate>
+            {# SKU + Nombre horizontal layout #}
+            {{ macros.render_field_group([
+                macros.render_input('prod_sku', label='SKU *', required=true, placeholder='Código único del producto', id='prod_sku', autocomplete='off'),
+                macros.render_input('prod_nombre', label='Nombre *', required=true, placeholder='Nombre del producto', id='prod_nombre'),
+            ], layout='horizontal', gap='md') }}
+
+            {# Tipo, Estado, Rubro using render_select #}
+            {% set tipo_options = [
+                {'value': 'P', 'label': 'Producto'},
+                {'value': 'S', 'label': 'Insumo'},
+                {'value': 'K', 'label': 'Kit'},
+            ] %}
+            {% set estado_options = [
+                {'value': 'A', 'label': 'Activo'},
+                {'value': 'I', 'label': 'Inactivo'},
+            ] %}
+            {{ macros.render_field_group([
+                macros.render_select('prod_tipo', tipo_options, label='Tipo', required=true, id='prod_tipo'),
+                macros.render_select('prod_estado', estado_options, label='Estado', value='A', required=true, id='prod_estado'),
+                macros.render_input('prod_rubro', label='Rubro', placeholder='Categoría/Rubro', id='prod_rubro'),
+            ], layout='horizontal', gap='md') }}
+
+            {# Código de barra #}
+            {{ macros.render_input('prod_cod_barra', label='Código de Barra', placeholder='EAN/GTIN', id='prod_cod_barra') }}
+
+            {# Stock, Depósito, Costo, Precio #}
+            {{ macros.render_field_group([
+                macros.render_input('prod_stock', label='Stock Inicial', type='number', value='0', min='0', inputmode='numeric', id='prod_stock'),
+                macros.render_input('prod_stock_min', label='Stock Mínimo', type='number', value='0', min='0', inputmode='numeric', id='prod_stock_min'),
+                macros.render_input('prod_deposito', label='Depósito', value='Principal', placeholder='Nombre del depósito', id='prod_deposito'),
+            ], layout='horizontal', gap='md') }}
+
+            {{ macros.render_field_group([
+                macros.render_input('prod_costo', label='Costo', type='number', value='0', step='0.01', min='0', inputmode='decimal', id='prod_costo'),
+                macros.render_input('prod_precio', label='Precio', type='number', value='0', step='0.01', min='0', inputmode='decimal', id='prod_precio'),
+            ], layout='horizontal', gap='md') }}
+
+            {# Form Actions #}
+            {{ macros.render_form_actions([
+                {'type': 'button', 'props': {'label': 'Guardar Producto', 'variant': 'success', 'type': 'button', 'onclick': 'guardar()'}},
+                {'type': 'link', 'props': {'label': 'Cancelar', 'href': '/stock/', 'variant': 'ghost'}},
+            ], alignment='end', gap='md') }}
+        </form>
+    </div>
+</div>
+
+<script>
+async function guardar() {
+    const sku = document.getElementById('prod_sku').value.trim();
+    const nombre = document.getElementById('prod_nombre').value.trim();
+
+    if (!sku || !nombre) {
+        if (window.DesignSystem && DesignSystem.Toast) {
+            DesignSystem.Toast.error('SKU y Nombre son requeridos');
+        } else {
+            alert('SKU y Nombre son requeridos');
+        }
+        return;
+    }
+
+    const btn = event.target;
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/stock/api/producto', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                sku: sku,
+                nombre: nombre,
+                tipo: document.getElementById('prod_tipo').value,
+                estado: document.getElementById('prod_estado').value,
+                rubro: document.getElementById('prod_rubro').value,
+                cod_barra: document.getElementById('prod_cod_barra').value,
+                stock: parseInt(document.getElementById('prod_stock').value) || 0,
+                stock_min: parseInt(document.getElementById('prod_stock_min').value) || 0,
+                deposito: document.getElementById('prod_deposito').value,
+                costo: parseFloat(document.getElementById('prod_costo').value) || 0,
+                precio: parseFloat(document.getElementById('prod_precio').value) || 0
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.ok) {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.success(data.msg);
+            } else {
+                alert(data.msg);
+            }
+            location.href = '/stock/';
+        } else {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.error(data.msg || 'Error al guardar el producto');
+            } else {
+                alert(data.msg || 'Error al guardar el producto');
+            }
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        if (window.DesignSystem && DesignSystem.Toast) {
+            DesignSystem.Toast.error('Error al guardar el producto');
+        } else {
+            alert('Error al guardar el producto');
+        }
+    } finally {
+        btn.disabled = false;
+    }
+}
+</script>
+{% else %}
+{# ==========================================================================
+   LEGACY — Nuevo Producto (original template)
+   ========================================================================== #}
 <div class="card">
     <div class="card-header">
         <h2>Nuevo Producto</h2>
     </div>
-    
+
     <div class="row">
         <div class="col">
             <div class="form-group">
@@ -56,7 +183,7 @@
             </div>
         </div>
     </div>
-    
+
     <div style="margin-top:20px;">
         <button class="btn btn-success" onclick="guardar()">Guardar Producto</button>
         <a href="/stock/" class="btn">Cancelar</a>
@@ -67,12 +194,12 @@
 function guardar() {
     const sku = document.getElementById('prod_sku').value.trim();
     const nombre = document.getElementById('prod_nombre').value.trim();
-    
+
     if (!sku || !nombre) {
         alert('SKU y Nombre son requeridos');
         return;
     }
-    
+
     fetch('/stock/api/producto', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -101,4 +228,5 @@ function guardar() {
     });
 }
 </script>
+{% endif %}
 {% endblock %}

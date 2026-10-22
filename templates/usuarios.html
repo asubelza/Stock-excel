@@ -1,12 +1,275 @@
 {% extends "base.html" %}
+{% from 'macros.html' import macros %}
 
 {% block content %}
+{% if g.design_system %}
+{# ==========================================================================
+   NEW DESIGN SYSTEM — Gestión de Usuarios
+   ========================================================================== #}
+<div class="c-card" data-table data-table-api="/stock/api/usuarios" data-table-data-key="rows" data-table-total-key="total">
+    <header class="c-card__header">
+        <h2 class="c-card__title">Gestión de Usuarios</h2>
+        <div class="c-card__actions">
+            {{ macros.render_button('+ Nuevo Usuario', variant='success', type='button', hx_get='/stock/usuarios/create-modal', hx_target='#modal-container', hx_swap='innerHTML', icon='plus') }}
+        </div>
+    </header>
+
+    <div class="c-card__body">
+        <div class="c-table-toolbar" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center;">
+            {{ macros.render_search_input(
+                id='buscar_usuario',
+                placeholder='Buscar usuario...',
+                data_table_search=true,
+                classes='c-table__search',
+                style='min-width: 250px; flex: 1; max-width: 400px;'
+            ) }}
+            <div class="c-select-wrapper" style="flex-shrink: 0;">
+                <select id="filtro_rol" data-table-filter="rol" class="c-select" style="min-width: 180px;">
+                    <option value="">Todos los roles</option>
+                    <option value="admin">Admin</option>
+                    <option value="datainput">DataInput</option>
+                    <option value="deposito">Deposito</option>
+                    <option value="consulta">Consulta</option>
+                </select>
+            </div>
+            <div class="c-select-wrapper" style="flex-shrink: 0;">
+                <select id="filtro_estado" data-table-filter="estado" class="c-select" style="min-width: 150px;">
+                    <option value="">Todos los estados</option>
+                    <option value="activo">Activo</option>
+                    <option value="inactivo">Inactivo</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="c-table__wrapper">
+            <div class="c-table__scroll" tabindex="0" role="region" aria-label="Tabla de usuarios">
+                <table class="c-table c-table--striped c-table--hoverable c-table--bordered c-table--stack">
+                    <thead>
+                        <tr>
+                            <th scope="col" data-sortable="true" data-sort-key="username" data-align="left">Usuario</th>
+                            <th scope="col" data-sortable="true" data-sort-key="nombre" data-align="left">Nombre</th>
+                            <th scope="col" data-sortable="true" data-sort-key="apellido" data-align="left">Apellido</th>
+                            <th scope="col" data-sortable="true" data-sort-key="rol" data-align="left">Tipo</th>
+                            <th scope="col" data-sortable="true" data-sort-key="estado" data-align="left">Estado</th>
+                            <th scope="col" data-align="center" style="width: 1%; white-space: nowrap;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {# Rows loaded via DataTable component #}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Modal Container - HTMX will swap modal content here #}
+<div id="modal-container"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize DataTable
+    const tableWrapper = document.querySelector('[data-table]');
+    if (tableWrapper && window.DesignSystem && DesignSystem.DataTable) {
+        tableWrapper._dsDataTable = new DesignSystem.DataTable(tableWrapper, {
+            apiUrl: tableWrapper.dataset.tableApi,
+            dataKey: tableWrapper.dataset.tableDataKey,
+            totalKey: tableWrapper.dataset.tableTotalKey,
+            pageSize: 25,
+            sortable: true,
+            defaultSort: { field: 'username', direction: 'asc' },
+            globalSearch: true,
+            columnFilters: true,
+            responsive: 'stack',
+            actions: [
+                {
+                    type: 'icon',
+                    props: (row) => ({
+                        variant: 'ghost',
+                        size: 'sm',
+                        ariaLabel: 'Editar usuario',
+                        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
+                        attributes: {
+                            'hx-get': '/stock/usuarios/' + row.id + '/edit-modal',
+                            'hx-target': '#modal-container',
+                            'hx-swap': 'innerHTML'
+                        }
+                    })
+                },
+                {
+                    type: 'icon',
+                    props: (row) => ({
+                        variant: 'ghost',
+                        size: 'sm',
+                        ariaLabel: 'Blanquear contraseña',
+                        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>',
+                        onClick: (r) => reset_password(r.id)
+                    })
+                },
+                {
+                    type: 'icon',
+                    props: (row) => ({
+                        variant: 'danger',
+                        size: 'sm',
+                        ariaLabel: 'Eliminar usuario',
+                        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>',
+                        onClick: (r) => eliminar_usuario(r.id)
+                    })
+                }
+            ],
+            onDataLoad: (data, meta) => {
+                // Apply role badges and estado badges
+                document.querySelectorAll('tr[data-row-key]').forEach(tr => {
+                    const rowData = data.find(d => d.id == tr.dataset.rowKey);
+                    if (!rowData) return;
+                    
+                    // Rol badge
+                    const rolCell = tr.querySelector('td[data-key="rol"] .c-table__cell-content');
+                    if (rolCell && rowData.rol) {
+                        const rolMap = {
+                            'admin': { label: 'Admin', variant: 'danger' },
+                            'datainput': { label: 'DataInput', variant: 'success' },
+                            'deposito': { label: 'Deposito', variant: 'primary' },
+                            'consulta': { label: 'Consulta', variant: 'secondary' },
+                        };
+                        const cfg = rolMap[rowData.rol] || { label: rowData.rol, variant: 'neutral' };
+                        rolCell.innerHTML = `{{ macros.render_badge(cfg.label, cfg.variant, 'sm', true) | safe }}`;
+                    }
+                    
+                    // Estado badge
+                    const estadoCell = tr.querySelector('td[data-key="estado"] .c-table__cell-content');
+                    if (estadoCell && rowData.estado) {
+                        const variant = rowData.estado === 'activo' ? 'success' : 'neutral';
+                        estadoCell.innerHTML = `{{ macros.render_badge(rowData.estado, variant, 'sm', true) | safe }}`;
+                    }
+                });
+            }
+        });
+    }
+    
+    // Handle HTMX events for modals
+    document.body.addEventListener('htmx:afterSwap', (evt) => {
+        if (evt.target.id === 'modal-container') {
+            const modal = evt.target.querySelector('[data-modal]');
+            if (modal && modal._dsModal) {
+                modal._dsModal.open();
+            }
+        }
+    });
+    
+    // Listen for modal close trigger to refresh table
+    document.body.addEventListener('reloadTable', () => {
+        const tableWrapper = document.querySelector('[data-table]');
+        if (tableWrapper && tableWrapper._dsDataTable) {
+            tableWrapper._dsDataTable.refresh();
+        }
+    });
+});
+
+// Password reset function (kept as is since it uses a separate API endpoint)
+function reset_password(id) {
+    if (!(window.DesignSystem && DesignSystem.Toast && await DesignSystem.Toast.show({
+        message: `¿Blanquear contraseña del usuario?`,
+        type: 'warning',
+        action: { label: 'Blanquear', variant: 'danger', onclick: () => confirmarResetPassword(id) }
+    }))) {
+        if (!confirm('¿Blanquear contraseña del usuario?')) return;
+        confirmarResetPassword(id);
+    }
+}
+
+async function confirmarResetPassword(id) {
+    try {
+        const response = await fetch('/stock/api/usuario/' + id, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                reset_password: true,
+                password: 'changeme123' // Default password
+            })
+        });
+        const data = await response.json();
+        
+        if (data.ok) {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.success('Contraseña blanqueada a: changeme123');
+            } else {
+                alert('Contraseña blanqueada a: changeme123');
+            }
+        } else {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.error(data.msg);
+            } else {
+                alert(data.msg);
+            }
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        if (window.DesignSystem && DesignSystem.Toast) {
+            DesignSystem.Toast.error('Error al blanquear contraseña');
+        } else {
+            alert('Error al blanquear contraseña');
+        }
+    }
+}
+
+async function eliminar_usuario(id) {
+    if (!(window.DesignSystem && DesignSystem.Toast && await DesignSystem.Toast.show({
+        message: '¿Está seguro de eliminar este usuario?',
+        type: 'warning',
+        action: { label: 'Eliminar', variant: 'danger', onclick: () => confirmar_eliminar(id) }
+    }))) {
+        if (!confirm('¿Está seguro de eliminar este usuario?')) return;
+        confirmar_eliminar(id);
+    }
+}
+
+async function confirmar_eliminar(id) {
+    try {
+        const response = await fetch('/stock/api/usuario/' + id, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+        
+        if (data.ok) {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.success(data.msg);
+            } else {
+                alert(data.msg);
+            }
+            const tableWrapper = document.querySelector('[data-table]');
+            if (tableWrapper && tableWrapper._dsDataTable) {
+                tableWrapper._dsDataTable.refresh();
+            } else {
+                location.reload();
+            }
+        } else {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.error(data.msg);
+            } else {
+                alert(data.msg);
+            }
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        if (window.DesignSystem && DesignSystem.Toast) {
+            DesignSystem.Toast.error('Error al eliminar usuario');
+        } else {
+            alert('Error al eliminar usuario');
+        }
+    }
+}
+</script>
+{% else %}
+{# ==========================================================================
+   LEGACY — Gestión de Usuarios (original template)
+   ========================================================================== #}
 <div class="card">
     <div class="card-header">
         <h2>Gestión de Usuarios</h2>
         <button class="btn btn-success" onclick="document.getElementById('form_nuevo').style.display='block'">+ Nuevo Usuario</button>
     </div>
-    
+
     <div id="form_nuevo" style="display:none; background:#f8f9fa; padding:15px; margin-bottom:20px; border-radius:8px;">
         <h3 style="margin-bottom:15px;">Nuevo Usuario</h3>
         <div class="row">
@@ -25,12 +288,12 @@
             <div class="col">
                 <div class="form-group">
                     <label>Tipo *</label>
-<select id="usu_rol" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px;">
-                         <option value="datainput">DataInput (Entrada/Stock)</option>
-                         <option value="deposito">Deposito (Salida/Stock)</option>
-                         <option value="admin">Admin (Todo)</option>
-                         <option value="consulta">Consulta (Solo Historial y Stock)</option>
-                     </select>
+                    <select id="usu_rol" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px;">
+                        <option value="datainput">DataInput (Entrada/Stock)</option>
+                        <option value="deposito">Deposito (Salida/Stock)</option>
+                        <option value="admin">Admin (Todo)</option>
+                        <option value="consulta">Consulta (Solo Historial y Stock)</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -51,7 +314,7 @@
         <button class="btn btn-success" onclick="guardar_usuario()">Guardar</button>
         <button class="btn" onclick="document.getElementById('form_nuevo').style.display='none'">Cancelar</button>
     </div>
-    
+
     {% if usuarios %}
     <table>
         <thead>
@@ -125,12 +388,12 @@
         </div>
         <div class="form-group">
             <label>Tipo</label>
-<select id="edit_usu_rol" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px;">
-                 <option value="datainput">DataInput</option>
-                 <option value="deposito">Deposito</option>
-                 <option value="admin">Admin</option>
-                 <option value="consulta">Consulta</option>
-             </select>
+            <select id="edit_usu_rol" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px;">
+                <option value="datainput">DataInput</option>
+                <option value="deposito">Deposito</option>
+                <option value="admin">Admin</option>
+                <option value="consulta">Consulta</option>
+            </select>
         </div>
         <button class="btn btn-success" onclick="guardar_edicion()">Guardar</button>
         <button class="btn" onclick="document.getElementById('modal_editar').style.display='none'">Cancelar</button>
@@ -142,12 +405,12 @@ function guardar_usuario() {
     const username = document.getElementById('usu_username').value.trim();
     const password = document.getElementById('usu_password').value;
     const nombre = document.getElementById('usu_nombre').value.trim();
-    
+
     if (!username || !password || !nombre) {
         alert('Usuario, contraseña y nombre son requeridos');
         return;
     }
-    
+
     fetch('/stock/api/usuario', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -166,7 +429,7 @@ function guardar_usuario() {
 
 function eliminar_usuario(id) {
     if (!confirm('¿Está seguro de eliminar este usuario?')) return;
-    
+
     fetch('/stock/api/usuario/' + id, {
         method: 'DELETE'
     }).then(r => r.json()).then(data => {
@@ -189,7 +452,7 @@ function guardar_edicion() {
     const nombre = document.getElementById('edit_usu_nombre').value;
     const apellido = document.getElementById('edit_usu_apellido').value;
     const rol = document.getElementById('edit_usu_rol').value;
-    
+
     fetch('/stock/api/usuario/' + id, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
@@ -215,17 +478,17 @@ function guardar_reset() {
     const id = document.getElementById('reset_usu_id').value;
     const nueva_pass = document.getElementById('reset_nueva_pass').value;
     const confirm_pass = document.getElementById('reset_confirm_pass').value;
-    
+
     if (!nueva_pass || !confirm_pass) {
         alert('Debe ingresar y confirmar la nueva contraseña');
         return;
     }
-    
+
     if (nueva_pass !== confirm_pass) {
         alert('Las contraseñas no coinciden');
         return;
     }
-    
+
     fetch('/stock/api/usuario/' + id, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
@@ -242,4 +505,5 @@ function guardar_reset() {
     });
 }
 </script>
+{% endif %}
 {% endblock %}
