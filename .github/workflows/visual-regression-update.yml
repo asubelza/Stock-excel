@@ -1,0 +1,144 @@
+# Visual Regression Baseline Update Workflow (VR-05)
+# Triggered by PR comment: @visual-regression update-baseline
+# Runs baseline capture with UPDATE_BASELINE=true → commits new baselines
+
+name: Visual Regression Baseline Update
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to update baselines for'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  update-baseline:
+    name: Update Visual Regression Baselines
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: |
+      (github.event_name == 'issue_comment' && 
+       github.event.comment.body == '@visual-regression update-baseline' && 
+       github.event.issue.pull_request) ||
+      github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Determine PR number
+        id: pr
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "PR_NUMBER=${{ github.event.inputs.pr_number }}" >> $GITHUB_OUTPUT
+          else
+            PR_URL="${{ github.event.issue.pull_request.url }}"
+            PR_NUMBER=$(basename "$PR_URL")
+            echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+          run_install: false
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium firefox
+      
+      - name: Start Flask application
+        run: |
+          python -m pip install -r requirements.txt 2>/dev/null || pip install -r requirements.txt
+          nohup python web_app.py > flask.log 2>&1 &
+          sleep 15
+          curl -f http://localhost:5000/stock/login || exit 1
+        env:
+          DESIGN_SYSTEM_ENABLED: 'true'
+          FLASK_ENV: development
+          SECRET_KEY: 'test-secret-key'
+          DATABASE_URL: 'sqlite:///test.db'
+      
+      - name: Wait for application
+        run: |
+          for i in {1..30}; do
+            if curl -s -f http://localhost:5000/stock/login > /dev/null; then
+              echo "Application ready!"
+              exit 0
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+          cat flask.log
+          exit 1
+      
+      - name: Update baselines
+        run: |
+          UPDATE_BASELINE=true pnpm vr:update
+        env:
+          BASE_URL: http://localhost:5000
+      
+      - name: Check for baseline changes
+        id: changes
+        run: |
+          git add tests/visual-regression/__baselines__/
+          if git diff --staged --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No baseline changes detected"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Baseline changes detected"
+            git diff --staged --stat
+          fi
+      
+      - name: Commit baseline changes
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(visual-regression): update baselines [skip ci]"
+          git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
+      
+      - name: Comment on PR with results
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { changed } = require('${{ steps.changes.outputs }}');
+            const body = changed === 'true' 
+              ? '✅ Visual regression baselines updated successfully! The new baselines have been committed to the PR branch. Please review the changes.'
+              : 'ℹ️ No visual regression baseline changes detected. The current screenshots match the existing baselines.';
+            
+            await github.rest.issues.createComment({
+              issue_number: ${{ steps.pr.outputs.PR_NUMBER }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+      
+      - name: Upload updated baselines as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: updated-baselines-${{ steps.pr.outputs.PR_NUMBER }}
+          path: tests/visual-regression/__baselines__/
+          retention-days: 7

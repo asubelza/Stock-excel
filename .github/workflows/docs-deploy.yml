@@ -1,0 +1,305 @@
+# ==========================================================================
+# ECJY Design System — Docs Deployment CI/CD
+# ==========================================================================
+# Deploys VitePress documentation to GitHub Pages with versioning
+# Triggers: push to main, tags (v*), manual dispatch
+# ==========================================================================
+
+name: Deploy Documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'static/src/css/tokens.css'
+      - 'scripts/tokens-to-json.mjs'
+      - '.github/workflows/docs-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version label (e.g., v1.0.0, latest, next)'
+        required: false
+        default: 'latest'
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'github-pages'
+        type: choice
+        options:
+          - github-pages
+          - preview
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  # ============================================================
+  # BUILD JOB
+  # ============================================================
+  build:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need history for version detection
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: static/package-lock.json
+
+      - name: Install dependencies
+        working-directory: static
+        run: npm ci
+
+      - name: Parse tokens to JSON
+        working-directory: .
+        run: npm run tokens:parse
+
+      - name: Copy tokens JSON to docs public
+        run: |
+          mkdir -p docs/public
+          cp scripts/tokens.json docs/public/
+          cp scripts/tokens-meta.json docs/public/
+
+      - name: Install docs dependencies
+        working-directory: docs
+        run: npm ci
+
+      - name: Build VitePress site
+        working-directory: docs
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/dist-docs
+
+      - name: Generate version info
+        id: version
+        run: |
+          # Determine version from git tag or use 'latest'
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${{ github.ref_name }}"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="latest"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "deploy_path=$VERSION" >> $GITHUB_OUTPUT
+
+  # ============================================================
+  # DEPLOY JOB - GitHub Pages
+  # ============================================================
+  deploy-github-pages:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================
+  # DEPLOY JOB - Versioned (for tags)
+  # ============================================================
+  deploy-versioned:
+    name: Deploy Versioned Docs
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout for versioned deploy
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup GitHub Pages for versioned
+        uses: actions/configure-pages@v4
+
+      - name: Create versioned directory
+        run: |
+          mkdir -p versioned/${{ needs.build.outputs.version }}
+          cp -r docs/dist-docs/* versioned/${{ needs.build.outputs.version }}/
+
+      - name: Update versions.json
+        run: |
+          cat > versioned/versions.json <<EOF
+          {
+            "versions": [
+              "latest",
+              "${{ needs.build.outputs.version }}"
+            ],
+            "latest": "latest",
+            "current": "${{ needs.build.outputs.version }}"
+          }
+          EOF
+
+      - name: Upload versioned artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: versioned
+          name: versioned-docs
+
+      - name: Deploy versioned
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: versioned-docs
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================
+  # PREVIEW DEPLOY (for PRs)
+  # ============================================================
+  deploy-preview:
+    name: Deploy Preview
+    needs: build
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to preview
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages
+          token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================
+  # LINT & TEST JOB
+  # ============================================================
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: static/package-lock.json
+
+      - name: Install dependencies
+        working-directory: static
+        run: npm ci
+
+      - name: Lint CSS
+        working-directory: static
+        run: npm run lint:css
+
+      - name: Parse tokens (verify no errors)
+        working-directory: .
+        run: npm run tokens:parse
+
+      - name: Verify token JSON validity
+        run: |
+          node -e "
+            const fs = require('fs');
+            const tokens = JSON.parse(fs.readFileSync('scripts/tokens.json', 'utf-8'));
+            console.log('Tokens:', tokens.stats.total);
+            console.log('Categories:', Object.keys(tokens.categories).join(', '));
+            console.log('Dark mode tokens:', tokens.stats.withDarkMode);
+            if (tokens.stats.total === 0) process.exit(1);
+          "
+
+      - name: Build production (verify no errors)
+        working-directory: static
+        run: npm run build
+
+      - name: Install docs dependencies
+        working-directory: docs
+        run: npm ci
+
+      - name: Build docs (verify no errors)
+        working-directory: docs
+        run: npm run build
+
+  # ============================================================
+  # BUNDLE SIZE CHECK
+  # ============================================================
+  bundle-size:
+    name: Bundle Size Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: static/package-lock.json
+
+      - name: Install dependencies
+        working-directory: static
+        run: npm ci
+
+      - name: Build production
+        working-directory: static
+        run: npm run build
+
+      - name: Check bundle sizes
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            const distDir = path.resolve('static/dist/assets');
+            const files = fs.readdirSync(distDir).filter(f => f.endsWith('.js') || f.endsWith('.css'));
+            
+            const budgets = {
+              'main': 60,       // KB gz (vendor + entry)
+              'components': 60, // KB gz
+              'data-table': 35, // KB gz
+              'css': 50         // KB gz
+            };
+            
+            let failed = false;
+            
+            files.forEach(file => {
+              const stats = fs.statSync(path.join(distDir, file));
+              const sizeKb = (stats.size / 1024).toFixed(2);
+              const gzSize = require('zlib').gzipSync(fs.readFileSync(path.join(distDir, file))).length / 1024;
+              const gzSizeKb = gzSize.toFixed(2);
+              
+              // Determine budget
+              let budget = 100;
+              if (file.startsWith('main-') && file.endsWith('.js')) budget = budgets.main;
+              else if (file.startsWith('components-') && file.endsWith('.js')) budget = budgets.components;
+              else if (file.startsWith('data-table-') && file.endsWith('.js')) budget = budgets['data-table'];
+              else if (file.endsWith('.css')) budget = budgets.css;
+              
+              const status = gzSize <= budget ? '✅' : '❌';
+              if (gzSize > budget) failed = true;
+              
+              console.log(\`\${status} \${file}: \${sizeKb} KB (\${gzSizeKb} KB gz) - Budget: \${budget} KB gz\`);
+            });
+            
+            if (failed) {
+              console.error('❌ Bundle size budget exceeded!');
+              process.exit(1);
+            } else {
+              console.log('✅ All bundles within budget');
+            }
+          "
