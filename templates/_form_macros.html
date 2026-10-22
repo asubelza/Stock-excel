@@ -1,0 +1,180 @@
+{# ==========================================================================
+   ECJY Design System — Form Macros (Simplified API)
+   ==========================================================================
+   Wrapper macros providing a simplified interface for login/register forms.
+   Uses design system tokens from tokens.css via BEM classes.
+   ========================================================================== #}
+
+{% from 'macros/forms.html' import render_input as _render_input, render_form_layout as _render_form_layout, render_form_actions as _render_form_actions %}
+{% from 'macros/buttons.html' import render_button as _render_button %}
+
+{# ---------------------------------------------------------------------------
+   render_field — Unified field renderer (input/select/textarea)
+   ---------------------------------------------------------------------------
+   Args:
+     name:       Field name (used for id/name attributes)
+     label:      Label text
+     type:       'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'textarea' | 'select'
+     value:      Current value
+     placeholder: Placeholder text
+     required:   Boolean
+     disabled:   Boolean
+     error:      Error message string (if validation failed)
+     hint:       Help text
+     options:    For select type — list of {value, label} dicts
+     autocomplete: Autocomplete attribute
+     extra_attrs: Dictionary of additional attributes passed to input
+   Returns: Rendered field with label, input, hint, and error
+   --------------------------------------------------------------------------- #}
+{% macro render_field(
+    name,
+    label,
+    type='text',
+    value='',
+    placeholder=null,
+    required=false,
+    disabled=false,
+    error=null,
+    hint=null,
+    options=[],
+    autocomplete=null,
+    extra_attrs={}
+) -%}
+{%- if type == 'textarea' -%}
+    {% from 'macros/forms.html' import render_textarea %}
+    {{ render_textarea(
+        name=name,
+        label=label,
+        value=value,
+        placeholder=placeholder,
+        required=required,
+        disabled=disabled,
+        error=error,
+        hint=hint,
+        **extra_attrs
+    ) }}
+{%- elif type == 'select' -%}
+    {% from 'macros/forms.html' import render_select %}
+    {{ render_select(
+        name=name,
+        label=label,
+        options=options,
+        value=value,
+        placeholder=placeholder or 'Seleccionar...',
+        required=required,
+        disabled=disabled,
+        error=error,
+        hint=hint,
+        **extra_attrs
+    ) }}
+{%- else -%}
+    {{ _render_input(
+        name=name,
+        label=label,
+        type=type,
+        value=value,
+        placeholder=placeholder,
+        required=required,
+        disabled=disabled,
+        error=error,
+        hint=hint,
+        autocomplete=autocomplete,
+        **extra_attrs
+    ) }}
+{%- endif -%}
+{%- endmacro -%}
+
+{# ---------------------------------------------------------------------------
+   render_field_errors — Render error messages for a field
+   ---------------------------------------------------------------------------
+   Args:
+     errors: List of error strings or single error string
+   Returns: Rendered error list with design system styling
+   --------------------------------------------------------------------------- #}
+{% macro render_field_errors(errors) -%}
+{%- if errors -%}
+    {%- set error_list = errors if errors is iterable and not errors is string else [errors] -%}
+    <div class="c-form__errors" role="alert" aria-live="polite">
+        <ul class="c-form__error-list">
+            {%- for err in error_list -%}
+                <li class="c-form__error-item">{{ err }}</li>
+            {%- endfor -%}
+        </ul>
+    </div>
+{%- endif -%}
+{%- endmacro -%}
+
+{# ---------------------------------------------------------------------------
+   render_button — Wrapper for design system button macro
+   ---------------------------------------------------------------------------
+   Args:
+     label:           Button text
+     type:            'submit' | 'button' | 'reset'
+     variant:         'primary' | 'secondary' | 'success' | 'danger' | 'ghost' | 'link'
+     size:            'sm' | 'md' | 'lg'
+     disabled:        Boolean
+     loading:         Boolean (shows spinner)
+     icon:            Icon name (for SVG sprite) or raw SVG string
+     icon_position:   'left' | 'right'
+     full_width:      Boolean (block button)
+     aria_label:      Accessible label
+     extra_attrs:     Dictionary of additional attributes
+   Returns: Rendered button with design system tokens
+   --------------------------------------------------------------------------- #}
+{% macro render_button(
+    label,
+    type='submit',
+    variant='primary',
+    size='md',
+    disabled=false,
+    loading=false,
+    icon=null,
+    icon_position='left',
+    full_width=false,
+    aria_label=null,
+    extra_attrs={}
+) -%}
+{{ _render_button(
+    label=label,
+    variant=variant,
+    size=size,
+    type=type,
+    disabled=disabled,
+    loading=loading,
+    icon=icon,
+    icon_position=icon_position,
+    full_width=full_width,
+    aria_label=aria_label,
+    **extra_attrs
+) }}
+{%- endmacro -%}
+
+{# ---------------------------------------------------------------------------
+   render_form — Complete form wrapper with layout and actions
+   ---------------------------------------------------------------------------
+   Args:
+     fields:      List of field dicts or pre-rendered field macros
+     actions:     List of button dicts for form actions
+     method:      'POST' | 'GET'
+     action:      Form action URL
+     novalidate:  Boolean (disable browser validation)
+     layout:      'vertical' | 'horizontal'
+     gap:         Spacing token ('sm' | 'md' | 'lg')
+   Returns: Complete form with fields and actions
+   --------------------------------------------------------------------------- #}
+{% macro render_form(
+    fields=[],
+    actions=[],
+    method='POST',
+    action=null,
+    novalidate=true,
+    layout='vertical',
+    gap='lg'
+) -%}
+<form method="{{ method }}" action="{{ action }}" {% if novalidate %}novalidate{% endif %}>
+    {{ _render_form_layout(fields, layout=layout, gap=gap) }}
+    {% if actions %}
+        {{ _render_form_actions(actions, alignment='end', gap='md') }}
+    {% endif %}
+</form>
+{%- endmacro -%}

@@ -1,0 +1,116 @@
+{# ==========================================================================
+   ECJY Design System — Usuario Form Modal Partial
+   Used by HTMX to load create/edit modals (Admin only)
+   ========================================================================== #}
+{% from 'macros.html' import macros %}
+{% from 'macros/forms.html' import render_input, render_select, render_field_group %}
+
+{%- set form_id = 'form_usuario_' ~ action -%}
+{%- set modal_id = 'modal_usuario_' ~ action -%}
+{%- set title = 'Nuevo Usuario' if action == 'create' else 'Editar Usuario' -%}
+{%- set errors = errors or {} -%}
+{%- set u = usuario -%}
+
+{{ macros.render_form_modal(
+    id=modal_id,
+    title=title,
+    form_content=render_form_usuario(),
+    submit_label=submit_label,
+    cancel_label=cancel_label,
+    submit_variant='success',
+    cancel_variant='ghost',
+    size='md',
+    on_submit='guardarUsuarioModal("' ~ action ~ '")'
+) }}
+
+{% macro render_form_usuario() -%}
+<form id="{{ form_id }}" data-validation novalidate hx-post="{{ url_for('usuario_create') if action == 'create' else url_for('usuario_edit', id=u.id) }}" hx-target="#{{ modal_id }}-content" hx-swap="innerHTML">
+    {%- if action == 'edit' -%}
+    <input type="hidden" name="id" value="{{ u.id }}">
+    {%- endif -%}
+    
+    {%- if action == 'create' -%}
+    {{ macros.render_field_group([
+        render_input('username', label='Usuario *', required=true, value=u.username if u else '', placeholder='Nombre de usuario', id='usu_username', autocomplete='username', error=errors.get('username')),
+        render_input('password', label='Contraseña *', type='password', required=true, placeholder='Contraseña (mín. 8 caracteres)', id='usu_password', autocomplete='new-password', error=errors.get('password')),
+    ], layout='horizontal', gap='md') }}
+    {%- else -%}
+    {{ render_input('username', label='Usuario', disabled=true, value=u.username, placeholder='No editable', id='usu_username', autocomplete='username') }}
+    {{ macros.render_field_group([
+        render_input('password', label='Nueva Contraseña', type='password', placeholder='Dejar vacío para no cambiar', id='usu_password', autocomplete='new-password'),
+        render_input('confirm_password', label='Confirmar Contraseña', type='password', placeholder='Confirmar nueva contraseña', id='usu_confirm_password', autocomplete='new-password'),
+    ], layout='horizontal', gap='md') }}
+    {%- endif -%}
+    
+    {{ render_select('rol',
+        options=[
+            {'value': 'datainput', 'label': 'DataInput (Entrada/Stock)'},
+            {'value': 'deposito', 'label': 'Deposito (Salida/Stock)'},
+            {'value': 'admin', 'label': 'Admin (Todo)'},
+            {'value': 'consulta', 'label': 'Consulta (Solo Historial y Stock)'},
+        ],
+        label='Tipo *',
+        required=true,
+        value=u.rol if u else 'datainput',
+        id='usu_rol',
+        error=errors.get('rol')
+    ) }}
+    
+    {{ macros.render_field_group([
+        render_input('nombre', label='Nombre *', required=true, value=u.nombre if u else '', placeholder='Nombre', id='usu_nombre', autocomplete='given-name', error=errors.get('nombre')),
+        render_input('apellido', label='Apellido', value=u.apellido if u else '', placeholder='Apellido', id='usu_apellido', autocomplete='family-name'),
+    ], layout='horizontal', gap='md') }}
+    
+    {%- if action == 'edit' -%}
+    {{ render_select('estado',
+        options=[
+            {'value': 'A', 'label': 'Activo'},
+            {'value': 'I', 'label': 'Inactivo'},
+        ],
+        label='Estado',
+        value=u.estado if u else 'A',
+        id='usu_estado'
+    ) }}
+    {%- endif -%}
+</form>
+{%- endmacro -%}
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('{{ modal_id }}');
+    const form = document.getElementById('{{ form_id }}');
+    
+    if (modal && modal._dsModal) {
+        modal._dsModal.updateFocusableElements();
+        modal._dsModal.focusFirstElement();
+    }
+    
+    if (form && !form._dsFormValidation && window.DesignSystem && DesignSystem.FormValidation) {
+        const validators = {
+            password: (value) => {
+                if (value && value.length < 8) {
+                    return 'La contraseña debe tener al menos 8 caracteres';
+                }
+                return true;
+            },
+            confirm_password: (value, field, form) => {
+                const pass = form.querySelector('#usu_password').value;
+                if (value !== pass) return 'Las contraseñas no coinciden';
+                return true;
+            }
+        };
+        
+        if (action === 'create') {
+            validators.username = (value) => {
+                if (!value) return 'El usuario es requerido';
+                if (value.length < 3) return 'El usuario debe tener al menos 3 caracteres';
+                return true;
+            };
+        }
+        
+        form._dsFormValidation = new DesignSystem.FormValidation(form, {
+            customValidators: validators
+        });
+    }
+});
+</script>
