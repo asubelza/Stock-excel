@@ -1,9 +1,40 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-design-system="{{ 'new' if g.design_system else 'legacy' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestion de Stock</title>
+    <title>{% block title %}Gestion de Stock{% endblock %}</title>
+
+    {# ==========================================================================
+       FOUC PREVENTION — Inline script runs before paint to apply saved theme
+       Reads localStorage 'ecjy_theme' and sets data-theme on <html> immediately
+       ========================================================================== #}
+    <script>
+        (function() {
+            try {
+                var theme = localStorage.getItem('ecjy_theme');
+                if (theme === 'dark' || theme === 'light' || theme === 'system') {
+                    document.documentElement.setAttribute('data-theme', theme);
+                } else {
+                    // Default to system preference if no saved theme
+                    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+                }
+            } catch (_) {
+                // localStorage unavailable (private browsing, etc.)
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+
+    {% if g.design_system %}
+    <!-- New Design System (Vite-built) -->
+    {# Preload critical chunks for faster initial load #}
+    {% include '_preload_hints.html' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='dist/assets/main.css') }}">
+    <script type="module" src="{{ url_for('static', filename='dist/assets/main.js') }}"></script>
+    {% else %}
+    <!-- Legacy Inline Styles (fallback) -->
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: Arial, sans-serif; background: #f0f0f0; }
@@ -65,15 +96,136 @@
         .login-box button { width: 100%; }
         .empty { text-align: center; padding: 40px; color: #999; }
     </style>
+    {% endif %}
 </head>
 <body>
+    {# Blocks defined ONCE at top level #}
+    {% block page_header %}{% endblock %}
+    {% block content %}{% endblock %}
+
+    {# Conditional layouts rendered AFTER blocks #}
+    {% if g.design_system and session.get('usuario') %}
+    {# ==========================================================================
+       NEW DESIGN SYSTEM LAYOUT
+       Uses app-layout with top bar, side nav, and main content area
+       ========================================================================== #}
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+    
+    <div class="app-layout">
+        {# Top Bar #}
+        <header class="app-layout__header">
+            {% from 'macros/nav.html' import render_top_bar %}
+            {{ render_top_bar(
+                brand={
+                    'logo': url_for('static', filename='logo.png'),
+                    'label': 'Gestión de Stock',
+                    'href': '/stock/'
+                },
+                navigation=[],
+                user_menu={
+                    'name': session.get('nombre', 'Usuario'),
+                    'email': session.get('email'),
+                    'initials': session.get('nombre', 'U')[:1].upper(),
+                    'items': [
+                        {'label': 'Cerrar sesión', 'href': '/stock/logout', 'icon': 'logout'}
+                    ]
+                }
+            ) }}
+        </header>
+        
+        {# Side Navigation #}
+        <aside class="app-layout__sidebar" id="sidebar" role="complementary" aria-label="Navegación lateral">
+            {% from 'macros/nav.html' import render_side_nav %}
+            {{ render_side_nav(
+                navigation=[
+                    {'label': 'Stock', 'href': '/stock/', 'icon': 'box', 'active': request.path == '/stock/'},
+                    {'label': 'Histórico', 'href': '/stock/historico', 'icon': 'history', 'roles': ['admin', 'consulta'], 'active': request.path == '/stock/historico'},
+                    {'label': 'Nuevo Producto', 'href': '/stock/nuevo_producto', 'icon': 'plus-circle', 'roles': ['admin', 'datainput', 'deposito'], 'active': request.path == '/stock/nuevo_producto'},
+                    {'label': 'Entrada', 'href': '/stock/entrada', 'icon': 'download', 'roles': ['admin', 'datainput', 'deposito'], 'active': request.path == '/stock/entrada'},
+                    {'label': 'Salida', 'href': '/stock/salida', 'icon': 'upload', 'roles': ['admin', 'deposito'], 'active': request.path == '/stock/salida'},
+                    {'label': 'Proveedores', 'href': '/stock/proveedores', 'icon': 'truck', 'roles': ['admin'], 'active': request.path == '/stock/proveedores'},
+                    {'label': 'Clientes', 'href': '/stock/clientes', 'icon': 'users', 'roles': ['admin'], 'active': request.path == '/stock/clientes'},
+                    {'label': 'Usuarios', 'href': '/stock/usuarios', 'icon': 'user-cog', 'roles': ['admin'], 'active': request.path == '/stock/usuarios'},
+                    {'label': '+ Entrada', 'href': '/stock/nueva_entrada', 'icon': 'plus', 'roles': ['admin', 'datainput', 'deposito'], 'active': request.path == '/stock/nueva_entrada'},
+                    {'label': '+ Salida', 'href': '/stock/nueva_salida', 'icon': 'minus', 'roles': ['admin', 'deposito'], 'active': request.path == '/stock/nueva_salida'},
+                    {'label': 'Importar Excel', 'href': '/stock/importar_excel', 'icon': 'file-plus', 'roles': ['admin', 'datainput'], 'active': request.path == '/stock/importar_excel'},
+                ],
+                brand={
+                    'logo': url_for('static', filename='logo.png'),
+                    'label': 'Gestión de Stock',
+                    'href': '/stock/'
+                },
+                collapsed=false,
+                user={
+                    'name': session.get('nombre', 'Usuario'),
+                    'role': session.get('rol', ''),
+                    'initials': session.get('nombre', 'U')[:1].upper()
+                },
+                current_role=session.get('rol'),
+                footer={
+                    'links': [
+                        {'label': 'Política de privacidad', 'href': '/privacidad'},
+                        {'label': 'Términos de uso', 'href': '/terminos'},
+                    ],
+                    'copyright': '© 2025 ECJY - Estudio Contable JY'
+                }
+            ) }}
+        </aside>
+        
+        {# Mobile drawer overlay #}
+        <div class="app-layout__sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
+        
+    {# Main Content #}
+        <main class="app-layout__main" id="main-content" role="main">
+            <div class="container">
+                {# Content already rendered via blocks above #}
+            </div>
+            
+            {# Footer #}
+            {% from 'macros/nav.html' import render_footer %}
+            {{ render_footer(
+                links=[
+                    {'label': 'Política de privacidad', 'href': '/privacidad'},
+                    {'label': 'Términos de uso', 'href': '/terminos'},
+                    {'label': 'Contacto', 'href': '/contacto'},
+                ],
+                copyright='© 2025 ECJY - Estudio Contable JY. Todos los derechos reservados.'
+            ) }}
+        </main>
+    </div>
+
+    {# Toast Container for notifications #}
+    {% from 'macros/toast.html' import render_toast_container, render_toast_script %}
+    {{ render_toast_container() }}
+    {{ render_toast_script() }}
+
+    <script>
+        // Initialize mobile drawer overlay click handler
+        (function() {
+            const overlay = document.getElementById('sidebar-overlay');
+            const sidebar = document.getElementById('sidebar');
+            
+            if (overlay && sidebar) {
+                overlay.addEventListener('click', function() {
+                    sidebar.classList.remove('app-layout__sidebar--open');
+                    overlay.classList.remove('app-layout__sidebar-overlay--visible');
+                    document.body.style.overflow = '';
+                });
+            }
+        })();
+    </script>
+
+    {% else %}
+    {# ==========================================================================
+       LEGACY LAYOUT (unchanged)
+       ========================================================================== #}
     {% if session.get('usuario') %}
     <div class="header">
         <div style="display:flex; align-items:center; gap:15px;">
             <img src="{{ url_for('static', filename='logo.png') }}" style="height:40px;">
             <h1>Gestion de Stock</h1>
         </div>
-<div class="nav">
+        <div class="nav">
             {% if session.get('rol') == 'admin' or session.get('rol') == 'consulta' %}<a href="/stock/historico">Historico</a>{% endif %}
             <a href="/stock/">Stock</a>
             {% if session.get('rol') in ['admin', 'datainput', 'deposito'] %}<a href="/stock/nuevo_producto">+ Producto</a>{% endif %}
@@ -90,7 +242,8 @@
     </div>
     {% endif %}
     <div class="container">
-        {% block content %}{% endblock %}
+        {# Content already rendered via blocks above #}
     </div>
+    {% endif %}
 </body>
 </html>

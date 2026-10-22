@@ -16,6 +16,42 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, static_folder='static')
 app.secret_key = os.environ.get('SECRET_KEY', 'stock-secret-key-2024')
 
+# ==========================================================================
+# DESIGN SYSTEM FEATURE FLAG — Context Processor
+# ==========================================================================
+# Injects g.design_system boolean from DESIGN_SYSTEM_ENABLED env var
+# Allows dual-mode: new design system (True) or legacy (False)
+# ==========================================================================
+@app.context_processor
+def design_system_context():
+    """Inject design system flag into all templates."""
+    # Read from env var, default to False (legacy mode)
+    enabled = os.environ.get('DESIGN_SYSTEM_ENABLED', 'false').lower() in ('true', '1', 'yes')
+    return {'g': type('obj', (object,), {'design_system': enabled})()}
+
+
+# ==========================================================================
+# DESIGN SYSTEM FEATURE FLAG MIDDLEWARE (backward compat)
+# ==========================================================================
+# Checks for ?design=new query param or session['design_system'] = 'new'
+# Sets request.design_system and session['design_system'] accordingly
+# Legacy inline styles work when flag is OFF
+# ==========================================================================
+@app.before_request
+def design_system_flag():
+    """Detect and set design system feature flag for backward compatibility."""
+    # Check query parameter (highest priority for testing)
+    design_param = request.args.get('design')
+    if design_param in ('new', 'legacy'):
+        session['design_system'] = design_param
+    
+    # Default to legacy if not set
+    if 'design_system' not in session:
+        session['design_system'] = 'legacy'
+    
+    # Expose to templates via request (legacy templates still use this)
+    request.design_system = session['design_system']
+
 db_uri = os.environ.get('DATABASE_URL', 'sqlite:///stock.db')
 if db_uri and db_uri.startswith('postgresql://'):
     db_uri = db_uri.replace('postgresql://', 'postgresql+psycopg2://')
@@ -112,12 +148,12 @@ PERMISOS = {
     'admin': ['/', '/historico', '/entrada', '/salida', '/proveedores', '/clientes', 
               '/nueva_entrada', '/nueva_salida', '/nuevo_producto', '/nuevo_proveedor',
               '/nuevo_cliente', '/importar_excel', '/exportar_excel', '/usuarios', '/logout',
-              '/api/'],
+              '/api/', '/stock/'],
     'datainput': ['/', '/historico', '/entrada', '/nueva_entrada', '/nuevo_producto', 
-                  '/importar_excel', '/exportar_excel', '/logout', '/api/'],
+                  '/importar_excel', '/exportar_excel', '/logout', '/api/', '/stock/'],
     'deposito': ['/', '/historico', '/entrada', '/nueva_entrada', '/salida', '/nueva_salida', '/nuevo_producto', 
-                '/logout', '/api/'],
-    'consulta': ['/', '/historico', '/logout', '/api/'],
+                '/logout', '/api/', '/stock/'],
+    'consulta': ['/', '/historico', '/logout', '/api/', '/stock/'],
 }
 
 def tiene_permiso(ruta):
@@ -167,9 +203,61 @@ def login():
             session['rol'] = db_user.rol
             return redirect('/stock/')
         
-        return render_template('login.html', error='Usuario o contraseña incorrectos')
+        return render_template('auth/login.html', error='Usuario o contraseña incorrectos')
     
-    return render_template('login.html')
+    return render_template('auth/login.html')
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        nombre = request.form.get('nombre', '').strip()
+        apellido = request.form.get('apellido', '').strip()
+        password = request.form.get('password', '')
+        password_confirm = request.form.get('password_confirm', '')
+        
+        # Validation
+        if not username or not email or not nombre or not password:
+            return render_template('auth/register.html', error='Todos los campos obligatorios son requeridos')
+        
+        if password != password_confirm:
+            return render_template('auth/register.html', error='Las contraseñas no coinciden')
+        
+        if len(password) < 8:
+            return render_template('auth/register.html', error='La contraseña debe tener al menos 8 caracteres')
+        
+        # Check if user exists
+        if username in USUARIOS:
+            return render_template('auth/register.html', error='El usuario ya existe')
+        
+        db_user = Usuario.query.filter_by(username=username).first()
+        if db_user:
+            return render_template('auth/register.html', error='El usuario ya existe')
+        
+        # Create new user
+        try:
+            new_user = Usuario(
+                username=username,
+                password=generate_password_hash(password),
+                nombre=nombre,
+                apellido=apellido,
+                rol='datainput'
+            )
+            db.session.add(new_user)
+            db.session.commit()
+            
+            session['usuario'] = username
+            session['nombre'] = f"{nombre} {apellido}".strip()
+            session['rol'] = 'datainput'
+            return redirect('/stock/')
+        except Exception as e:
+            db.session.rollback()
+            logger.exception("Error en register")
+            return render_template('auth/register.html', error='Error al crear la cuenta')
+    
+    return render_template('auth/register.html')
 
 @app.route('/logout')
 def logout():
@@ -311,6 +399,69 @@ def api_usuario_edit(id):
     except Exception as e:
         db.session.rollback()
         logger.exception("Error en api_usuario_edit")
+        return jsonify({'ok': False, 'msg': str(e)}), 500
+
+@app.route('/api/usuarios')
+@login_required
+def api_usuarios():
+    """Listar usuarios con paginación y filtros para DataTable"""
+    if session.get('rol') != 'admin':
+        return jsonify({'ok': False, 'msg': 'Sin permisos'}), 403
+    
+    try:
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 25))
+        sort = request.args.get('sort', 'username')
+        order = request.args.get('order', 'asc')
+        q = request.args.get('q', '').strip()
+        filter_rol = request.args.get('filter_rol', '')
+        filter_estado = request.args.get('filter_estado', '')
+        
+        query = Usuario.query
+        
+        if q:
+            q_lower = q.lower()
+            query = query.filter(
+                db.or_(
+                    Usuario.username.ilike(f'%{q_lower}%'),
+                    Usuario.nombre.ilike(f'%{q_lower}%'),
+                    Usuario.apellido.ilike(f'%{q_lower}%')
+                )
+            )
+        
+        if filter_rol:
+            query = query.filter(Usuario.rol == filter_rol)
+        
+        if filter_estado:
+            estado_map = {'activo': 'A', 'inactivo': 'I'}
+            query = query.filter(Usuario.estado == estado_map.get(filter_estado, filter_estado))
+        
+        # Apply sorting
+        sort_column = getattr(Usuario, sort, Usuario.username)
+        if order == 'desc':
+            query = query.order_by(sort_column.desc())
+        else:
+            query = query.order_by(sort_column.asc())
+        
+        total = query.count()
+        
+        # Paginate
+        offset = (page - 1) * page_size
+        usuarios = query.offset(offset).limit(page_size).all()
+        
+        return jsonify({
+            'rows': [{
+                'id': u.id,
+                'username': u.username,
+                'nombre': u.nombre,
+                'apellido': u.apellido or '',
+                'rol': u.rol,
+                'estado': u.estado
+            } for u in usuarios],
+            'total': total
+        })
+    except Exception as e:
+        logger.exception("Error en api_usuarios")
         return jsonify({'ok': False, 'msg': str(e)}), 500
 
 @app.route('/api/cliente', methods=['POST'])
@@ -548,6 +699,165 @@ def api_productos():
         'sku': p.sku, 'nombre': p.nombre, 'stock': p.stock,
         'costo': p.costo or 0, 'deposito': p.deposito
         } for p in productos])
+
+@app.route('/stock/api/productos')
+@login_required
+def stock_api_productos():
+    """Listar productos con paginación y filtros para DataTable"""
+    try:
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 25))
+        sort = request.args.get('sort', 'nombre')
+        order = request.args.get('order', 'asc')
+        q = request.args.get('q', '').strip()
+        filter_stock = request.args.get('filter_stock_filter', '')
+        
+        query = Producto.query
+        
+        if q:
+            q_lower = q.lower()
+            query = query.filter(
+                db.or_(
+                    Producto.sku.ilike(f'%{q_lower}%'),
+                    Producto.nombre.ilike(f'%{q_lower}%')
+                )
+            )
+        
+        # Stock filters
+        if filter_stock == 'mayor0':
+            query = query.filter(Producto.stock > 0)
+        elif filter_stock == 'menor_min':
+            query = query.filter(Producto.stock < Producto.stock_min)
+        
+        # Apply sorting
+        sort_column = getattr(Producto, sort, Producto.nombre)
+        if order == 'desc':
+            query = query.order_by(sort_column.desc())
+        else:
+            query = query.order_by(sort_column.asc())
+        
+        total = query.count()
+        
+        # Paginate
+        offset = (page - 1) * page_size
+        productos = query.offset(offset).limit(page_size).all()
+        
+        return jsonify({
+            'rows': [{
+                'sku': p.sku,
+                'nombre': p.nombre,
+                'tipo': p.tipo,
+                'rubro': p.rubro or '',
+                'deposito': p.deposito,
+                'stock': p.stock or 0,
+                'stock_min': p.stock_min or 0,
+                'costo': p.costo or 0
+            } for p in productos],
+            'total': total
+        })
+    except Exception as e:
+        logger.exception("Error en stock_api_productos")
+        return jsonify({'ok': False, 'msg': str(e)}), 500
+
+@app.route('/stock/api/clientes')
+@login_required
+def stock_api_clientes():
+    """Listar clientes con paginación y filtros para DataTable"""
+    try:
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 25))
+        sort = request.args.get('sort', 'nombre')
+        order = request.args.get('order', 'asc')
+        q = request.args.get('q', '').strip()
+        
+        query = Cliente.query
+        
+        if q:
+            q_lower = q.lower()
+            query = query.filter(
+                db.or_(
+                    Cliente.nombre.ilike(f'%{q_lower}%'),
+                    Cliente.cuit.ilike(f'%{q}%')
+                )
+            )
+        
+        # Apply sorting
+        sort_column = getattr(Cliente, sort, Cliente.nombre)
+        if order == 'desc':
+            query = query.order_by(sort_column.desc())
+        else:
+            query = query.order_by(sort_column.asc())
+        
+        total = query.count()
+        
+        # Paginate
+        offset = (page - 1) * page_size
+        clientes = query.offset(offset).limit(page_size).all()
+        
+        return jsonify({
+            'rows': [{
+                'id': c.id,
+                'nombre': c.nombre,
+                'cuit': c.cuit or '',
+                'telefono': c.telefono or '',
+                'email': c.email or '',
+                'direccion': c.direccion or ''
+            } for c in clientes],
+            'total': total
+        })
+    except Exception as e:
+        logger.exception("Error en stock_api_clientes")
+        return jsonify({'ok': False, 'msg': str(e)}), 500
+
+@app.route('/stock/api/proveedores')
+@login_required
+def stock_api_proveedores():
+    """Listar proveedores con paginación y filtros para DataTable"""
+    try:
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 25))
+        sort = request.args.get('sort', 'nombre')
+        order = request.args.get('order', 'asc')
+        q = request.args.get('q', '').strip()
+        
+        query = Proveedor.query
+        
+        if q:
+            q_lower = q.lower()
+            query = query.filter(
+                db.or_(
+                    Proveedor.nombre.ilike(f'%{q_lower}%'),
+                    Proveedor.cuit.ilike(f'%{q}%')
+                )
+            )
+        
+        # Apply sorting
+        sort_column = getattr(Proveedor, sort, Proveedor.nombre)
+        if order == 'desc':
+            query = query.order_by(sort_column.desc())
+        else:
+            query = query.order_by(sort_column.asc())
+        
+        total = query.count()
+        
+        # Paginate
+        offset = (page - 1) * page_size
+        proveedores = query.offset(offset).limit(page_size).all()
+        
+        return jsonify({
+            'rows': [{
+                'id': p.id,
+                'nombre': p.nombre,
+                'cuit': p.cuit or '',
+                'telefono': p.telefono or '',
+                'email': p.email or '',
+                'direccion': p.direccion or ''
+            } for p in proveedores],
+            'total': total
+        })
+    except Exception as e:
+        logger.exception("Error en stock_api_proveedores")
+        return jsonify({'ok': False, 'msg': str(e)}), 500
 
 @app.route('/api/producto', methods=['POST'])
 @login_required
@@ -1263,6 +1573,386 @@ def exportar_excel():
     
     except Exception as e:
         return f'Error: {str(e)}'
+
+# ==========================================================================
+# PHASE 3: EDIT MODALS - Backend Routes for 4 Resources
+# ==========================================================================
+
+# --- Productos (Stock) Routes ---
+@app.route('/stock/productos/create-modal')
+@login_required
+def producto_create_modal():
+    """Render create product modal via HTMX"""
+    from templates.macros.forms import render_input, render_select, render_textarea, render_field_group
+    # Return just the modal HTML for HTMX
+    return render_template('_modal_producto_form.html', 
+                           action='create', 
+                           producto=None,
+                           submit_label='Crear',
+                           cancel_label='Cancelar')
+
+@app.route('/stock/productos/<sku>/edit-modal')
+@login_required
+def producto_edit_modal(sku):
+    """Render edit product modal via HTMX"""
+    producto = Producto.query.filter_by(sku=sku).first_or_404()
+    return render_template('_modal_producto_form.html',
+                           action='edit',
+                           producto=producto,
+                           submit_label='Guardar',
+                           cancel_label='Cancelar')
+
+@app.route('/stock/productos/create', methods=['POST'])
+@login_required
+def producto_create():
+    """Create product from modal form"""
+    try:
+        data = request.form
+        # Validation
+        if not data.get('sku') or not data.get('nombre'):
+            return _render_modal_error('SKU y Nombre son requeridos', 
+                render_template('_modal_producto_form.html', action='create', producto=None, 
+                    submit_label='Crear', cancel_label='Cancelar', errors={'sku': 'Requerido', 'nombre': 'Requerido'}))
+        
+        existing = Producto.query.filter_by(sku=data['sku']).first()
+        if existing:
+            return _render_modal_error('Ya existe un producto con ese SKU',
+                render_template('_modal_producto_form.html', action='create', producto=None,
+                    submit_label='Crear', cancel_label='Cancelar', errors={'sku': 'SKU ya existe'}))
+        
+        producto = Producto(
+            sku=data['sku'],
+            nombre=data['nombre'],
+            tipo=data.get('tipo', 'P'),
+            estado=data.get('estado', 'A'),
+            rubro=data.get('rubro', ''),
+            subrubro=data.get('subrubro', ''),
+            descripcion=data.get('descripcion', ''),
+            cod_proveedor=data.get('cod_proveedor', ''),
+            observaciones=data.get('observaciones', ''),
+            precio=float(data.get('precio', 0) or 0),
+            tasa_iva=float(data.get('tasa_iva', 21) or 21),
+            costo=float(data.get('costo', 0) or 0),
+            cod_barra=data.get('cod_barra', ''),
+            stock_min=int(data.get('stock_min', 0) or 0),
+            stock=int(data.get('stock', 0) or 0),
+            deposito=data.get('deposito', 'Principal')
+        )
+        db.session.add(producto)
+        db.session.commit()
+        return _render_modal_success('Producto creado correctamente')
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Error en producto_create")
+        return _render_modal_error(f'Error al crear producto: {str(e)}')
+
+@app.route('/stock/productos/<sku>/edit', methods=['POST'])
+@login_required
+def producto_edit(sku):
+    """Edit product from modal form"""
+    try:
+        producto = Producto.query.filter_by(sku=sku).first_or_404()
+        data = request.form
+        
+        if not data.get('nombre'):
+            return _render_modal_error('Nombre es requerido',
+                render_template('_modal_producto_form.html', action='edit', producto=producto,
+                    submit_label='Guardar', cancel_label='Cancelar', errors={'nombre': 'Requerido'}))
+        
+        producto.nombre = data['nombre']
+        producto.tipo = data.get('tipo', producto.tipo)
+        producto.estado = data.get('estado', producto.estado)
+        producto.rubro = data.get('rubro', producto.rubro)
+        producto.subrubro = data.get('subrubro', producto.subrubro)
+        producto.descripcion = data.get('descripcion', producto.descripcion)
+        producto.cod_proveedor = data.get('cod_proveedor', producto.cod_proveedor)
+        producto.observaciones = data.get('observaciones', producto.observaciones)
+        producto.precio = float(data.get('precio', 0) or 0)
+        producto.tasa_iva = float(data.get('tasa_iva', 21) or 21)
+        producto.costo = float(data.get('costo', 0) or 0)
+        producto.cod_barra = data.get('cod_barra', producto.cod_barra)
+        producto.stock_min = int(data.get('stock_min', 0) or 0)
+        producto.stock = int(data.get('stock', 0) or 0)
+        producto.deposito = data.get('deposito', producto.deposito)
+        producto.updated_at = datetime.now()
+        
+        db.session.commit()
+        return _render_modal_success('Producto actualizado correctamente')
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Error en producto_edit")
+        return _render_modal_error(f'Error al actualizar producto: {str(e)}')
+
+# --- Clientes Routes ---
+@app.route('/stock/clientes/create-modal')
+@login_required
+def cliente_create_modal():
+    """Render create client modal via HTMX"""
+    return render_template('_modal_cliente_form.html',
+                           action='create',
+                           cliente=None,
+                           submit_label='Crear',
+                           cancel_label='Cancelar')
+
+@app.route('/stock/clientes/<int:id>/edit-modal')
+@login_required
+def cliente_edit_modal(id):
+    """Render edit client modal via HTMX"""
+    cliente = Cliente.query.get_or_404(id)
+    return render_template('_modal_cliente_form.html',
+                           action='edit',
+                           cliente=cliente,
+                           submit_label='Guardar',
+                           cancel_label='Cancelar')
+
+@app.route('/stock/clientes/create', methods=['POST'])
+@login_required
+def cliente_create():
+    """Create client from modal form"""
+    try:
+        data = request.form
+        if not data.get('nombre'):
+            return _render_modal_error('Nombre es requerido',
+                render_template('_modal_cliente_form.html', action='create', cliente=None,
+                    submit_label='Crear', cancel_label='Cancelar', errors={'nombre': 'Requerido'}))
+        
+        cliente = Cliente(
+            nombre=data['nombre'],
+            cuit=data.get('cuit', ''),
+            direccion=data.get('direccion', ''),
+            telefono=data.get('telefono', ''),
+            email=data.get('email', '')
+        )
+        db.session.add(cliente)
+        db.session.commit()
+        return _render_modal_success('Cliente creado correctamente')
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Error en cliente_create")
+        return _render_modal_error(f'Error al crear cliente: {str(e)}')
+
+@app.route('/stock/clientes/<int:id>/edit', methods=['POST'])
+@login_required
+def cliente_edit(id):
+    """Edit client from modal form"""
+    try:
+        cliente = Cliente.query.get_or_404(id)
+        data = request.form
+        
+        if not data.get('nombre'):
+            return _render_modal_error('Nombre es requerido',
+                render_template('_modal_cliente_form.html', action='edit', cliente=cliente,
+                    submit_label='Guardar', cancel_label='Cancelar', errors={'nombre': 'Requerido'}))
+        
+        cliente.nombre = data['nombre']
+        cliente.cuit = data.get('cuit', cliente.cuit)
+        cliente.direccion = data.get('direccion', cliente.direccion)
+        cliente.telefono = data.get('telefono', cliente.telefono)
+        cliente.email = data.get('email', cliente.email)
+        
+        db.session.commit()
+        return _render_modal_success('Cliente actualizado correctamente')
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Error en cliente_edit")
+        return _render_modal_error(f'Error al actualizar cliente: {str(e)}')
+
+# --- Proveedores Routes ---
+@app.route('/stock/proveedores/create-modal')
+@login_required
+def proveedor_create_modal():
+    """Render create provider modal via HTMX"""
+    return render_template('_modal_proveedor_form.html',
+                           action='create',
+                           proveedor=None,
+                           submit_label='Crear',
+                           cancel_label='Cancelar')
+
+@app.route('/stock/proveedores/<int:id>/edit-modal')
+@login_required
+def proveedor_edit_modal(id):
+    """Render edit provider modal via HTMX"""
+    proveedor = Proveedor.query.get_or_404(id)
+    return render_template('_modal_proveedor_form.html',
+                           action='edit',
+                           proveedor=proveedor,
+                           submit_label='Guardar',
+                           cancel_label='Cancelar')
+
+@app.route('/stock/proveedores/create', methods=['POST'])
+@login_required
+def proveedor_create():
+    """Create provider from modal form"""
+    try:
+        data = request.form
+        if not data.get('nombre'):
+            return _render_modal_error('Nombre es requerido',
+                render_template('_modal_proveedor_form.html', action='create', proveedor=None,
+                    submit_label='Crear', cancel_label='Cancelar', errors={'nombre': 'Requerido'}))
+        
+        proveedor = Proveedor(
+            nombre=data['nombre'],
+            cuit=data.get('cuit', ''),
+            direccion=data.get('direccion', ''),
+            telefono=data.get('telefono', ''),
+            email=data.get('email', '')
+        )
+        db.session.add(proveedor)
+        db.session.commit()
+        return _render_modal_success('Proveedor creado correctamente')
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Error en proveedor_create")
+        return _render_modal_error(f'Error al crear proveedor: {str(e)}')
+
+@app.route('/stock/proveedores/<int:id>/edit', methods=['POST'])
+@login_required
+def proveedor_edit(id):
+    """Edit provider from modal form"""
+    try:
+        proveedor = Proveedor.query.get_or_404(id)
+        data = request.form
+        
+        if not data.get('nombre'):
+            return _render_modal_error('Nombre es requerido',
+                render_template('_modal_proveedor_form.html', action='edit', proveedor=proveedor,
+                    submit_label='Guardar', cancel_label='Cancelar', errors={'nombre': 'Requerido'}))
+        
+        proveedor.nombre = data['nombre']
+        proveedor.cuit = data.get('cuit', proveedor.cuit)
+        proveedor.direccion = data.get('direccion', proveedor.direccion)
+        proveedor.telefono = data.get('telefono', proveedor.telefono)
+        proveedor.email = data.get('email', proveedor.email)
+        
+        db.session.commit()
+        return _render_modal_success('Proveedor actualizado correctamente')
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Error en proveedor_edit")
+        return _render_modal_error(f'Error al actualizar proveedor: {str(e)}')
+
+# --- Usuarios Routes (Admin only) ---
+@app.route('/stock/usuarios/create-modal')
+@login_required
+def usuario_create_modal():
+    """Render create user modal via HTMX"""
+    if session.get('rol') != 'admin':
+        return _render_modal_error('Sin permisos')
+    return render_template('_modal_usuario_form.html',
+                           action='create',
+                           usuario=None,
+                           submit_label='Crear',
+                           cancel_label='Cancelar')
+
+@app.route('/stock/usuarios/<int:id>/edit-modal')
+@login_required
+def usuario_edit_modal(id):
+    """Render edit user modal via HTMX"""
+    if session.get('rol') != 'admin':
+        return _render_modal_error('Sin permisos')
+    usuario = Usuario.query.get_or_404(id)
+    return render_template('_modal_usuario_form.html',
+                           action='edit',
+                           usuario=usuario,
+                           submit_label='Guardar',
+                           cancel_label='Cancelar')
+
+@app.route('/stock/usuarios/create', methods=['POST'])
+@login_required
+def usuario_create():
+    """Create user from modal form"""
+    if session.get('rol') != 'admin':
+        return _render_modal_error('Sin permisos')
+    try:
+        data = request.form
+        if not data.get('username') or not data.get('password') or not data.get('nombre'):
+            errors = {}
+            if not data.get('username'): errors['username'] = 'Requerido'
+            if not data.get('password'): errors['password'] = 'Requerido'
+            if not data.get('nombre'): errors['nombre'] = 'Requerido'
+            return _render_modal_error('Campos requeridos faltantes',
+                render_template('_modal_usuario_form.html', action='create', usuario=None,
+                    submit_label='Crear', cancel_label='Cancelar', errors=errors))
+        
+        existing = Usuario.query.filter_by(username=data['username']).first()
+        if existing:
+            return _render_modal_error('Ya existe un usuario con ese nombre',
+                render_template('_modal_usuario_form.html', action='create', usuario=None,
+                    submit_label='Crear', cancel_label='Cancelar', errors={'username': 'Usuario ya existe'}))
+        
+        usuario = Usuario(
+            username=data['username'],
+            password=generate_password_hash(data['password']),
+            nombre=data['nombre'],
+            apellido=data.get('apellido', ''),
+            rol=data.get('rol', 'datainput')
+        )
+        db.session.add(usuario)
+        db.session.commit()
+        return _render_modal_success('Usuario creado correctamente')
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Error en usuario_create")
+        return _render_modal_error(f'Error al crear usuario: {str(e)}')
+
+@app.route('/stock/usuarios/<int:id>/edit', methods=['POST'])
+@login_required
+def usuario_edit(id):
+    """Edit user from modal form"""
+    if session.get('rol') != 'admin':
+        return _render_modal_error('Sin permisos')
+    try:
+        usuario = Usuario.query.get_or_404(id)
+        data = request.form
+        
+        if not data.get('nombre'):
+            return _render_modal_error('Nombre es requerido',
+                render_template('_modal_usuario_form.html', action='edit', usuario=usuario,
+                    submit_label='Guardar', cancel_label='Cancelar', errors={'nombre': 'Requerido'}))
+        
+        if data.get('reset_password') and data.get('password'):
+            usuario.password = generate_password_hash(data['password'])
+        
+        usuario.nombre = data['nombre']
+        usuario.apellido = data.get('apellido', usuario.apellido)
+        usuario.rol = data.get('rol', usuario.rol)
+        
+        db.session.commit()
+        return _render_modal_success('Usuario actualizado correctamente')
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Error en usuario_edit")
+        return _render_modal_error(f'Error al actualizar usuario: {str(e)}')
+
+# --- Helper functions for modal responses ---
+def _render_modal_success(message, trigger_reload=True):
+    """Render success response with HX-Trigger headers"""
+    from flask import make_response
+    resp = make_response('')
+    resp.headers['HX-Trigger'] = 'closeModal, showToast' + (', reloadTable' if trigger_reload else '')
+    resp.headers['HX-Trigger-After-Swap'] = f'{{"showToast": {{"message": "{message}", "type": "success"}}}}'
+    return resp
+
+def _render_modal_error(message, modal_html=None):
+    """Render error response - either re-render modal with errors or return error toast"""
+    from flask import make_response
+    if modal_html:
+        resp = make_response(modal_html)
+        resp.status_code = 422
+        return resp
+    else:
+        resp = make_response('')
+        resp.headers['HX-Trigger'] = 'showToast'
+        resp.headers['HX-Trigger-After-Swap'] = f'{{"showToast": {{"message": "{message}", "type": "error"}}}}'
+        return resp
 
 @app.route('/swagger.json')
 def swagger_json():
