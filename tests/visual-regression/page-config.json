@@ -267,7 +267,7 @@
     "/stock/nueva_entrada",
     "/stock/nueva_salida",
     "/stock/importar_excel",
-    "/stock/login"
+    "/login"
   ],
   
   "testUsers": {
