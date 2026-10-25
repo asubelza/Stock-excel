@@ -97,6 +97,21 @@ jobs:
       - name: Initialize database
         run: python init_db.py
       
+      - name: Test Flask import & DB
+        run: |
+          python -c "
+import os
+os.environ['DATABASE_URL'] = 'sqlite:///test.db'
+os.environ['FLASK_ENV'] = 'development'
+os.environ['SECRET_KEY'] = 'test-secret-key'
+os.environ['DESIGN_SYSTEM_ENABLED'] = 'true'
+from web_app import app, db
+with app.app_context():
+    db.create_all()
+    print('✓ Database tables created')
+    print('✓ Flask app imported successfully')
+"
+      
       - name: Start Flask application
         run: |
           nohup python web_app.py > flask.log 2>&1 &
