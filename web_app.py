@@ -21,12 +21,14 @@ if db_uri and db_uri.startswith('postgresql://'):
     db_uri = db_uri.replace('postgresql://', 'postgresql+psycopg2://')
 app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,
-    'pool_recycle': 300,
-    'pool_size': 10,
-    'max_overflow': 20,
-}
+# Engine options only for PostgreSQL (SQLite doesn't support pooling)
+if db_uri and db_uri.startswith('postgresql'):
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+        'pool_size': 10,
+        'max_overflow': 20,
+    }
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
