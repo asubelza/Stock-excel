@@ -15,7 +15,7 @@
     "vr:update": "UPDATE_BASELINE=true npx playwright test tests/visual-regression/vr-capture.spec.ts --reporter=line",
     "vr:compare": "npx playwright test tests/visual-regression/vr-compare.spec.ts --reporter=line",
     "a11y:scan": "npx playwright test tests/a11y/a11y-scan.spec.ts --reporter=line",
-    "a11y:baseline": "UPDATE_BASELINE=true npx playwright test tests/a11y/a11y-baseline.spec.ts --reporter=line"
+    "a11y:baseline": "UPDATE_BASELINE=true npx playwright test tests/a11y/a11y-scan.spec.ts --reporter=line"
   },
   "devDependencies": {
     "cypress": "^13.15.0",
