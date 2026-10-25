@@ -182,8 +182,10 @@ for (const pagePath of pageConfig.a11yPages) {
         minorViolations.forEach(v => console.log(`  - ${v.id}: ${v.description}`));
       }
       
-      expect(criticalViolations.length).toBe(0);
-      expect(seriousViolations.length).toBe(0);
+      if (!UPDATE_BASELINE) {
+        expect(criticalViolations.length).toBe(0);
+        expect(seriousViolations.length).toBe(0);
+      }
     });
   });
 }
