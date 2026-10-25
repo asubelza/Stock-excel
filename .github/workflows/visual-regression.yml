@@ -1,0 +1,332 @@
+# Visual Regression CI Workflow (VR-04)
+# Runs on PR: captures screenshots → compares with baseline via pixelmatch (threshold 0.5%)
+# Fails on diff > threshold
+# Uploads diff artifact (side-by-side + heatmap) on failure
+
+name: Visual Regression
+
+on:
+  pull_request:
+    branches: [main, develop, 'rediseño_aws', 'rediseño_aws-tracker', 'rediseño_aws-phase-*']
+    paths:
+      - 'templates/**'
+      - 'static/src/**'
+      - 'tests/visual-regression/**'
+      - '.github/workflows/visual-regression.yml'
+      - 'package.json'
+      - 'playwright.config.ts'
+  push:
+    branches: [main, 'rediseño_aws', 'rediseño_aws-tracker', 'rediseño_aws-phase-*']
+    paths:
+      - 'templates/**'
+      - 'static/src/**'
+      - 'tests/visual-regression/**'
+  workflow_dispatch:
+    inputs:
+      update_baseline:
+        description: 'Update baselines (requires manual approval)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  BASE_URL: http://localhost:5000
+  NODE_VERSION: '20'
+  PLAYWRIGHT_BROWSERS_PATH: 0
+
+jobs:
+  visual-regression:
+    name: Visual Regression (${{ matrix.browser }}/${{ matrix.viewport }}/${{ matrix.theme }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox]
+        viewport: [mobile, tablet, desktop]
+        theme: [light, dark]
+        include:
+          # Chromium viewports
+          - browser: chromium
+            viewport: mobile
+            theme: light
+            viewport_width: 375
+            viewport_height: 667
+          - browser: chromium
+            viewport: mobile
+            theme: dark
+            viewport_width: 375
+            viewport_height: 667
+          - browser: chromium
+            viewport: tablet
+            theme: light
+            viewport_width: 768
+            viewport_height: 1024
+          - browser: chromium
+            viewport: tablet
+            theme: dark
+            viewport_width: 768
+            viewport_height: 1024
+          - browser: chromium
+            viewport: desktop
+            theme: light
+            viewport_width: 1440
+            viewport_height: 900
+          - browser: chromium
+            viewport: desktop
+            theme: dark
+            viewport_width: 1440
+            viewport_height: 900
+          # Firefox viewports
+          - browser: firefox
+            viewport: mobile
+            theme: light
+            viewport_width: 375
+            viewport_height: 667
+          - browser: firefox
+            viewport: mobile
+            theme: dark
+            viewport_width: 375
+            viewport_height: 667
+          - browser: firefox
+            viewport: tablet
+            theme: light
+            viewport_width: 768
+            viewport_height: 1024
+          - browser: firefox
+            viewport: tablet
+            theme: dark
+            viewport_width: 768
+            viewport_height: 1024
+          - browser: firefox
+            viewport: desktop
+            theme: light
+            viewport_width: 1440
+            viewport_height: 900
+          - browser: firefox
+            viewport: desktop
+            theme: dark
+            viewport_width: 1440
+            viewport_height: 900
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+      
+      - name: Setup Python & install requirements
+        run: |
+          python -m pip install -r requirements.txt 2>/dev/null || pip install -r requirements.txt
+      
+      - name: Install deps & browsers (via npx pnpm@9)
+        run: |
+          npx pnpm@9 install --frozen-lockfile
+          npx pnpm@9 exec playwright install --with-deps ${{ matrix.browser }}
+      
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-${{ matrix.browser }}-
+      
+      - name: Initialize database
+        run: python init_db.py
+      
+      - name: Start Flask application
+        run: |
+          nohup python web_app.py > flask.log 2>&1 &
+          FLASK_PID=$!
+          echo "Flask PID: $FLASK_PID"
+          # Wait for Flask to fully start (use /login in dev mode, /stock/login in prod)
+          for i in {1..30}; do
+            if curl -s -f http://localhost:5000/login > /dev/null 2>&1; then
+              echo "Application ready!"
+              exit 0
+            fi
+            echo "Waiting for application... ($i/30)"
+            sleep 2
+          done
+          echo "Application failed to start"
+          echo "=== Flask log ==="
+          cat flask.log
+          echo "=== End log ==="
+          kill $FLASK_PID 2>/dev/null || true
+          exit 1
+        env:
+          DESIGN_SYSTEM_ENABLED: 'true'
+          FLASK_ENV: development
+          SECRET_KEY: 'test-secret-key'
+          DATABASE_URL: 'sqlite:///test.db'
+      
+      - name: Wait for application readiness
+        run: |
+          for i in {1..30}; do
+            if curl -s -f http://localhost:5000/login > /dev/null 2>&1; then
+              echo "Application ready!"
+              exit 0
+            fi
+            echo "Waiting for application... ($i/30)"
+            sleep 2
+          done
+          echo "Application failed to start"
+          cat flask.log
+          exit 1
+      
+      - name: Run Visual Regression Tests
+        run: |
+          pnpm vr:compare --project=vr-${{ matrix.browser }}-${{ matrix.viewport }}-${{ matrix.theme }}
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+          UPDATE_BASELINE: ${{ github.event.inputs.update_baseline || 'false' }}
+      
+      - name: Upload diff artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-diff-${{ matrix.browser }}-${{ matrix.viewport }}-${{ matrix.theme }}
+          path: |
+            test-results/diff/${{ matrix.browser }}/${{ matrix.theme }}/${{ matrix.viewport }}/*.png
+            test-results/current/${{ matrix.browser }}/${{ matrix.theme }}/${{ matrix.viewport }}/*.png
+            test-results/playwright-report/
+          retention-days: 7
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-results-${{ matrix.browser }}-${{ matrix.viewport }}-${{ matrix.theme }}
+          path: |
+            test-results/results.json
+            test-results/results.xml
+          retention-days: 7
+      
+      - name: Generate summary report
+        if: always()
+        run: |
+          if [ -f test-results/results.json ]; then
+            echo "## Visual Regression Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Page | Status | Diff % |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+            
+            cat test-results/results.json | jq -r '.suites[]?.specs[]? | "\(.title) | \(.results[0]?.outcome // "skipped") | \(.results[0]?.errors[0]?.message // "N/A")"' | head -50 >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Baseline update job (manual approval required)
+  update-baseline:
+    name: Update Baselines (Manual)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event.inputs.update_baseline == 'true'
+    needs: visual-regression
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+      
+      - name: Install deps & browsers (via npx pnpm@9)
+        run: |
+          npx pnpm@9 install --frozen-lockfile
+          npx pnpm@9 exec playwright install --with-deps chromium firefox
+      
+      - name: Start Flask application
+        run: |
+          python -m pip install -r requirements.txt 2>/dev/null || pip install -r requirements.txt
+          nohup python web_app.py > flask.log 2>&1 &
+          sleep 10
+          curl -f http://localhost:5000/login || exit 1
+        env:
+          DESIGN_SYSTEM_ENABLED: 'true'
+          FLASK_ENV: development
+          SECRET_KEY: 'test-secret-key'
+          DATABASE_URL: 'sqlite:///test.db'
+      
+      - name: Run baseline update
+        run: |
+          npx pnpm@9 vr:update
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      
+      - name: Commit new baselines
+        run: |
+          git add tests/visual-regression/__baselines__/
+          if git diff --staged --quiet; then
+            echo "No baseline changes to commit"
+          else
+            git commit -m "chore(visual-regression): update baselines [skip ci]"
+            git push
+          fi
+      
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Visual regression baselines updated. Please review the changes and merge if acceptable.'
+            })
+
+  # Summary job
+  summary:
+    name: Visual Regression Summary
+    runs-on: ubuntu-latest
+    needs: [visual-regression]
+    if: always()
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: visual-regression-*
+      
+      - name: Aggregate results
+        run: |
+          echo "## Visual Regression Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Matrix (12 configurations)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Browser | Viewport | Theme | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|----------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          # Check each matrix result
+          for browser in chromium firefox; do
+            for viewport in mobile tablet desktop; do
+              for theme in light dark; do
+                result_file="artifacts/visual-regression-results-${browser}-${viewport}-${theme}/results.json"
+                if [ -f "$result_file" ]; then
+                  status=$(cat "$result_file" | jq -r '.suites[]?.specs[]?.results[0]?.outcome // "unknown"' | sort | uniq -c | head -1 | awk '{print $2}')
+                  echo "| $browser | $viewport | $theme | $status |" >> $GITHUB_STEP_SUMMARY
+                else
+                  echo "| $browser | $viewport | $theme | X No results |" >> $GITHUB_STEP_SUMMARY
+                fi
+              done
+            done
+          done
+      
+      - name: Comment summary on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync(process.env.GITHUB_STEP_SUMMARY, 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            })
