@@ -38,7 +38,7 @@ function getViewport(viewportName: string) {
 
 async function login(page: any, role: string = 'admin') {
   const user = pageConfig.testUsers[role as keyof typeof pageConfig.testUsers] || pageConfig.testUsers.admin;
-  await page.goto(`${BASE_URL}/stock/login${DESIGN_PARAM}`);
+  await page.goto(`${BASE_URL}/login${DESIGN_PARAM}`);
   await page.waitForLoadState('networkidle');
   await page.fill('input[name="usuario"]', user.username);
   await page.fill('input[name="password"]', user.password);
