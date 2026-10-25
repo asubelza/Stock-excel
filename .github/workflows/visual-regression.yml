@@ -141,9 +141,9 @@ jobs:
           nohup python web_app.py > flask.log 2>&1 &
           FLASK_PID=$!
           echo "Flask PID: $FLASK_PID"
-          # Wait for Flask to fully start
+          # Wait for Flask to fully start (use /login in dev mode, /stock/login in prod)
           for i in {1..30}; do
-            if curl -s -f http://localhost:5000/stock/login > /dev/null 2>&1; then
+            if curl -s -f http://localhost:5000/login > /dev/null 2>&1; then
               echo "Application ready!"
               exit 0
             fi
