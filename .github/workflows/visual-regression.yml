@@ -181,7 +181,7 @@ jobs:
       
       - name: Run Visual Regression Tests
         run: |
-          pnpm vr:compare --project=vr-${{ matrix.browser }}-${{ matrix.viewport }}-${{ matrix.theme }}
+          npx pnpm@9 vr:compare --project=vr-${{ matrix.browser }}-${{ matrix.viewport }}-${{ matrix.theme }}
         env:
           BASE_URL: ${{ env.BASE_URL }}
           UPDATE_BASELINE: ${{ github.event.inputs.update_baseline || 'false' }}
