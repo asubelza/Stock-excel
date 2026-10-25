@@ -1,11 +1,264 @@
 {% extends "base.html" %}
 
+{% from 'macros.html' import macros %}
+
 {% block content %}
+{% if g.design_system %}
+{# ==========================================================================
+   NEW DESIGN SYSTEM — Importar Excel
+   ========================================================================== #}
+<div class="c-card">
+    <header class="c-card__header">
+        <h2 class="c-card__title">Importar Productos desde Excel</h2>
+    </header>
+
+    <div class="c-card__body">
+        <div class="c-card c-card--outlined" style="margin-bottom: var(--space-lg); background: var(--color-surface-variant);">
+            <div class="c-card__body">
+                <h3 style="margin-bottom: var(--space-md); font-size: var(--text-lg); font-weight: 600;">Formato del Excel</h3>
+                <p style="color: var(--color-text-muted); margin-bottom: var(--space-md);">El archivo Excel debe seguir el formato de la planilla base:</p>
+                <div class="c-table-container" style="max-height: 300px; overflow-y: auto;">
+                    <table class="c-table c-table--sm">
+                        <thead>
+                            <tr><th>Columna</th><th>Campo</th><th>Ejemplo</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>B</td><td>Nombre</td><td>Zapatillas nb</td></tr>
+                            <tr><td>C</td><td>SKU</td><td>NB-574</td></tr>
+                            <tr><td>D</td><td>Tipo</td><td>P (Producto), S (Insumo)</td></tr>
+                            <tr><td>E</td><td>Estado</td><td>A (Activo)</td></tr>
+                            <tr><td>H</td><td>Rubro</td><td>Zapatilla</td></tr>
+                            <tr><td>I</td><td>Subrubro</td><td>NB</td></tr>
+                            <tr><td>Q</td><td>Precio</td><td>1210</td></tr>
+                            <tr><td>R</td><td>Tasa IVA</td><td>21</td></tr>
+                            <tr><td>S</td><td>Costo</td><td>1000</td></tr>
+                            <tr><td>U</td><td>Cod Barra</td><td>223232</td></tr>
+                            <tr><td>V</td><td>Stock Min</td><td>0</td></tr>
+                            <tr><td>Y</td><td>Deposito</td><td>Principal</td></tr>
+                            <tr><td>Z</td><td>Stock</td><td>10</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p style="color: var(--color-text-muted); font-size: var(--text-sm); margin-top: var(--space-md);">Los productos se cargan a partir de la fila 4.</p>
+            </div>
+        </div>
+
+        <form id="form_import" enctype="multipart/form-data" novalidate>
+            <div class="c-form__field">
+                <label class="c-form__label" for="archivo">Seleccionar archivo Excel (.xlsx)</label>
+                <div class="c-file-dropzone" id="dropzone" role="button" tabindex="0" aria-label="Área para arrastrar y soltar archivo Excel">
+                    <svg class="c-file-dropzone__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <div class="c-file-dropzone__text">
+                        <span class="c-file-dropzone__main">Arrastra y suelta tu archivo .xlsx aquí</span>
+                        <span class="c-file-dropzone__sub">o haz clic para seleccionar</span>
+                    </div>
+                    <input type="file" name="archivo" id="archivo" accept=".xlsx" required hidden>
+                    <div class="c-file-dropzone__preview" id="file_preview" hidden></div>
+                </div>
+                <span class="c-form__hint" id="archivo-hint">Solo archivos .xlsx — Tamaño máximo: 10MB</span>
+            </div>
+
+            {# Progress indicator #}
+            <div class="c-progress" id="import_progress" hidden role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Progreso de importación">
+                <div class="c-progress__bar" style="--c-progress-value: 0%;"></div>
+                <span class="c-progress__label" id="progress_label">0%</span>
+            </div>
+
+            {# Status message area #}
+            <div id="import_status" class="c-alert" hidden role="alert" aria-live="polite"></div>
+
+            {{ macros.render_form_actions([
+                {'type': 'button', 'props': {'label': 'Importar', 'variant': 'success', 'type': 'submit', 'id': 'btn_importar', 'disabled': true}},
+                {'type': 'link', 'props': {'label': 'Cancelar', 'href': '/stock/', 'variant': 'ghost'}},
+            ], alignment='end', gap='md') }}
+        </form>
+    </div>
+</div>
+
+<script>
+// File dropzone handling
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('archivo');
+const filePreview = document.getElementById('file_preview');
+const btnImportar = document.getElementById('btn_importar');
+const progressContainer = document.getElementById('import_progress');
+const progressBar = progressContainer.querySelector('.c-progress__bar');
+const progressLabel = document.getElementById('progress_label');
+const statusEl = document.getElementById('import_status');
+
+let selectedFile = null;
+
+function showStatus(message, type = 'info') {
+    statusEl.textContent = message;
+    statusEl.className = 'c-alert c-alert--' + type;
+    statusEl.hidden = false;
+}
+
+function hideStatus() {
+    statusEl.hidden = true;
+    statusEl.textContent = '';
+    statusEl.className = 'c-alert';
+}
+
+function updateProgress(percent) {
+    progressBar.style.setProperty('--c-progress-value', percent + '%');
+    progressLabel.textContent = percent + '%';
+}
+
+function setFile(file) {
+    selectedFile = file;
+    if (file) {
+        filePreview.innerHTML = `
+            <div class="c-file-dropzone__file">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span class="c-file-dropzone__filename">${file.name}</span>
+                <span class="c-file-dropzone__filesize">${(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                <button type="button" class="c-file-dropzone__remove" aria-label="Eliminar archivo">×</button>
+            </div>
+        `;
+        filePreview.hidden = false;
+        btnImportar.disabled = false;
+        hideStatus();
+
+        filePreview.querySelector('.c-file-dropzone__remove').addEventListener('click', (e) => {
+            e.stopPropagation();
+            clearFile();
+        });
+    } else {
+        filePreview.innerHTML = '';
+        filePreview.hidden = true;
+        btnImportar.disabled = true;
+    }
+}
+
+function clearFile() {
+    selectedFile = null;
+    fileInput.value = '';
+    setFile(null);
+}
+
+// Dropzone events
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        fileInput.click();
+    }
+});
+
+dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('c-file-dropzone--dragover');
+});
+
+dropzone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('c-file-dropzone--dragover');
+});
+
+dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('c-file-dropzone--dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith('.xlsx')) {
+        setFile(file);
+    } else {
+        showStatus('Solo se permiten archivos .xlsx', 'danger');
+    }
+});
+
+fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        if (file.name.endsWith('.xlsx')) {
+            setFile(file);
+        } else {
+            showStatus('Solo se permiten archivos .xlsx', 'danger');
+            fileInput.value = '';
+        }
+    }
+});
+
+// Form submit
+document.getElementById('form_import').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!selectedFile) return;
+
+    hideStatus();
+    progressContainer.hidden = false;
+    updateProgress(0);
+    btnImportar.disabled = true;
+
+    const formData = new FormData();
+    formData.append('archivo', selectedFile);
+
+    try {
+        // Use XMLHttpRequest for progress tracking
+        await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/stock/importar_excel');
+            
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    updateProgress(percent);
+                }
+            });
+            
+            xhr.addEventListener('load', () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve(JSON.parse(xhr.responseText));
+                } else {
+                    reject(new Error('Error del servidor: ' + xhr.status));
+                }
+            });
+            
+            xhr.addEventListener('error', () => reject(new Error('Error de red')));
+            xhr.addEventListener('abort', () => reject(new Error('Cancelado')));
+            
+            xhr.send(formData);
+        }).then(data => {
+            updateProgress(100);
+            if (data.ok) {
+                showStatus(data.msg, 'success');
+                if (window.DesignSystem && DesignSystem.Toast) {
+                    DesignSystem.Toast.success(data.msg);
+                }
+                setTimeout(() => location.href = '/stock/', 1500);
+            } else {
+                showStatus(data.msg || 'Error al importar', 'danger');
+                if (window.DesignSystem && DesignSystem.Toast) {
+                    DesignSystem.Toast.error(data.msg || 'Error al importar');
+                }
+            }
+        });
+    } catch (err) {
+        console.error('Error:', err);
+        showStatus('Error: ' + err.message, 'danger');
+        if (window.DesignSystem && DesignSystem.Toast) {
+            DesignSystem.Toast.error('Error al importar: ' + err.message);
+        }
+    } finally {
+        btnImportar.disabled = false;
+    }
+});
+</script>
+{% else %}
+{# ==========================================================================
+   LEGACY — Importar Excel (original template)
+   ========================================================================== #}
 <div class="card">
     <div class="card-header">
         <h2>Importar Productos desde Excel</h2>
     </div>
-    
+
     <div style="background:#f8f9fa; padding:20px; border-radius:8px; margin-bottom:20px;">
         <h3 style="margin-bottom:15px;">Formato del Excel</h3>
         <p style="color:#666; margin-bottom:10px;">El archivo Excel debe seguir el formato de la planilla base:</p>
@@ -27,7 +280,7 @@
         </table>
         <p style="color:#666; font-size:12px; margin-top:10px;">Los productos se cargan a partir de la fila 4.</p>
     </div>
-    
+
     <form method="post" enctype="multipart/form-data" id="form_import">
         <div class="form-group">
             <label>Seleccionar archivo Excel (.xlsx)</label>
@@ -36,7 +289,7 @@
         <button type="submit" class="btn btn-success">Importar</button>
         <a href="/stock/" class="btn">Cancelar</a>
     </form>
-    
+
     <div id="resultado" style="margin-top:20px;"></div>
 </div>
 
@@ -45,7 +298,7 @@ document.getElementById('form_import').onsubmit = function(e) {
     e.preventDefault();
     const formData = new FormData(this);
     document.getElementById('resultado').innerHTML = '<p>Importando...</p>';
-    
+
     fetch('/stock/importar_excel', {
         method: 'POST',
         body: formData
@@ -61,4 +314,5 @@ document.getElementById('form_import').onsubmit = function(e) {
     });
 };
 </script>
+{% endif %}
 {% endblock %}

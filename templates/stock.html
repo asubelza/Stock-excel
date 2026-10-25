@@ -1,8 +1,199 @@
 {% extends "base.html" %}
+{% from 'macros.html' import macros %}
+
 {% block head %}
 <meta http-equiv="refresh" content="30">
 {% endblock %}
+
 {% block content %}
+{% if g.design_system %}
+{# ==========================================================================
+   NEW DESIGN SYSTEM — Stock
+   ========================================================================== #}
+<div class="c-card" data-table data-table-api="/stock/api/productos" data-table-data-key="rows" data-table-total-key="total">
+    <header class="c-card__header">
+        <h2 class="c-card__title">Stock de Productos</h2>
+        <div class="c-card__actions">
+            <div class="c-btn-group" role="group" style="--c-btn-group-gap: var(--space-2);">
+                {{ macros.render_button('+ Nuevo Producto', variant='success', type='button', hx_get='/stock/productos/create-modal', hx_target='#modal-container', hx_swap='innerHTML', icon='plus') }}
+                {{ macros.render_button('Exportar Excel', variant='secondary', type='button', href='/stock/exportar_excel', icon='download') }}
+            </div>
+        </div>
+    </header>
+
+    <div class="c-card__body">
+        <div class="c-table-toolbar" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center;">
+            {{ macros.render_search_input(
+                id='buscar',
+                placeholder='Buscar por SKU o Nombre...',
+                data_table_search=true,
+                classes='c-table__search',
+                style='min-width: 250px; flex: 1; max-width: 400px;'
+            ) }}
+            <div class="c-select-wrapper" style="flex-shrink: 0;">
+                <select id="filtro_stock" data-table-filter="stock_filter" class="c-select" style="min-width: 180px;">
+                    <option value="">Todos</option>
+                    <option value="mayor0" selected>Stock > 0</option>
+                    <option value="menor_min">Stock bajo mínimo</option>
+                </select>
+            </div>
+        </div>
+
+        {# Table will be rendered by DataTable component via JS #}
+        <div class="c-table__wrapper">
+            <div class="c-table__scroll" tabindex="0" role="region" aria-label="Tabla de stock de productos">
+                <table class="c-table c-table--striped c-table--hoverable c-table--bordered c-table--stack">
+                    <thead>
+                        <tr>
+                            <th scope="col" data-sortable="true" data-sort-key="sku" data-align="left">SKU</th>
+                            <th scope="col" data-sortable="true" data-sort-key="nombre" data-align="left">Nombre</th>
+                            <th scope="col" data-sortable="true" data-sort-key="tipo" data-align="left">Tipo</th>
+                            <th scope="col" data-sortable="true" data-sort-key="rubro" data-align="left">Rubro</th>
+                            <th scope="col" data-sortable="true" data-sort-key="deposito" data-align="left">Depósito</th>
+                            <th scope="col" data-sortable="true" data-sort-key="stock" data-align="right">Stock</th>
+                            <th scope="col" data-sortable="true" data-sort-key="stock_min" data-align="right">Stock Mín</th>
+                            <th scope="col" data-sortable="true" data-sort-key="costo" data-align="right">Costo</th>
+                            {% if session.get('rol') in ['admin', 'deposito'] %}
+                            <th scope="col" data-align="center" style="width: 1%; white-space: nowrap;">Acciones</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {# Rows loaded via DataTable component #}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Modal Container - HTMX will swap modal content here #}
+<div id="modal-container"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const tableWrapper = document.querySelector('[data-table]');
+    if (tableWrapper && window.DesignSystem && DesignSystem.DataTable) {
+        const actions = [];
+        
+        {% if session.get('rol') in ['admin', 'deposito'] %}
+        actions.push({
+            type: 'icon',
+            props: (row) => ({
+                variant: 'ghost',
+                size: 'sm',
+                ariaLabel: 'Editar producto',
+                icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
+                attributes: {
+                    'hx-get': '/stock/productos/' + row.sku + '/edit-modal',
+                    'hx-target': '#modal-container',
+                    'hx-swap': 'innerHTML'
+                }
+            })
+        });
+        
+        actions.push({
+            type: 'icon',
+            props: {
+                variant: 'danger',
+                size: 'sm',
+                ariaLabel: 'Eliminar producto',
+                icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>',
+                onClick: (row) => eliminarProducto(row.sku)
+            }
+        });
+        {% endif %}
+        
+        tableWrapper._dsDataTable = new DesignSystem.DataTable(tableWrapper, {
+            apiUrl: tableWrapper.dataset.tableApi,
+            dataKey: tableWrapper.dataset.tableDataKey,
+            totalKey: tableWrapper.dataset.tableTotalKey,
+            pageSize: 25,
+            sortable: true,
+            defaultSort: { field: 'nombre', direction: 'asc' },
+            globalSearch: true,
+            columnFilters: true,
+            responsive: 'stack',
+            actions: actions,
+            onDataLoad: (data, meta) => {
+                // Apply low stock styling
+                document.querySelectorAll('tr[data-row-key]').forEach(tr => {
+                    const rowData = data.find(d => d.sku === tr.dataset.rowKey);
+                    if (rowData && rowData.stock < rowData.stock_min) {
+                        tr.classList.add('c-table__row--warning');
+                    }
+                });
+            }
+        });
+    }
+    
+    // Handle HTMX events for modals
+    document.body.addEventListener('htmx:afterSwap', (evt) => {
+        if (evt.target.id === 'modal-container') {
+            const modal = evt.target.querySelector('[data-modal]');
+            if (modal && modal._dsModal) {
+                modal._dsModal.open();
+            }
+        }
+    });
+    
+    // Listen for modal close trigger to refresh table
+    document.body.addEventListener('reloadTable', () => {
+        const tableWrapper = document.querySelector('[data-table]');
+        if (tableWrapper && tableWrapper._dsDataTable) {
+            tableWrapper._dsDataTable.refresh();
+        }
+    });
+});
+
+async function eliminarProducto(sku) {
+    if (!(window.DesignSystem && DesignSystem.Toast && await DesignSystem.Toast.show({
+        message: `¿Estás seguro de eliminar el producto ${sku}?`,
+        type: 'warning',
+        action: { label: 'Eliminar', variant: 'danger', onclick: () => confirmarEliminar(sku) }
+    }))) {
+        if (!confirm(`¿Estás seguro de eliminar el producto ${sku}?`)) return;
+        confirmarEliminar(sku);
+    }
+}
+
+async function confirmarEliminar(sku) {
+    try {
+        const response = await fetch('/stock/api/producto/' + sku, {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'same-origin'
+        });
+        const data = await response.json();
+        
+        if (window.DesignSystem && DesignSystem.Toast) {
+            DesignSystem.Toast[data.ok ? 'success' : 'error'](data.msg);
+        } else {
+            alert(data.msg);
+        }
+        
+        if (data.ok) {
+            const tableWrapper = document.querySelector('[data-table]');
+            if (tableWrapper && tableWrapper._dsDataTable) {
+                tableWrapper._dsDataTable.refresh();
+            } else {
+                location.reload();
+            }
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        if (window.DesignSystem && DesignSystem.Toast) {
+            DesignSystem.Toast.error('Error al eliminar el producto');
+        } else {
+            alert('Error al eliminar el producto');
+        }
+    }
+}
+</script>
+{% else %}
+{# ==========================================================================
+   LEGACY — Stock (original template)
+   ========================================================================== #}
 <div class="card">
     <div class="card-header">
         <h2>Stock de Productos</h2>
@@ -33,7 +224,7 @@
                 <th>Stock</th>
                 <th>Stock Min</th>
                 <th>Costo</th>
-                {% if session.get('rol') == 'admin' %}<th>Acciones</th>{% endif %}
+                {% if session.get('rol') in ['admin', 'deposito'] %}<th>Acciones</th>{% endif %}
             </tr>
         </thead>
         <tbody id="tabla_productos">
@@ -47,7 +238,7 @@
                 <td>{{ p.stock }}</td>
                 <td>{{ p.stock_min }}</td>
                 <td>${{ "%.2f"|format(p.costo or 0) }}</td>
-{% if session.get('rol') in ['admin', 'deposito'] %}
+                {% if session.get('rol') in ['admin', 'deposito'] %}
                 <td>
                     <button onclick="eliminar('{{ p.sku }}')" style="background:#e74c3c;color:white;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;">Eliminar</button>
                 </td>
@@ -124,4 +315,5 @@ function eliminar(sku) {
     });
 }
 </script>
+{% endif %}
 {% endblock %}

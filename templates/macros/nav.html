@@ -1,0 +1,542 @@
+{# ==========================================================================
+   ECJY Design System — Navigation Macros
+   ==========================================================================
+   Renders top bar, side navigation, and page headers with breadcrumbs.
+   Uses BEM-ish class prefix: c-nav, c-header, c-breadcrumb
+   ========================================================================== #}
+
+{% from 'macros/_helpers.html' import render_attrs, merge_classes %}
+{% from 'macros/buttons.html' import render_button, render_icon_button %}
+
+{# ==========================================================================
+   Role-based Navigation Filter
+   ==========================================================================
+   Filters navigation items based on user role/permissions.
+   Each nav item can have a 'roles' array or 'permissions' array.
+   Returns only items the current user is allowed to see.
+   ========================================================================== #}
+{% macro nav_filter(navigation, current_role, current_permissions=[]) -%}
+{%- set filtered = [] -%}
+{%- for item in navigation -%}
+  {%- set allowed = false -%}
+  {%- if item.roles is defined and item.roles is iterable -%}
+    {%- if current_role in item.roles -%}{%- set allowed = true -%}{%- endif -%}
+  {%- elif item.permissions is defined and item.permissions is iterable -%}
+    {%- for perm in item.permissions -%}
+      {%- if perm in current_permissions -%}{%- set allowed = true -%}{%- endif -%}
+    {%- endfor -%}
+  {%- else -%}
+    {%- set allowed = true -%} {# No role/permission restriction #}
+  {%- endif -%}
+  {%- if allowed -%}
+    {%- set new_item = item | copy -%}
+    {%- if item.children is defined and item.children is iterable -%}
+      {%- set new_item = new_item | combine({'children': nav_filter(item.children, current_role, current_permissions)}) -%}
+      {%- if new_item.children | length > 0 -%}
+        {{ filtered.append(new_item) }}
+      {%- endif -%}
+    {%- else -%}
+      {{ filtered.append(new_item) }}
+    {%- endif -%}
+  {%- endif -%}
+{%- endfor -%}
+{{ filtered }}
+{%- endmacro -%}
+
+{% macro render_top_bar(
+    brand,
+    navigation=[],
+    user_menu=null,
+    actions=[],
+    search=null,
+    pinned=true,
+    classes='',
+    id='top-bar',
+    aria_label='Navegación principal'
+) -%}
+{%- set bar_classes = ['c-top-bar'] -%}
+{%- if pinned -%}
+    {{ bar_classes.append('c-top-bar--pinned') }}
+{%- endif -%}
+{%- if classes -%}
+    {{ bar_classes.append(classes) }}
+{%- endif -%}
+
+{%- set header_attrs = {'class': bar_classes | join(' '), 'id': id, 'role': 'banner', 'aria-label': aria_label} -%}
+<header {{ render_attrs(header_attrs) }}>
+    <div class="c-top-bar__container">
+        {%- if brand -%}
+            <div class="c-top-bar__brand">
+                {%- if brand.logo -%}
+                    {%- set logo_attrs = {'class': 'c-top-bar__logo', 'href': brand.href or '/', 'aria-label': brand.label or 'Inicio'} -%}
+                    <a {{ render_attrs(logo_attrs) }}>
+                        <img src="{{ brand.logo }}" alt="" class="c-top-bar__logo-img" aria-hidden="true">
+                        <span class="c-top-bar__logo-text">{{ brand.label }}</span>
+                    </a>
+                {%- else -%}
+                    {%- set logo_attrs = {'class': 'c-top-bar__logo-text', 'href': brand.href or '/', 'aria-label': brand.label or 'Inicio'} -%}
+                    <a {{ render_attrs(logo_attrs) }}>{{ brand.label }}</a>
+                {%- endif -%}
+            </div>
+        {%- endif -%}
+        
+        {%- if navigation -%}
+            <nav class="c-top-bar__nav" role="navigation" aria-label="Navegación principal">
+                <ul class="c-top-bar__nav-list">
+{%- for item in navigation -%}
+                            {%- set item_classes = ['c-top-bar__nav-item'] -%}
+                            {%- if item.active -%}
+                                {{ item_classes.append('c-top-bar__nav-item--active') }}
+                            {%- endif -%}
+                            {%- if item.disabled -%}
+                                {{ item_classes.append('c-top-bar__nav-item--disabled') }}
+                            {%- endif -%}
+                        
+                        <li class="{{ item_classes | join(' ') }}">
+                            {%- if item.children -%}
+                                {%- set btn_attrs = {
+                                    'type': 'button',
+                                    'class': 'c-top-bar__nav-link c-top-bar__nav-link--has-children',
+                                    'aria-expanded': 'false',
+                                    'aria-haspopup': 'true',
+                                    'disabled': item.disabled,
+                                } -%}
+                                <button {{ render_attrs(btn_attrs) }}>
+                                    {{ item.label }}
+                                    <svg class="c-top-bar__nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </button>
+                                <ul class="c-top-bar__dropdown" role="menu">
+                                    {%- for child in item.children -%}
+                                        <li role="none">
+                                            {%- set child_attrs = {'class': 'c-top-bar__dropdown-item', 'href': child.href, 'role': 'menuitem'} -%}
+                                            {%- if child.disabled -%}
+    {{ child_attrs.__setitem__('aria-disabled', 'true') }}
+{%- endif -%}
+                                            <a {{ render_attrs(child_attrs) }}>{{ child.label }}</a>
+                                        </li>
+                                    {%- endfor -%}
+                                </ul>
+                            {%- else -%}
+                                {%- set link_attrs = {'class': 'c-top-bar__nav-link', 'href': item.href} -%}
+{%- if item.disabled -%}
+    {{ link_attrs.__setitem__('aria-disabled', 'true') }}
+    {{ link_attrs.__setitem__('tabindex', '-1') }}
+{%- endif -%}
+                                <a {{ render_attrs(link_attrs) }}>{{ item.label }}</a>
+                            {%- endif -%}
+                        </li>
+                    {%- endfor -%}
+                </ul>
+            </nav>
+        {%- endif -%}
+        
+        <div class="c-top-bar__actions">
+            {%- if search -%}
+                <div class="c-top-bar__search">
+                    {{ render_search_input(search.placeholder or 'Buscar...', search.name or 'q', search.value or '', classes='c-top-bar__search-input', id=search.id, aria_label=search.aria_label or 'Buscar') }}
+                </div>
+            {%- endif -%}
+            
+            {%- for action in actions -%}
+                {{ render_button(**action) }}
+            {%- endfor -%}
+            
+            {%- if user_menu -%}
+                <div class="c-top-bar__user" data-ds-component="dropdown">
+                    {%- set trigger_attrs = {
+                        'type': 'button',
+                        'class': 'c-top-bar__user-trigger',
+                        'aria-expanded': 'false',
+                        'aria-haspopup': 'true',
+                        'aria-label': user_menu.label or 'Menú de usuario',
+                        'data-dropdown-trigger': '',
+                    } -%}
+                    <button {{ render_attrs(trigger_attrs) }}>
+                        {%- if user_menu.avatar -%}
+                            <img src="{{ user_menu.avatar }}" alt="" class="c-top-bar__user-avatar" aria-hidden="true">
+                        {%- else -%}
+                            <div class="c-top-bar__user-avatar c-top-bar__user-avatar--initials" aria-hidden="true">
+                                {{ user_menu.initials or 'U' }}
+                            </div>
+                        {%- endif -%}
+                        <span class="c-top-bar__user-name">{{ user_menu.name }}</span>
+                        <svg class="c-top-bar__user-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="c-top-bar__user-dropdown" role="menu" data-dropdown-menu>
+                        {%- if user_menu.email -%}
+                            <div class="c-top-bar__user-info">
+                                <span class="c-top-bar__user-info-name">{{ user_menu.name }}</span>
+                                <span class="c-top-bar__user-info-email">{{ user_menu.email }}</span>
+                            </div>
+                            <hr class="c-top-bar__user-divider">
+                        {%- endif -%}
+                        {%- for item in user_menu.items -%}
+                            {%- if item.divider -%}
+                                <hr class="c-top-bar__user-divider" role="separator">
+                            {%- else -%}
+                                {%- set item_attrs = {'class': 'c-top-bar__user-item', 'href': item.href, 'role': 'menuitem'} -%}
+                                {%- if item.disabled -%}
+    {{ item_attrs.__setitem__('aria-disabled', 'true') }}
+{%- endif -%}
+                                <a {{ render_attrs(item_attrs) }}>
+                                    {%- if item.icon -%}
+                                        <span class="c-top-bar__user-item-icon" aria-hidden="true">
+                                            {{ item.icon if item.icon is not string else '<svg class="c-top-bar__user-item-icon-svg" aria-hidden="true"><use href="#' ~ item.icon ~ '"></use></svg>' | safe }}
+                                        </span>
+                                    {%- endif -%}
+                                    <span class="c-top-bar__user-item-label">{{ item.label }}</span>
+                                    {%- if item.badge -%}
+                                        {{ render_badge(item.badge.label, variant=item.badge.variant, size='sm') }}
+                                    {%- endif -%}
+                                </a>
+                            {%- endif -%}
+                        {%- endfor -%}
+
+                        {# Theme Toggle Item #}
+                        <hr class="c-top-bar__user-divider" role="separator">
+                        <div class="c-top-bar__user-item c-top-bar__theme-toggle" role="menuitem" tabindex="0" aria-label="Cambiar tema">
+                            <span class="c-top-bar__user-item-icon" aria-hidden="true">
+                                <svg class="c-top-bar__theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="5"></circle>
+                                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                                </svg>
+                                <svg class="c-top-bar__theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden>
+                                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                                </svg>
+                                <svg class="c-top-bar__theme-icon-system" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden>
+                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                                </svg>
+                            </span>
+                            <span class="c-top-bar__user-item-label">Tema</span>
+                            <span class="c-top-bar__theme-current" aria-live="polite"></span>
+                        </div>
+                    </div>
+                </div>
+            {%- endif -%}
+        </div>
+    </div>
+</header>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Side Navigation — Vertical navigation for app layouts
+   ========================================================================== #}
+{% macro render_side_nav(
+    navigation=[],
+    brand=null,
+    collapsed=false,
+    user=null,
+    footer=null,
+    classes='',
+    id='side-nav',
+    aria_label='Navegación lateral',
+    current_role=null,
+    current_permissions=[]
+) -%}
+{%- set filtered_nav = nav_filter(navigation, current_role, current_permissions) -%}
+{%- set nav_classes = ['c-side-nav'] -%}
+{%- if collapsed -%}
+    {{ nav_classes.append('c-side-nav--collapsed') }}
+{%- endif -%}
+{%- if classes -%}
+    {{ nav_classes.append(classes) }}
+{%- endif -%}
+
+{%- set aside_attrs = {'class': nav_classes | join(' '), 'id': id, 'role': 'navigation', 'aria-label': aria_label, 'data-side-nav': ''} -%}
+<aside {{ render_attrs(aside_attrs) }}>
+    {%- if brand -%}
+        <div class="c-side-nav__brand">
+            {%- set logo_attrs = {'class': 'c-side-nav__logo', 'href': brand.href or '/', 'aria-label': brand.label or 'Inicio'} -%}
+            <a {{ render_attrs(logo_attrs) }}>
+                {%- if brand.logo -%}
+                    <img src="{{ brand.logo }}" alt="" class="c-side-nav__logo-img" aria-hidden="true">
+                {%- endif -%}
+                <span class="c-side-nav__logo-text">{{ brand.label }}</span>
+            </a>
+            {%- set toggle_attrs = {
+                'type': 'button',
+                'class': 'c-side-nav__toggle',
+                'aria-label': 'Expandir navegación' if collapsed else 'Colapsar navegación',
+                'aria-expanded': not collapsed,
+                'data-side-nav-toggle': '',
+            } -%}
+            <button {{ render_attrs(toggle_attrs) }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    {%- if collapsed -%}
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    {%- else -%}
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    {%- endif -%}
+                </svg>
+            </button>
+        </div>
+    {%- endif -%}
+    
+    <nav class="c-side-nav__nav">
+        <ul class="c-side-nav__list" role="list">
+            {%- for item in filtered_nav -%}
+                {{ render_side_nav_item(item, collapsed=collapsed, level=0) }}
+            {%- endfor -%}
+        </ul>
+    </nav>
+    
+    {%- if user -%}
+        <div class="c-side-nav__user">
+            {%- if user.avatar -%}
+                <img src="{{ user.avatar }}" alt="" class="c-side-nav__user-avatar" aria-hidden="true">
+            {%- else -%}
+                <div class="c-side-nav__user-avatar c-side-nav__user-avatar--initials" aria-hidden="true">
+                    {{ user.initials or 'U' }}
+                </div>
+            {%- endif -%}
+            <div class="c-side-nav__user-info">
+                <span class="c-side-nav__user-name">{{ user.name }}</span>
+                {%- if user.role -%}
+                    <span class="c-side-nav__user-role">{{ user.role }}</span>
+                {%- endif -%}
+            </div>
+        </div>
+    {%- endif -%}
+    
+    {%- if footer -%}
+        <div class="c-side-nav__footer">
+            {{ footer }}
+        </div>
+    {%- endif -%}
+</aside>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Side Nav Item — Recursive macro for nested navigation
+   ========================================================================== #}
+{% macro render_side_nav_item(item, collapsed=false, level=0) -%}
+{%- set item_classes = ['c-side-nav__item'] -%}
+{%- if item.active -%}
+    {{ item_classes.append('c-side-nav__item--active') }}
+{%- endif -%}
+{%- if item.disabled -%}
+    {{ item_classes.append('c-side-nav__item--disabled') }}
+{%- endif -%}
+{%- if item.children -%}
+    {{ item_classes.append('c-side-nav__item--has-children') }}
+{%- endif -%}
+{%- if level > 0 -%}
+    {{ item_classes.append('c-side-nav__item--nested') }}
+{%- endif -%}
+
+<li class="{{ item_classes | join(' ') }}" style="--c-side-nav-level: {{ level }};">
+    {%- if item.children -%}
+        {%- set btn_attrs = {
+            'type': 'button',
+            'class': 'c-side-nav__link c-side-nav__link--parent',
+            'aria-expanded': item.expanded or false,
+            'aria-controls': item.id ~ '-submenu',
+            'disabled': item.disabled,
+        } -%}
+        <button {{ render_attrs(btn_attrs) }}>
+            {%- if item.icon -%}
+                <span class="c-side-nav__icon" aria-hidden="true">
+                    {{ item.icon if item.icon is not string else '<svg class="c-side-nav__icon-svg" aria-hidden="true"><use href="#' ~ item.icon ~ '"></use></svg>' | safe }}
+                </span>
+            {%- endif -%}
+            <span class="c-side-nav__label">{{ item.label }}</span>
+            <svg class="c-side-nav__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+        </button>
+        {%- set ul_attrs = {'class': 'c-side-nav__sublist', 'id': item.id ~ '-submenu', 'role': 'list'} -%}
+        {%- if not (item.expanded or false) -%}
+    {{ ul_attrs.__setitem__('hidden', true) }}
+{%- endif -%}
+        <ul {{ render_attrs(ul_attrs) }}>
+            {%- for child in item.children -%}
+                {{ render_side_nav_item(child, collapsed=collapsed, level=level+1) }}
+            {%- endfor -%}
+        </ul>
+    {%- else -%}
+        {%- set link_attrs = {'class': 'c-side-nav__link', 'href': item.href} -%}
+        {%- if item.disabled -%}
+    {{ link_attrs.__setitem__('aria-disabled', 'true') }}
+    {{ link_attrs.__setitem__('tabindex', '-1') }}
+{%- endif -%}
+        <a {{ render_attrs(link_attrs) }}>
+            {%- if item.icon -%}
+                <span class="c-side-nav__icon" aria-hidden="true">
+                    {{ item.icon if item.icon is not string else '<svg class="c-side-nav__icon-svg" aria-hidden="true"><use href="#' ~ item.icon ~ '"></use></svg>' | safe }}
+                </span>
+            {%- endif -%}
+            <span class="c-side-nav__label">{{ item.label }}</span>
+            {%- if item.badge -%}
+                {{ render_badge(item.badge.label, variant=item.badge.variant, size='sm', classes='c-side-nav__badge') }}
+            {%- endif -%}
+        </a>
+    {%- endif -%}
+</li>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Page Header — With breadcrumbs, title, and actions
+   ========================================================================== #}
+{% macro render_page_header(
+    title,
+    subtitle=null,
+    breadcrumbs=[],
+    actions=[],
+    back_link=null,
+    classes='',
+    id='page-header',
+    aria_label='Encabezado de página'
+) -%}
+{%- set header_classes = ['c-page-header'] -%}
+{%- if classes -%}
+    {{ header_classes.append(classes) }}
+{%- endif -%}
+
+{%- set header_attrs = {'class': header_classes | join(' '), 'id': id, 'role': 'heading', 'aria-label': aria_label} -%}
+<header {{ render_attrs(header_attrs) }}>
+    <div class="c-page-header__container">
+        {%- if back_link -%}
+            {%- set back_attrs = {'class': 'c-page-header__back', 'href': back_link.href, 'aria-label': back_link.label or 'Volver'} -%}
+            <a {{ render_attrs(back_attrs) }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                <span>{{ back_link.label or 'Volver' }}</span>
+            </a>
+        {%- endif -%}
+        
+        <div class="c-page-header__content">
+            {%- if breadcrumbs -%}
+                <nav class="c-breadcrumb" aria-label="Ruta de navegación" aria-live="polite">
+                    <ol class="c-breadcrumb__list">
+                        {%- for crumb in breadcrumbs -%}
+                            <li class="c-breadcrumb__item">
+                                {%- if loop.last -%}
+                                    <span class="c-breadcrumb__current" aria-current="page">{{ crumb.label }}</span>
+                                {%- else -%}
+                                    <a href="{{ crumb.href }}" class="c-breadcrumb__link">{{ crumb.label }}</a>
+                                    <svg class="c-breadcrumb__separator" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                {%- endif -%}
+                            </li>
+                        {%- endfor -%}
+                    </ol>
+                </nav>
+            {%- endif -%}
+            
+            <div class="c-page-header__titles">
+                <h1 class="c-page-header__title">{{ title }}</h1>
+                {%- if subtitle -%}
+                    <p class="c-page-header__subtitle">{{ subtitle }}</p>
+                {%- endif -%}
+            </div>
+        </div>
+        
+        {%- if actions -%}
+            <div class="c-page-header__actions">
+                {%- for action in actions -%}
+                    {{ render_button(**action) }}
+                {%- endfor -%}
+            </div>
+        {%- endif -%}
+    </div>
+</header>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Search Input Helper — For top bar search
+   ========================================================================== #}
+{% macro render_search_input(
+    placeholder,
+    name,
+    value='',
+    classes='',
+    id=null,
+    aria_label='Buscar',
+    autocomplete='off'
+) -%}
+{%- set input_id = id or 'search-' ~ name -%}
+{%- set search_attrs = {'class': 'c-search-input ' ~ classes, 'role': 'search'} -%}
+<div {{ render_attrs(search_attrs) }}>
+    <label for="{{ input_id }}" class="visually-hidden">{{ aria_label }}</label>
+    {%- set input_attrs = {
+        'type': 'search',
+        'name': name,
+        'id': input_id,
+        'placeholder': placeholder,
+        'value': value,
+        'autocomplete': autocomplete,
+        'class': 'c-search-input__field',
+        'aria-label': aria_label,
+        'autocorrect': 'off',
+        'autocapitalize': 'off',
+        'spellcheck': 'false',
+    } -%}
+    <input {{ render_attrs(input_attrs) }}>
+    <svg class="c-search-input__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+    </svg>
+    <button type="button" class="c-search-input__clear" aria-label="Limpiar búsqueda" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+    </button>
+</div>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Footer — Sticky bottom footer with links and copyright
+   ========================================================================== #}
+{% macro render_footer(
+    links=[],
+    copyright=null,
+    classes='',
+    id='site-footer',
+    aria_label='Pie de página'
+) -%}
+{%- set footer_classes = ['c-footer'] -%}
+{%- if classes -%}
+    {{ footer_classes.append(classes) }}
+{%- endif -%}
+
+{%- set footer_attrs = {'class': footer_classes | join(' '), 'id': id, 'role': 'contentinfo', 'aria-label': aria_label} -%}
+<footer {{ render_attrs(footer_attrs) }}>
+    <div class="c-footer__container">
+        {%- if links -%}
+            <nav class="c-footer__nav" aria-label="Enlaces del pie de página">
+                <ul class="c-footer__nav-list">
+                    {%- for link in links -%}
+                        <li class="c-footer__nav-item">
+                            {%- set link_attrs = {'class': 'c-footer__nav-link', 'href': link.href} -%}
+                            <a {{ render_attrs(link_attrs) }}>{{ link.label }}</a>
+                        </li>
+                    {%- endfor -%}
+                </ul>
+            </nav>
+        {%- endif -%}
+        
+        {%- if copyright -%}
+            <div class="c-footer__copyright">
+                {{ copyright }}
+            </div>
+        {%- endif -%}
+    </div>
+</footer>
+{%- endmacro -%}

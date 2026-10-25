@@ -1,0 +1,329 @@
+{# ==========================================================================
+   ECJY Design System — Modal Macro
+   ==========================================================================
+   Renders accessible modal dialogs with focus trap, ESC close, overlay click, and stack management.
+   Uses BEM-ish class prefix: c-modal
+   ========================================================================== #}
+
+{% from 'macros/_helpers.html' import render_attrs, merge_classes %}
+{% from 'macros/buttons.html' import render_button, render_button_group %}
+{% from 'macros/forms.html' import render_input, render_select, render_textarea, render_checkbox, render_radio_group, render_form_layout, render_form_actions, render_field_group, render_field_errors %}
+
+{% macro render_modal(
+    id,
+    title,
+    content=null,
+    footer=null,
+    size='md',
+    variant='default',
+    close_on_overlay=true,
+    close_on_escape=true,
+    show_close_button=true,
+    centered=true,
+    scrollable=false,
+    open=false,
+    aria_describedby=null,
+    classes='',
+    wrapper_classes='',
+    overlay_classes='',
+    header_classes='',
+    body_classes='',
+    footer_classes=''
+) -%}
+{%- set size_classes = {
+    'sm': 'c-modal--sm',
+    'md': 'c-modal--md',
+    'lg': 'c-modal--lg',
+    'xl': 'c-modal--xl',
+    'full': 'c-modal--full',
+} -%}
+
+{%- set variant_classes = {
+    'default': 'c-modal--default',
+    'confirmation': 'c-modal--confirmation',
+    'form': 'c-modal--form',
+    'alert': 'c-modal--alert',
+} -%}
+
+{%- set modal_classes = ['c-modal', size_classes.get(size, size_classes['md']), variant_classes.get(variant, variant_classes['default'])] -%}
+{%- if centered %} -%}
+    {{ modal_classes.append('c-modal--centered') }}
+{% endif -%}
+{%- if scrollable %} -%}
+    {{ modal_classes.append('c-modal--scrollable') }}
+{% endif -%}
+{%- if open %} -%}
+    {{ modal_classes.append('c-modal--open') }}
+{% endif -%}
+{%- if classes %} -%}
+    {{ modal_classes.append(classes) }}
+{% endif -%}
+
+{%- set wrapper_classes_list = ['c-modal__wrapper'] -%}
+{%- if wrapper_classes %} -%}
+    {{ wrapper_classes_list.append(wrapper_classes) }}
+{% endif -%}
+
+{%- set describedby_ids = [] -%}
+{%- if content and content is not callable %} -%}
+    {{ describedby_ids.append(id ~ '-content') }}
+{% endif -%}
+{%- if aria_describedby %} -%}
+    {{ describedby_ids.append(aria_describedby) }}
+{% endif -%}
+
+{%- set wrapper_attrs = {'class': wrapper_classes_list | join(' '), 'id': id ~ '-wrapper', 'data-modal-wrapper': ''} -%}
+<div {{ render_attrs(wrapper_attrs) }}>
+    {%- set overlay_attrs = {'class': 'c-modal__overlay ' ~ overlay_classes, 'id': id ~ '-overlay', 'role': 'presentation', 'aria-hidden': 'true', 'data-modal-overlay': id} -%}
+    {%- if close_on_overlay %} -%}
+    {{ overlay_attrs.__setitem__('onclick', "document.getElementById('" ~ id ~ "').dispatchEvent(new CustomEvent('modal:overlay-click'))") }}
+{% endif -%}
+    <div {{ render_attrs(overlay_attrs) }}></div>
+    
+    {%- set modal_attrs = {
+        'class': modal_classes | join(' '),
+        'id': id,
+        'role': 'dialog',
+        'aria-modal': 'true',
+        'aria-labelledby': id ~ '-title',
+        'aria-describedby': describedby_ids | join(' ') if describedby_ids else '',
+        'tabindex': '-1',
+        'data-modal': '',
+        'data-modal-close-on-overlay': close_on_overlay,
+        'data-modal-close-on-escape': close_on_escape,
+        'aria-hidden': 'true' if not open else 'false',
+        'hidden': 'true' if not open else '',
+    } -%}
+    <div {{ render_attrs(modal_attrs) }}>
+        
+        <div class="c-modal__container">
+            {%- if title or show_close_button -%}
+                <header class="c-modal__header {{ header_classes }}">
+                    <h2 class="c-modal__title" id="{{ id }}-title">{{ title }}</h2>
+                    {%- if show_close_button -%}
+                        {%- set close_attrs = {
+                            'type': 'button',
+                            'class': 'c-modal__close',
+                            'aria-label': 'Cerrar modal',
+                            'onclick': "document.getElementById('" ~ id ~ "').dispatchEvent(new CustomEvent('modal:close'))",
+                        } -%}
+                        <button {{ render_attrs(close_attrs) }}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    {%- endif -%}
+                </header>
+            {%- endif -%}
+            
+            <div class="c-modal__body {{ body_classes }}" id="{{ id }}-content" role="document">
+                {{ content if content is not none else caller() if caller else '' }}
+            </div>
+            
+            {%- if footer -%}
+                <footer class="c-modal__footer {{ footer_classes }}">
+                    {{ footer }}
+                </footer>
+            {%- endif -%}
+        </div>
+    </div>
+</div>
+
+<script type="application/json" data-modal-config="{{ id }}">
+{
+    "id": "{{ id }}",
+    "closeOnOverlay": {{ 'true' if close_on_overlay else 'false' }},
+    "closeOnEscape": {{ 'true' if close_on_escape else 'false' }},
+    "stackManagement": true
+}
+</script>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Modal Helpers — For common modal patterns
+   ========================================================================== #}
+
+{% macro render_confirm_modal(
+    id,
+    title,
+    message,
+    confirm_text='Confirmar',
+    cancel_text='Cancelar',
+    confirm_variant='danger',
+    cancel_variant='ghost',
+    size='sm',
+    open=false,
+    on_confirm=null,
+    on_cancel=null
+) -%}
+{{ render_modal(
+    id=id,
+    title=title,
+    size=size,
+    variant='confirmation',
+    open=open,
+    content=message,
+    footer=render_button_group([
+        {'label': cancel_text, 'variant': cancel_variant, 'onclick': on_cancel or ("document.getElementById('" ~ id ~ "').dispatchEvent(new CustomEvent('modal:close'))")},
+        {'label': confirm_text, 'variant': confirm_variant, 'onclick': on_confirm},
+    ], alignment='end')
+) }}
+{%- endmacro -%}
+
+{% macro render_alert_modal(
+    id,
+    title,
+    message,
+    confirm_text='Entendido',
+    confirm_variant='primary',
+    size='sm',
+    open=false,
+    on_confirm=null
+) -%}
+{{ render_modal(
+    id=id,
+    title=title,
+    size=size,
+    variant='alert',
+    open=open,
+    content=message,
+    footer=render_button_group([
+        {'label': confirm_text, 'variant': confirm_variant, 'onclick': on_confirm or ("document.getElementById('" ~ id ~ "').dispatchEvent(new CustomEvent('modal:close'))")},
+    ], alignment='end')
+) }}
+{%- endmacro -%}
+
+{% macro render_form_modal(
+    id,
+    title,
+    fields=[],
+    action='',
+    method='POST',
+    submit_label='Guardar',
+    cancel_label='Cancelar',
+    submit_variant='primary',
+    cancel_variant='ghost',
+    size='md',
+    open=false,
+    on_submit=null,
+    on_cancel=null,
+    form_id=null,
+    form_classes='',
+    form_novalidate=false,
+    form_enctype='application/x-www-form-urlencoded',
+    form_autocomplete='on',
+    errors={}
+) -%}
+{%- set form_id_value = form_id or (id ~ '-form') -%}
+{%- set form_fields = [] -%}
+{%- for field in fields -%}
+    {%- set field_error = errors.get(field.name) if errors else none -%}
+    {%- if field.type == 'select' -%}
+        {{ form_fields.append(render_select(
+            name=field.name,
+            options=field.options,
+            label=field.label,
+            value=field.value,
+            placeholder=field.placeholder,
+            required=field.required,
+            disabled=field.disabled,
+            error=field_error,
+            hint=field.hint,
+            multiple=field.multiple,
+            searchable=field.searchable,
+            id=field.id,
+            option_key=field.option_key,
+            option_label=field.option_label,
+        )) }}
+    {%- elif field.type == 'textarea' -%}
+        {{ form_fields.append(render_textarea(
+            name=field.name,
+            label=field.label,
+            value=field.value,
+            placeholder=field.placeholder,
+            required=field.required,
+            disabled=field.disabled,
+            error=field_error,
+            hint=field.hint,
+            rows=field.rows,
+            id=field.id,
+        )) }}
+    {%- elif field.type == 'checkbox' -%}
+        {{ form_fields.append(render_checkbox(
+            name=field.name,
+            label=field.label,
+            value=field.value,
+            checked=field.checked,
+            required=field.required,
+            disabled=field.disabled,
+            error=field_error,
+            hint=field.hint,
+            id=field.id,
+        )) }}
+    {%- elif field.type == 'radio' -%}
+        {{ form_fields.append(render_radio_group(
+            name=field.name,
+            options=field.options,
+            label=field.label,
+            value=field.value,
+            required=field.required,
+            disabled=field.disabled,
+            error=field_error,
+            hint=field.hint,
+            inline=field.inline,
+            id=field.id,
+        )) }}
+    {%- else -%}
+        {{ form_fields.append(render_input(
+            name=field.name,
+            label=field.label,
+            type=field.type or 'text',
+            value=field.value,
+            placeholder=field.placeholder,
+            required=field.required,
+            disabled=field.disabled,
+            readonly=field.readonly,
+            error=field_error,
+            hint=field.hint,
+            autocomplete=field.autocomplete,
+            inputmode=field.inputmode,
+            pattern=field.pattern,
+            minlength=field.minlength,
+            maxlength=field.maxlength,
+            min=field.min,
+            max=field.max,
+            step=field.step,
+            id=field.id,
+        )) }}
+    {%- endif -%}
+{%- endfor -%}
+
+{%- set form_content -%}
+    {{ render_form_layout(
+        fields=form_fields,
+        layout='vertical',
+        gap='lg',
+        novalidate=form_novalidate,
+        id=form_id_value,
+        action=action,
+        method=method,
+        enctype=form_enctype,
+        autocomplete=form_autocomplete,
+        classes=form_classes,
+    ) }}
+{%- endset -%}
+
+{{ render_modal(
+    id=id,
+    title=title,
+    size=size,
+    variant='form',
+    open=open,
+    content=form_content,
+    footer=render_button_group([
+        {'label': cancel_label, 'variant': cancel_variant, 'onclick': on_cancel or ("document.getElementById('" ~ id ~ "').dispatchEvent(new CustomEvent('modal:close'))")},
+        {'label': submit_label, 'variant': submit_variant, 'type': 'submit', 'form': form_id_value, 'onclick': on_submit},
+    ], alignment='end')
+) }}
+{%- endmacro -%}

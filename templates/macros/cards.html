@@ -1,0 +1,234 @@
+{# ==========================================================================
+   ECJY Design System — Card Macro
+   ==========================================================================
+   Renders flexible card components with variants and slots.
+   Uses BEM-ish class prefix: c-card
+   ========================================================================== #}
+
+{% from 'macros/_helpers.html' import render_attrs, merge_classes %}
+
+{% macro render_card(
+    title=null,
+    content=null,
+    header_actions=null,
+    footer=null,
+    variant='default',
+    loading=false,
+    clickable=false,
+    href=null,
+    image=null,
+    image_alt=null,
+    image_position='top',
+    classes='',
+    wrapper_classes='',
+    header_classes='',
+    body_classes='',
+    footer_classes='',
+    id=null,
+    aria_label=null
+) -%}
+{%- set variant_classes = {
+    'default': 'c-card--default',
+    'outlined': 'c-card--outlined',
+    'elevated': 'c-card--elevated',
+} -%}
+
+{%- set card_classes = ['c-card', variant_classes.get(variant, variant_classes['default'])] -%}
+{%- if clickable -%}
+    {{ card_classes.append('c-card--clickable') }}
+{%- endif -%}
+{%- if loading -%}
+    {{ card_classes.append('c-card--loading') }}
+{%- endif -%}
+{%- if classes -%}
+    {{ card_classes.append(classes) }}
+{%- endif -%}
+
+{%- set wrapper_classes_list = ['c-card__wrapper'] -%}
+{%- if wrapper_classes -%}
+    {{ wrapper_classes_list.append(wrapper_classes) }}
+{%- endif -%}
+
+{%- set tag = 'a' if href else ('button' if clickable else 'article') -%}
+{%- set card_attrs = {
+    'class': card_classes | join(' '),
+    'id': id,
+    'href': href,
+    'role': 'button' if clickable and not href else '',
+    'aria-label': aria_label,
+    'tabindex': '0' if clickable and not href else '',
+} -%}
+
+<div class="{{ wrapper_classes_list | join(' ') }}">
+    <{{ tag }} {{ render_attrs(card_attrs) }}>
+        {%- if loading -%}
+            <div class="c-card__skeleton" aria-hidden="true" aria-busy="true">
+                {%- if title -%}
+                    <div class="c-skeleton c-skeleton--text c-skeleton--lg" style="width: 60%;"></div>
+                {%- endif -%}
+                <div class="c-skeleton c-skeleton--text" style="width: 100%;"></div>
+                <div class="c-skeleton c-skeleton--text" style="width: 80%;"></div>
+                <div class="c-skeleton c-skeleton--text" style="width: 40%;"></div>
+            </div>
+        {%- else -%}
+            {%- if image and image_position == 'top' -%}
+                <div class="c-card__image">
+                    <img src="{{ image }}" alt="{{ image_alt or '' }}" loading="lazy">
+                </div>
+            {%- endif -%}
+            
+            {%- if title or header_actions -%}
+                <header class="c-card__header {{ header_classes }}">
+                    {%- if title -%}
+                        <div class="c-card__title-wrapper">
+                            <h3 class="c-card__title">{{ title }}</h3>
+                        </div>
+                    {%- endif -%}
+                    {%- if header_actions -%}
+                        <div class="c-card__header-actions">
+                            {{ header_actions }}
+                        </div>
+                    {%- endif -%}
+                </header>
+            {%- endif -%}
+            
+            <div class="c-card__body {{ body_classes }}">
+                {{ content if content is not none else caller() if caller else '' }}
+            </div>
+            
+            {%- if footer -%}
+                <footer class="c-card__footer {{ footer_classes }}">
+                    {{ footer }}
+                </footer>
+            {%- endif -%}
+            
+{%- if image and image_position == 'bottom' -%}
+                <div class="c-card__image">
+                    <img src="{{ image }}" alt="{{ image_alt or '' }}" loading="lazy">
+                </div>
+            {%- endif -%}
+        {%- endif -%}
+        </{{ tag }}>
+    </div>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Card Grid — Layout helper for multiple cards
+   ========================================================================== #}
+{% macro render_card_grid(
+    cards,
+    columns='auto',
+    gap='md',
+    classes='',
+    responsive=true
+) -%}
+{%- set grid_classes = ['c-card-grid'] -%}
+{%- if responsive -%}
+    {{ grid_classes.append('c-card-grid--responsive') }}
+{%- endif -%}
+{%- if classes -%}
+    {{ grid_classes.append(classes) }}
+{%- endif -%}
+
+{%- set grid_attrs = {
+    'class': grid_classes | join(' '),
+    'style': '--c-card-grid-columns: ' ~ columns ~ '; --c-card-grid-gap: var(--space-' ~ gap ~ ');',
+} -%}
+<div {{ render_attrs(grid_attrs) }}>
+    {%- for card in cards -%}
+        {{ card }}
+    {%- endfor -%}
+</div>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Card List — Stacked cards for dense layouts
+   ========================================================================== #}
+{% macro render_card_list(
+    cards,
+    divided=true,
+    classes=''
+) -%}
+{%- set list_classes = ['c-card-list'] -%}
+{%- if divided -%}
+    {{ list_classes.append('c-card-list--divided') }}
+{%- endif -%}
+{%- if classes -%}
+    {{ list_classes.append(classes) }}
+{%- endif -%}
+
+<div class="{{ list_classes | join(' ') }}">
+    {%- for card in cards -%}
+        {{ card }}
+    {%- endfor -%}
+</div>
+{%- endmacro -%}
+
+{# ==========================================================================
+   Stat Card — Specialized card for metrics/KPIs
+   ========================================================================== #}
+{% macro render_stat_card(
+    label,
+    value,
+    change=null,
+    change_label=null,
+    trend=null,
+    icon=null,
+    variant='default',
+    classes=''
+) -%}
+{%- set trend_classes = {
+    'up': 'c-stat-card__trend--up',
+    'down': 'c-stat-card__trend--down',
+    'neutral': 'c-stat-card__trend--neutral',
+} -%}
+
+{%- set variant_classes = {
+    'default': 'c-card--default',
+    'outlined': 'c-card--outlined',
+    'elevated': 'c-card--elevated',
+} -%}
+
+{%- set card_classes = ['c-card', 'c-card--stat', variant_classes.get(variant, variant_classes['default'])] -%}
+{%- if classes -%}
+    {{ card_classes.append(classes) }}
+{%- endif -%}
+
+{%- set card_attrs = {'class': card_classes | join(' ')} -%}
+<div {{ render_attrs(card_attrs) }}>
+    <div class="c-stat-card__content">
+        <div class="c-stat-card__header">
+            <span class="c-stat-card__label">{{ label }}</span>
+            {%- if icon -%}
+                <div class="c-stat-card__icon" aria-hidden="true">
+                    {{ icon if icon is not string else '<svg class="c-stat-card__icon-svg" aria-hidden="true"><use href="#' ~ icon ~ '"></use></svg>' | safe }}
+                </div>
+            {%- endif -%}
+        </div>
+        <div class="c-stat-card__value">{{ value }}</div>
+        {%- if change is not none -%}
+            <div class="c-stat-card__change {{ trend_classes.get(trend, 'c-stat-card__trend--neutral') }}">
+                {%- if trend == 'up' -%}
+                    <svg class="c-stat-card__trend-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                        <polyline points="17 6 23 6 23 12"></polyline>
+                    </svg>
+                {%- elif trend == 'down' -%}
+                    <svg class="c-stat-card__trend-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="1 6 10.5 15.5 15.5 10.5 23 18"></polyline>
+                        <polyline points="7 6 1 6 1 12"></polyline>
+                    </svg>
+                {%- else -%}
+                    <svg class="c-stat-card__trend-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                {%- endif -%}
+                <span class="c-stat-card__change-value">{{ change }}</span>
+                {%- if change_label -%}
+                    <span class="c-stat-card__change-label">{{ change_label }}</span>
+                {%- endif -%}
+            </div>
+        {%- endif -%}
+    </div>
+</div>
+{%- endmacro -%}

@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% from 'macros.html' import macros %}
+
+{% block content %}
+{% if g.design_system %}
+{# ==========================================================================
+   NEW DESIGN SYSTEM — Nuevo Proveedor
+   ========================================================================== #}
+<div class="c-card" style="max-width: 700px;">
+    <header class="c-card__header">
+        <h2 class="c-card__title">Nuevo Proveedor</h2>
+    </header>
+
+    <div class="c-card__body">
+        <form id="form_proveedor" data-validation novalidate>
+            {{ macros.render_input('prov_nombre', label='Nombre *', required=true, placeholder='Nombre del proveedor', id='prov_nombre', autocomplete='off') }}
+
+            {# CUIT with async validation #}
+            {{ macros.render_input('prov_cuit', label='CUIT', placeholder='XX-XXXXXXXX-X', id='prov_cuit', autocomplete='off', pattern='^\d{2}-?\d{8}-?\d$', title='Formato: XX-XXXXXXXX-X') }}
+
+            {{ macros.render_field_group([
+                macros.render_input('prov_telefono', label='Teléfono', placeholder='Teléfono de contacto', id='prov_telefono', autocomplete='off'),
+                macros.render_input('prov_email', label='Email', type='email', placeholder='email@proveedor.com', id='prov_email', autocomplete='off'),
+            ], layout='horizontal', gap='md') }}
+
+            {{ macros.render_input('prov_direccion', label='Dirección', placeholder='Dirección completa', id='prov_direccion') }}
+
+            {# Form Actions #}
+            {{ macros.render_form_actions([
+                {'type': 'button', 'props': {'label': 'Guardar', 'variant': 'success', 'type': 'button', 'onclick': 'guardar_proveedor()'}},
+                {'type': 'button', 'props': {'label': 'Cancelar', 'variant': 'ghost', 'type': 'button', 'onclick': 'cerrar_formulario()'}},
+            ], alignment='end', gap='md') }}
+        </form>
+    </div>
+</div>
+
+<script>
+async function guardar_proveedor() {
+    const form = document.getElementById('form_proveedor');
+    const validation = form._dsFormValidation;
+    
+    if (validation) {
+        const isValid = await validation.validateForm();
+        if (!isValid) return;
+    } else {
+        // Fallback validation
+        const nombre = document.getElementById('prov_nombre').value.trim();
+        if (!nombre) {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.error('El nombre es requerido');
+            } else {
+                alert('El nombre es requerido');
+            }
+            return;
+        }
+    }
+
+    const btn = event.target;
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/stock/api/proveedor', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                nombre: document.getElementById('prov_nombre').value.trim(),
+                cuit: document.getElementById('prov_cuit').value,
+                telefono: document.getElementById('prov_telefono').value,
+                email: document.getElementById('prov_email').value,
+                direccion: document.getElementById('prov_direccion').value
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.ok) {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.success(data.msg);
+            } else {
+                alert(data.msg);
+            }
+            location.reload();
+        } else {
+            if (window.DesignSystem && DesignSystem.Toast) {
+                DesignSystem.Toast.error(data.msg || 'Error al guardar');
+            } else {
+                alert(data.msg || 'Error al guardar');
+            }
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        if (window.DesignSystem && DesignSystem.Toast) {
+            DesignSystem.Toast.error('Error al guardar el proveedor');
+        } else {
+            alert('Error al guardar el proveedor');
+        }
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function cerrar_formulario() {
+    document.getElementById('form_proveedor').reset();
+    const modal = document.getElementById('modal_nuevo_proveedor');
+    if (modal && modal._dsModal) {
+        modal._dsModal.close();
+    } else {
+        document.getElementById('form_nuevo').style.display = 'none';
+    }
+}
+</script>
+{% else %}
+{# ==========================================================================
+   LEGACY — Nuevo Proveedor (from proveedores.html)
+   ========================================================================== #}
+<div id="form_nuevo" style="background:#f8f9fa; padding:15px; margin-bottom:20px; border-radius:8px;">
+    <h3 style="margin-bottom:15px;">Nuevo Proveedor</h3>
+    <div class="row">
+        <div class="col">
+            <div class="form-group">
+                <label>Nombre *</label>
+                <input type="text" id="prov_nombre" required>
+            </div>
+        </div>
+        <div class="col">
+            <div class="form-group">
+                <label>CUIT</label>
+                <input type="text" id="prov_cuit">
+            </div>
+        </div>
+        <div class="col">
+            <div class="form-group">
+                <label>Telefono</label>
+                <input type="text" id="prov_telefono">
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="prov_email">
+            </div>
+        </div>
+        <div class="col">
+            <div class="form-group">
+                <label>Direccion</label>
+                <input type="text" id="prov_direccion">
+            </div>
+        </div>
+    </div>
+    <button class="btn btn-success" onclick="guardar_proveedor()">Guardar</button>
+    <button class="btn" onclick="document.getElementById('form_nuevo').style.display='none'">Cancelar</button>
+</div>
+
+<script>
+function guardar_proveedor() {
+    const nombre = document.getElementById('prov_nombre').value.trim();
+    if (!nombre) {
+        alert('El nombre es requerido');
+        return;
+    }
+
+    fetch('/stock/api/proveedor', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            nombre: nombre,
+            cuit: document.getElementById('prov_cuit').value,
+            telefono: document.getElementById('prov_telefono').value,
+            email: document.getElementById('prov_email').value,
+            direccion: document.getElementById('prov_direccion').value
+        })
+    }).then(r => r.json()).then(data => {
+        if (data.ok) {
+            location.reload();
+        } else {
+            alert(data.msg);
+        }
+    });
+}
+</script>
+{% endif %}
+{% endblock %}

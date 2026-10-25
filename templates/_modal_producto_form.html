@@ -1,0 +1,89 @@
+{# ==========================================================================
+   ECJY Design System — Producto Form Modal Partial
+   Used by HTMX to load create/edit modals
+   ========================================================================== #}
+{% from 'macros.html' import macros %}
+{% from 'macros/forms.html' import render_input, render_select, render_textarea, render_field_group %}
+
+{%- set form_id = 'form_producto_' ~ action -%}
+{%- set modal_id = 'modal_producto_' ~ action -%}
+{%- set title = 'Nuevo Producto' if action == 'create' else 'Editar Producto' -%}
+{%- set errors = errors or {} -%}
+{%- set p = producto -%}
+
+{{ macros.render_form_modal(
+    id=modal_id,
+    title=title,
+    form_content=render_form_producto(),
+    submit_label=submit_label,
+    cancel_label=cancel_label,
+    submit_variant='success',
+    cancel_variant='ghost',
+    size='lg',
+    on_submit='guardarProductoModal("' ~ action ~ '")'
+) }}
+
+{% macro render_form_producto() -%}
+<form id="{{ form_id }}" data-validation novalidate hx-post="{{ url_for('producto_create') if action == 'create' else url_for('producto_edit', sku=p.sku) }}" hx-target="#{{ modal_id }}-content" hx-swap="innerHTML">
+    {%- if action == 'edit' -%}
+    <input type="hidden" name="sku" value="{{ p.sku }}">
+    {%- endif -%}
+    
+    {{ macros.render_field_group([
+        render_input('sku', label='SKU *', required=(action=='create'), disabled=(action=='edit'), value=p.sku if p else '', placeholder='Código único', id='prod_sku', autocomplete='off', error=errors.get('sku')),
+        render_input('cod_barra', label='Código de Barra', value=p.cod_barra if p else '', placeholder='Código de barras', id='prod_cod_barra', autocomplete='off'),
+    ], layout='horizontal', gap='md') }}
+    
+    {{ render_input('nombre', label='Nombre *', required=true, value=p.nombre if p else '', placeholder='Nombre del producto', id='prod_nombre', autocomplete='off', error=errors.get('nombre')) }}
+    
+    {{ render_textarea('descripcion', label='Descripción', value=p.descripcion if p else '', placeholder='Descripción opcional', id='prod_descripcion', rows=3) }}
+    
+    {{ macros.render_field_group([
+        render_select('tipo', 
+            options=[{'value': 'P', 'label': 'Producto'}, {'value': 'S', 'label': 'Servicio'}, {'value': 'C', 'label': 'Combo'}],
+            label='Tipo', value=p.tipo if p else 'P', required=true, id='prod_tipo'),
+        render_select('estado',
+            options=[{'value': 'A', 'label': 'Activo'}, {'value': 'I', 'label': 'Inactivo'}, {'value': 'B', 'label': 'Baja'}],
+            label='Estado', value=p.estado if p else 'A', required=true, id='prod_estado'),
+    ], layout='horizontal', gap='md') }}
+    
+    {{ macros.render_field_group([
+        render_input('rubro', label='Rubro', value=p.rubro if p else '', placeholder='Rubro', id='prod_rubro', autocomplete='off'),
+        render_input('subrubro', label='Subrubro', value=p.subrubro if p else '', placeholder='Subrubro', id='prod_subrubro', autocomplete='off'),
+    ], layout='horizontal', gap='md') }}
+    
+    {{ macros.render_field_group([
+        render_input('cod_proveedor', label='Cód. Proveedor', value=p.cod_proveedor if p else '', placeholder='Código interno proveedor', id='prod_cod_proveedor', autocomplete='off'),
+        render_input('deposito', label='Depósito', value=p.deposito if p else 'Principal', placeholder='Depósito', id='prod_deposito', autocomplete='off'),
+    ], layout='horizontal', gap='md') }}
+    
+    {{ macros.render_field_group([
+        render_input('precio', label='Precio', type='number', step='0.01', min='0', value=p.precio if p else 0, placeholder='0.00', id='prod_precio', autocomplete='off', error=errors.get('precio')),
+        render_input('costo', label='Costo', type='number', step='0.01', min='0', value=p.costo if p else 0, placeholder='0.00', id='prod_costo', autocomplete='off', error=errors.get('costo')),
+        render_input('tasa_iva', label='IVA %', type='number', step='0.01', min='0', max='100', value=p.tasa_iva if p else 21, placeholder='21.00', id='prod_tasa_iva', autocomplete='off'),
+    ], layout='horizontal', gap='md') }}
+    
+    {{ macros.render_field_group([
+        render_input('stock', label='Stock', type='number', step='1', min='0', value=p.stock if p else 0, placeholder='0', id='prod_stock', autocomplete='off'),
+        render_input('stock_min', label='Stock Mínimo', type='number', step='1', min='0', value=p.stock_min if p else 0, placeholder='0', id='prod_stock_min', autocomplete='off'),
+    ], layout='horizontal', gap='md') }}
+    
+    {{ render_textarea('observaciones', label='Observaciones', value=p.observaciones if p else '', placeholder='Observaciones internas', id='prod_observaciones', rows=2) }}
+</form>
+{%- endmacro -%}
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('{{ modal_id }}');
+    const form = document.getElementById('{{ form_id }}');
+    
+    if (modal && modal._dsModal) {
+        modal._dsModal.updateFocusableElements();
+        modal._dsModal.focusFirstElement();
+    }
+    
+    if (form && !form._dsFormValidation && window.DesignSystem && DesignSystem.FormValidation) {
+        form._dsFormValidation = new DesignSystem.FormValidation(form);
+    }
+});
+</script>
