@@ -11,11 +11,11 @@
     "test:modal-crud": "cypress run --spec \"cypress/e2e/modal-crud.cy.js\"",
     "lint": "echo \"No linter configured\"",
     "format": "echo \"No formatter configured\"",
-    "vr:capture": "playwright test tests/visual-regression/vr-capture.spec.ts --reporter=line",
-    "vr:update": "UPDATE_BASELINE=true playwright test tests/visual-regression/vr-capture.spec.ts --reporter=line",
-    "vr:compare": "playwright test tests/visual-regression/vr-compare.spec.ts --reporter=line",
-    "a11y:scan": "playwright test tests/a11y/a11y-scan.spec.ts --reporter=line",
-    "a11y:baseline": "UPDATE_BASELINE=true playwright test tests/a11y/a11y-baseline.spec.ts --reporter=line"
+    "vr:capture": "npx playwright test tests/visual-regression/vr-capture.spec.ts --reporter=line",
+    "vr:update": "UPDATE_BASELINE=true npx playwright test tests/visual-regression/vr-capture.spec.ts --reporter=line",
+    "vr:compare": "npx playwright test tests/visual-regression/vr-compare.spec.ts --reporter=line",
+    "a11y:scan": "npx playwright test tests/a11y/a11y-scan.spec.ts --reporter=line",
+    "a11y:baseline": "UPDATE_BASELINE=true npx playwright test tests/a11y/a11y-baseline.spec.ts --reporter=line"
   },
   "devDependencies": {
     "cypress": "^13.15.0",
