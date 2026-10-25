@@ -190,8 +190,10 @@ for (const pagePath of pageConfig.a11yPages) {
   });
 }
 
-// Additional focused a11y tests
-test.describe('A11y: Focused Tests', () => {
+// Additional focused a11y tests (skipped during baseline update)
+const skipFocusedTests = UPDATE_BASELINE ? test.describe.skip : test.describe;
+
+skipFocusedTests('A11y: Focused Tests', () => {
   test('Skip link functional', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await login(page);
