@@ -49,7 +49,8 @@ def design_system_flag():
     if 'design_system' not in session:
         session['design_system'] = 'legacy'
     
-    # Expose to templates via request (legacy templates still use this)
+    # Expose to templates via g (new templates) and request (legacy templates)
+    g.design_system = session['design_system'] == 'new'
     request.design_system = session['design_system']
 
 db_uri = os.environ.get('DATABASE_URL', 'sqlite:///stock.db')
