@@ -169,7 +169,7 @@ def login_required(f):
         if 'usuario' not in session:
             if request.path.startswith('/api/'):
                 return jsonify({'ok': False, 'msg': 'No autenticado'}), 401
-            return redirect('/stock/login')
+            return redirect('/login')
         rol = session.get('rol')
         permisos = PERMISOS.get(rol, [])
         ruta = request.path
@@ -264,7 +264,7 @@ def register():
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect('/stock/login')
+    return redirect('/login')
 
 @app.route('/')
 @login_required

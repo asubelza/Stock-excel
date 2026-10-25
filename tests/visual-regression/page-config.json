@@ -30,7 +30,7 @@
   "pages": {
     "auth": [
       {
-        "path": "/stock/login",
+        "path": "/login",
         "name": "login",
         "requiresAuth": false,
         "designSystem": true,
