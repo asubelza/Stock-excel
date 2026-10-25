@@ -122,7 +122,7 @@ jobs:
       - name: Install deps & browsers (via npx pnpm@9)
         run: |
           npx pnpm@9 install --frozen-lockfile
-          npx pnpm@9 exec playwright install --with-deps chromium firefox
+          npx pnpm@9 exec playwright install --with-deps
       
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -235,7 +235,7 @@ jobs:
       - name: Install deps & browsers (via npx pnpm@9)
         run: |
           npx pnpm@9 install --frozen-lockfile
-          npx pnpm@9 exec playwright install --with-deps chromium firefox
+          npx pnpm@9 exec playwright install --with-deps
       
       - name: Cache Playwright browsers
         uses: actions/cache@v4
