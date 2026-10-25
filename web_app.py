@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, g
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flasgger import Swagger
@@ -24,10 +24,16 @@ app.secret_key = os.environ.get('SECRET_KEY', 'stock-secret-key-2024')
 # ==========================================================================
 @app.context_processor
 def design_system_context():
-    """Inject design system flag into all templates."""
-    # Read from env var, default to False (legacy mode)
+    """Inject design system flag into all templates.
+    
+    The real Flask `g` object is set in before_request based on session/design param.
+    This context processor ensures `g` is available in templates even if before_request
+    hasn't run (e.g., for static pages or error handlers).
+    """
     enabled = os.environ.get('DESIGN_SYSTEM_ENABLED', 'false').lower() in ('true', '1', 'yes')
-    return {'g': type('obj', (object,), {'design_system': enabled})()}
+    # Provide fallback if g.design_system not set by before_request
+    design_system = getattr(g, 'design_system', enabled)
+    return {'g': type('obj', (object,), {'design_system': design_system})()}
 
 
 # ==========================================================================
