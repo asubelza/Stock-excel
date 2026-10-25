@@ -1,0 +1,310 @@
+{
+  "version": "1.0",
+  "description": "New Design System page list - used by both Visual Regression and A11y Gate. Keep in sync with template migration status.",
+  "lastUpdated": "2026-10-09",
+  "updatedBy": "Phase 4 implementation",
+  
+  "pages": [
+    {
+      "path": "/stock/login",
+      "name": "login",
+      "title": "Login",
+      "category": "auth",
+      "designSystem": true,
+      "migrated": true,
+      "template": "auth/login.html",
+      "requiresAuth": false,
+      "roles": ["all"],
+      "description": "Login page with new design system"
+    },
+    {
+      "path": "/stock/register",
+      "name": "register",
+      "title": "Register",
+      "category": "auth",
+      "designSystem": true,
+      "migrated": true,
+      "template": "auth/register.html",
+      "requiresAuth": false,
+      "roles": ["all"],
+      "description": "User registration page"
+    },
+    {
+      "path": "/stock/",
+      "name": "stock-list",
+      "title": "Stock",
+      "category": "list",
+      "designSystem": true,
+      "migrated": true,
+      "template": "stock.html",
+      "requiresAuth": true,
+      "roles": ["admin", "deposito", "datainput", "consulta"],
+      "description": "Main stock list page with data table"
+    },
+    {
+      "path": "/stock/historico",
+      "name": "historico",
+      "title": "Histórico",
+      "category": "list",
+      "designSystem": true,
+      "migrated": true,
+      "template": "historico.html",
+      "requiresAuth": true,
+      "roles": ["admin", "deposito", "datainput", "consulta"],
+      "description": "Historical movements list"
+    },
+    {
+      "path": "/stock/entrada",
+      "name": "entrada-list",
+      "title": "Entradas",
+      "category": "list",
+      "designSystem": true,
+      "migrated": true,
+      "template": "entrada.html",
+      "requiresAuth": true,
+      "roles": ["admin", "deposito", "datainput"],
+      "description": "Entrada movements list"
+    },
+    {
+      "path": "/stock/salida",
+      "name": "salida-list",
+      "title": "Salidas",
+      "category": "list",
+      "designSystem": true,
+      "migrated": true,
+      "template": "salida.html",
+      "requiresAuth": true,
+      "roles": ["admin", "deposito"],
+      "description": "Salida movements list"
+    },
+    {
+      "path": "/stock/proveedores",
+      "name": "proveedores",
+      "title": "Proveedores",
+      "category": "list",
+      "designSystem": true,
+      "migrated": true,
+      "template": "proveedores.html",
+      "requiresAuth": true,
+      "roles": ["admin"],
+      "description": "Suppliers list"
+    },
+    {
+      "path": "/stock/clientes",
+      "name": "clientes",
+      "title": "Clientes",
+      "category": "list",
+      "designSystem": true,
+      "migrated": true,
+      "template": "clientes.html",
+      "requiresAuth": true,
+      "roles": ["admin"],
+      "description": "Customers list"
+    },
+    {
+      "path": "/stock/usuarios",
+      "name": "usuarios",
+      "title": "Usuarios",
+      "category": "list",
+      "designSystem": true,
+      "migrated": true,
+      "template": "usuarios.html",
+      "requiresAuth": true,
+      "roles": ["admin"],
+      "description": "Users management (admin only)"
+    },
+    {
+      "path": "/stock/nuevo_producto",
+      "name": "nuevo-producto",
+      "title": "Nuevo Producto",
+      "category": "create",
+      "designSystem": true,
+      "migrated": true,
+      "template": "nuevo_producto.html",
+      "requiresAuth": true,
+      "roles": ["admin", "deposito", "datainput"],
+      "description": "Create product page with modal",
+      "modalTriggers": ["create-product", "edit-product", "delete-product"]
+    },
+    {
+      "path": "/stock/nuevo_proveedor",
+      "name": "nuevo-proveedor",
+      "title": "Nuevo Proveedor",
+      "category": "create",
+      "designSystem": true,
+      "migrated": true,
+      "template": "nuevo_proveedor.html",
+      "requiresAuth": true,
+      "roles": ["admin"],
+      "description": "Create supplier page with modal",
+      "modalTriggers": ["create-supplier", "edit-supplier"]
+    },
+    {
+      "path": "/stock/nuevo_cliente",
+      "name": "nuevo-cliente",
+      "title": "Nuevo Cliente",
+      "category": "create",
+      "designSystem": true,
+      "migrated": true,
+      "template": "nuevo_cliente.html",
+      "requiresAuth": true,
+      "roles": ["admin"],
+      "description": "Create customer page with modal",
+      "modalTriggers": ["create-customer", "edit-customer"]
+    },
+    {
+      "path": "/stock/nueva_entrada",
+      "name": "nueva-entrada",
+      "title": "Nueva Entrada",
+      "category": "create",
+      "designSystem": true,
+      "migrated": true,
+      "template": "nueva_entrada.html",
+      "requiresAuth": true,
+      "roles": ["admin", "deposito", "datainput"],
+      "description": "New entrada form page"
+    },
+    {
+      "path": "/stock/nueva_salida",
+      "name": "nueva-salida",
+      "title": "Nueva Salida",
+      "category": "create",
+      "designSystem": true,
+      "migrated": true,
+      "template": "nueva_salida.html",
+      "requiresAuth": true,
+      "roles": ["admin", "deposito"],
+      "description": "New salida form page"
+    },
+    {
+      "path": "/stock/importar_excel",
+      "name": "importar-excel",
+      "title": "Importar Excel",
+      "category": "detail",
+      "designSystem": true,
+      "migrated": true,
+      "template": "importar.html",
+      "requiresAuth": true,
+      "roles": ["admin", "datainput"],
+      "description": "Excel import page"
+    }
+  ],
+  
+  "modals": [
+    {
+      "name": "create-product-modal",
+      "triggerPage": "/stock/",
+      "triggerSelector": "[data-cy='create-product']",
+      "modalSelector": ".c-modal",
+      "description": "Create product modal"
+    },
+    {
+      "name": "edit-product-modal",
+      "triggerPage": "/stock/",
+      "triggerSelector": "[data-cy='edit-product']",
+      "modalSelector": ".c-modal",
+      "description": "Edit product modal",
+      "precondition": "createTestProduct"
+    },
+    {
+      "name": "delete-product-modal",
+      "triggerPage": "/stock/",
+      "triggerSelector": "[data-cy='delete-product']",
+      "modalSelector": ".c-modal",
+      "description": "Confirm delete product modal",
+      "precondition": "createTestProduct"
+    },
+    {
+      "name": "create-supplier-modal",
+      "triggerPage": "/stock/proveedores",
+      "triggerSelector": "[data-cy='create-supplier']",
+      "modalSelector": ".c-modal",
+      "description": "Create supplier modal"
+    },
+    {
+      "name": "edit-supplier-modal",
+      "triggerPage": "/stock/proveedores",
+      "triggerSelector": "[data-cy='edit-supplier']",
+      "modalSelector": ".c-modal",
+      "description": "Edit supplier modal",
+      "precondition": "createTestSupplier"
+    },
+    {
+      "name": "create-customer-modal",
+      "triggerPage": "/stock/clientes",
+      "triggerSelector": "[data-cy='create-customer']",
+      "modalSelector": ".c-modal",
+      "description": "Create customer modal"
+    },
+    {
+      "name": "edit-customer-modal",
+      "triggerPage": "/stock/clientes",
+      "triggerSelector": "[data-cy='edit-customer']",
+      "modalSelector": ".c-modal",
+      "description": "Edit customer modal",
+      "precondition": "createTestCustomer"
+    },
+    {
+      "name": "alert-modal",
+      "triggerPage": "/stock/",
+      "triggerSelector": "[data-cy='alert-modal']",
+      "modalSelector": ".c-modal",
+      "description": "Alert/notification modal"
+    }
+  ],
+  
+  "legacyPages": [
+    {
+      "path": "/stock/",
+      "name": "stock-legacy",
+      "reason": "Fallback for non-design-system users"
+    }
+  ],
+  
+  "excludedFromA11y": [
+    {
+      "path": "/stock/importar_excel",
+      "reason": "Complex file upload, known legacy issues"
+    }
+  ],
+  
+  "suppressionRules": [
+    {
+      "rule": "color-contrast",
+      "pages": ["stock-list", "historico", "entrada-list", "salida-list"],
+      "reason": "Data table row hover states have marginal contrast in compact mode",
+      "impact": "minor",
+      "expires": "2026-12-31"
+    },
+    {
+      "rule": "region",
+      "pages": ["*"],
+      "reason": "Legacy layout structure without explicit landmarks",
+      "impact": "moderate",
+      "expires": "2026-12-31"
+    },
+    {
+      "rule": "landmark-one-main",
+      "pages": ["*"],
+      "reason": "App layout uses role=main but not explicit <main> in all templates",
+      "impact": "moderate",
+      "expires": "2026-12-31"
+    }
+  ],
+  
+  "syncInstructions": {
+    "whenToUpdate": [
+      "New template migrated to new design system",
+      "Template removed or renamed",
+      "Modal added/removed",
+      "Route changed"
+    ],
+    "updateProcess": [
+      "1. Add/remove page from this config",
+      "2. Update template `migrated` status",
+      "3. Run `pnpm vr:update` to capture new baselines",
+      "4. Run `UPDATE_BASELINE=true pnpm a11y:baseline` to update a11y baseline",
+      "4. Commit config + baselines together"
+    ]
+  }
+}

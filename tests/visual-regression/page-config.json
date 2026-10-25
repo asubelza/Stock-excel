@@ -1,0 +1,298 @@
+{
+  "version": "1.0",
+  "description": "Page configuration for Visual Regression and A11y Gate tests. Used by both VR and AG test suites.",
+  "baseUrl": "http://localhost:5000",
+  "designSystemParam": "?design=new",
+  
+  "viewports": [
+    { "name": "mobile", "width": 375, "height": 667 },
+    { "name": "tablet", "width": 768, "height": 1024 },
+    { "name": "desktop", "width": 1440, "height": 900 }
+  ],
+  
+  "browsers": ["chromium", "firefox"],
+  
+  "themes": ["light", "dark"],
+  
+  "ignoreSelectors": [
+    "[data-vr-ignore]",
+    "[data-vr-ignore='timestamp']",
+    "[data-vr-ignore='dynamic-content']",
+    "[data-vr-ignore='user-info']",
+    ".c-toast",
+    ".c-toast-container",
+    "[data-ds-component='toast']",
+    ".c-modal__wrapper[data-open='true']",
+    ".app-layout__sidebar-overlay",
+    ".skip-link:focus"
+  ],
+  
+  "pages": {
+    "auth": [
+      {
+        "path": "/stock/login",
+        "name": "login",
+        "requiresAuth": false,
+        "designSystem": true,
+        "description": "Login page"
+      },
+      {
+        "path": "/stock/register",
+        "name": "register",
+        "requiresAuth": false,
+        "designSystem": true,
+        "description": "Registration page"
+      }
+    ],
+    
+    "list": [
+      {
+        "path": "/stock/",
+        "name": "stock-list",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Main stock list page",
+        "waitForSelector": "[data-cy='products-table']"
+      },
+      {
+        "path": "/stock/historico",
+        "name": "historico",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Historical movements list",
+        "waitForSelector": "[data-cy='historico-table']"
+      },
+      {
+        "path": "/stock/entrada",
+        "name": "entrada-list",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Entrada movements list",
+        "waitForSelector": "[data-cy='entrada-table']"
+      },
+      {
+        "path": "/stock/salida",
+        "name": "salida-list",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Salida movements list",
+        "waitForSelector": "[data-cy='salida-table']"
+      },
+      {
+        "path": "/stock/proveedores",
+        "name": "proveedores",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Suppliers list",
+        "waitForSelector": "[data-cy='proveedores-table']"
+      },
+      {
+        "path": "/stock/clientes",
+        "name": "clientes",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Customers list",
+        "waitForSelector": "[data-cy='clientes-table']"
+      },
+      {
+        "path": "/stock/usuarios",
+        "name": "usuarios",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Users list (admin only)",
+        "waitForSelector": "[data-cy='usuarios-table']",
+        "roles": ["admin"]
+      }
+    ],
+    
+    "create": [
+      {
+        "path": "/stock/nuevo_producto",
+        "name": "nuevo-producto",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Create product modal trigger page",
+        "waitForSelector": "[data-cy='create-product']",
+        "modalTrigger": "[data-cy='create-product']",
+        "modalSelector": ".c-modal"
+      },
+      {
+        "path": "/stock/nuevo_proveedor",
+        "name": "nuevo-proveedor",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Create supplier modal trigger page",
+        "waitForSelector": "[data-cy='create-supplier']",
+        "modalTrigger": "[data-cy='create-supplier']",
+        "modalSelector": ".c-modal"
+      },
+      {
+        "path": "/stock/nuevo_cliente",
+        "name": "nuevo-cliente",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Create customer modal trigger page",
+        "waitForSelector": "[data-cy='create-customer']",
+        "modalTrigger": "[data-cy='create-customer']",
+        "modalSelector": ".c-modal"
+      },
+      {
+        "path": "/stock/nueva_entrada",
+        "name": "nueva-entrada",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "New entrada page with form",
+        "waitForSelector": "[data-cy='entrada-form']"
+      },
+      {
+        "path": "/stock/nueva_salida",
+        "name": "nueva-salida",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "New salida page with form",
+        "waitForSelector": "[data-cy='salida-form']"
+      }
+    ],
+    
+    "detail": [
+      {
+        "path": "/stock/importar_excel",
+        "name": "importar-excel",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Excel import page",
+        "waitForSelector": "[data-cy='import-form']"
+      }
+    ],
+    
+    "modal": [
+      {
+        "path": "/stock/",
+        "name": "create-product-modal",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Create product modal",
+        "modalTrigger": "[data-cy='create-product']",
+        "modalSelector": ".c-modal",
+        "captureModal": true
+      },
+      {
+        "path": "/stock/",
+        "name": "edit-product-modal",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Edit product modal",
+        "modalTrigger": "[data-cy='edit-product']",
+        "modalSelector": ".c-modal",
+        "captureModal": true,
+        "precondition": "createTestProduct"
+      },
+      {
+        "path": "/stock/proveedores",
+        "name": "create-supplier-modal",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Create supplier modal",
+        "modalTrigger": "[data-cy='create-supplier']",
+        "modalSelector": ".c-modal",
+        "captureModal": true
+      },
+      {
+        "path": "/stock/proveedores",
+        "name": "edit-supplier-modal",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Edit supplier modal",
+        "modalTrigger": "[data-cy='edit-supplier']",
+        "modalSelector": ".c-modal",
+        "captureModal": true,
+        "precondition": "createTestSupplier"
+      },
+      {
+        "path": "/stock/clientes",
+        "name": "create-customer-modal",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Create customer modal",
+        "modalTrigger": "[data-cy='create-customer']",
+        "modalSelector": ".c-modal",
+        "captureModal": true
+      },
+      {
+        "path": "/stock/clientes",
+        "name": "edit-customer-modal",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Edit customer modal",
+        "modalTrigger": "[data-cy='edit-customer']",
+        "modalSelector": ".c-modal",
+        "captureModal": true,
+        "precondition": "createTestCustomer"
+      },
+      {
+        "path": "/stock/",
+        "name": "confirm-delete-modal",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Confirm delete modal",
+        "modalTrigger": "[data-cy='delete-product']",
+        "modalSelector": ".c-modal",
+        "captureModal": true,
+        "precondition": "createTestProduct"
+      },
+      {
+        "path": "/stock/",
+        "name": "alert-modal",
+        "requiresAuth": true,
+        "designSystem": true,
+        "description": "Alert/info modal",
+        "modalTrigger": "[data-cy='alert-modal']",
+        "modalSelector": ".c-modal",
+        "captureModal": true
+      }
+    ]
+  },
+  
+  "a11yPages": [
+    "/stock/",
+    "/stock/historico",
+    "/stock/entrada",
+    "/stock/salida",
+    "/stock/proveedores",
+    "/stock/clientes",
+    "/stock/usuarios",
+    "/stock/nuevo_producto",
+    "/stock/nuevo_proveedor",
+    "/stock/nuevo_cliente",
+    "/stock/nueva_entrada",
+    "/stock/nueva_salida",
+    "/stock/importar_excel",
+    "/stock/login"
+  ],
+  
+  "testUsers": {
+    "admin": { "username": "admin", "password": "admin" },
+    "deposito": { "username": "deposito", "password": "depo123" },
+    "datainput": { "username": "datainput", "password": "data123" }
+  },
+  
+  "thresholds": {
+    "visual": {
+      "pixelThreshold": 0.005,
+      "maxDiffPixels": 100
+    },
+    "a11y": {
+      "failOnCritical": true,
+      "failOnSerious": true,
+      "warnOnModerate": true,
+      "warnOnMinor": false
+    }
+  },
+  
+  "gitLfs": {
+    "thresholdKb": 100,
+    "patterns": [
+      "tests/visual-regression/__baselines__/**/*.png"
+    ]
+  }
+}
