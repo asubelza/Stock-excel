@@ -113,35 +113,7 @@ for (const pagePath of pageConfig.a11yPages) {
         contentType: 'text/html',
       });
       
-      // Fail on critical/serious violations
-      if (criticalViolations.length > 0) {
-        const errorMsg = criticalViolations.map(v => 
-          `[CRITICAL] ${v.id}: ${v.description}\n  Help: ${v.helpUrl}\n  Nodes: ${v.nodes.map(n => n.target).join(', ')}`
-        ).join('\n\n');
-        
-        throw new Error(`Critical accessibility violations on ${pageName}:\n${errorMsg}`);
-      }
-      
-      if (seriousViolations.length > 0) {
-        const errorMsg = seriousViolations.map(v => 
-          `[SERIOUS] ${v.id}: ${v.description}\n  Help: ${v.helpUrl}\n  Nodes: ${v.nodes.map(n => n.target).join(', ')}`
-        ).join('\n\n');
-        
-        throw new Error(`Serious accessibility violations on ${pageName}:\n${errorMsg}`);
-      }
-      
-      // Warn on moderate/minor (don't fail)
-      if (moderateViolations.length > 0) {
-        console.warn(`⚠️  Moderate violations on ${pageName}:`);
-        moderateViolations.forEach(v => console.warn(`  - ${v.id}: ${v.description}`));
-      }
-      
-      if (minorViolations.length > 0) {
-        console.log(`ℹ️  Minor violations on ${pageName}:`);
-        minorViolations.forEach(v => console.log(`  - ${v.id}: ${v.description}`));
-      }
-      
-      // Update baseline if requested
+      // Update baseline if requested (do this BEFORE throwing)
       if (UPDATE_BASELINE) {
         const baselinePath = path.join(BASELINE_DIR, 'a11y-baseline.json');
         let baseline: any = {};
@@ -178,6 +150,36 @@ for (const pagePath of pageConfig.a11yPages) {
         
         fs.writeFileSync(baselinePath, JSON.stringify(baseline, null, 2));
         console.log(`✅ Baseline updated: ${key}`);
+      }
+      
+      // Fail on critical/serious violations (only if NOT updating baseline)
+      if (!UPDATE_BASELINE) {
+        if (criticalViolations.length > 0) {
+          const errorMsg = criticalViolations.map(v => 
+            `[CRITICAL] ${v.id}: ${v.description}\n  Help: ${v.helpUrl}\n  Nodes: ${v.nodes.map(n => n.target).join(', ')}`
+          ).join('\n\n');
+          
+          throw new Error(`Critical accessibility violations on ${pageName}:\n${errorMsg}`);
+        }
+        
+        if (seriousViolations.length > 0) {
+          const errorMsg = seriousViolations.map(v => 
+            `[SERIOUS] ${v.id}: ${v.description}\n  Help: ${v.helpUrl}\n  Nodes: ${v.nodes.map(n => n.target).join(', ')}`
+          ).join('\n\n');
+          
+          throw new Error(`Serious accessibility violations on ${pageName}:\n${errorMsg}`);
+        }
+      }
+      
+      // Warn on moderate/minor (don't fail)
+      if (moderateViolations.length > 0) {
+        console.warn(`⚠️  Moderate violations on ${pageName}:`);
+        moderateViolations.forEach(v => console.warn(`  - ${v.id}: ${v.description}`));
+      }
+      
+      if (minorViolations.length > 0) {
+        console.log(`ℹ️  Minor violations on ${pageName}:`);
+        minorViolations.forEach(v => console.log(`  - ${v.id}: ${v.description}`));
       }
       
       expect(criticalViolations.length).toBe(0);
