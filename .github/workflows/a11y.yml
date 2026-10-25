@@ -142,7 +142,7 @@ jobs:
       
       - name: Run A11y Scan
         run: |
-          npx pnpm@9 a11y:scan --project=a11y-${{ matrix.browser }}-${{ matrix.viewport }}
+          npx playwright test tests/a11y/a11y-scan.spec.ts --project=a11y-${{ matrix.browser }}-${{ matrix.viewport }} --reporter=line
         env:
           BASE_URL: ${{ env.BASE_URL }}
           UPDATE_BASELINE: ${{ github.event.inputs.update_baseline || 'false' }}

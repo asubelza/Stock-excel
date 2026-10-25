@@ -181,7 +181,7 @@ jobs:
       
       - name: Run Visual Regression Tests
         run: |
-          npx pnpm@9 vr:compare --project=vr-${{ matrix.browser }}-${{ matrix.viewport }}-${{ matrix.theme }}
+          npx playwright test tests/visual-regression/vr-compare.spec.ts --project=vr-${{ matrix.browser }}-${{ matrix.viewport }}-${{ matrix.theme }} --reporter=line
         env:
           BASE_URL: ${{ env.BASE_URL }}
           UPDATE_BASELINE: ${{ github.event.inputs.update_baseline || 'false' }}
@@ -252,9 +252,10 @@ jobs:
       
       - name: Run baseline update
         run: |
-          npx pnpm@9 vr:update
+          npx playwright test tests/visual-regression/vr-compare.spec.ts --project=vr-chromium-desktop-light --reporter=line
         env:
           BASE_URL: ${{ env.BASE_URL }}
+          UPDATE_BASELINE: 'true'
       
       - name: Configure Git
         run: |
