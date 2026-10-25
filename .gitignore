@@ -7,3 +7,8 @@ instance/
 *.db
 *.xlsx~
 .DS_Store
+static/dist/
+node_modules/
+*.log
+npm-debug.log*
+vite.config.js.timestamp-*

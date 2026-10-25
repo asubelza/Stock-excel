@@ -1,0 +1,456 @@
+/* ==========================================================================
+   ECJY Design Tokens — CSS Custom Properties
+   ==========================================================================
+   Single source of truth for all design decisions.
+   Generated from design spec — do not edit values directly in components.
+   Token metadata format: @token { category: 'color', description: 'Primary brand color for interactive elements' }
+   ========================================================================== */
+
+:root {
+  /* -------------------------------------------------------------------------
+     COLOR SYSTEM
+     ------------------------------------------------------------------------- */
+  
+  /* @token { category: 'color', description: 'Brand color scale extracted from logo, used for primary actions and links' } */
+  /* Brand Colors (extracted from logo.png) */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+  --color-brand-950: #172554;
+
+  /* @token { category: 'color', description: 'Neutral gray scale for backgrounds, borders, and text hierarchy' } */
+  /* Neutral Scale — 9 steps for backgrounds, borders, text */
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+  --color-neutral-950: #020617;
+
+  /* @token { category: 'color', description: 'Success state colors for positive actions and confirmations' } */
+  /* Success */
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-200: #bbf7d0;
+  --color-success-300: #86efac;
+  --color-success-400: #4ade80;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+  --color-success-800: #166534;
+  --color-success-900: #14532d;
+
+  /* @token { category: 'color', description: 'Warning state colors for caution and attention-needed states' } */
+  /* Warning */
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-200: #fde68a;
+  --color-warning-300: #fcd34d;
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+  --color-warning-900: #78350f;
+
+  /* @token { category: 'color', description: 'Danger/error state colors for destructive actions and errors' } */
+  /* Danger */
+  --color-danger-50: #fef2f2;
+  --color-danger-100: #fee2e2;
+  --color-danger-200: #fecaca;
+  --color-danger-300: #fca5a5;
+  --color-danger-400: #f87171;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+  --color-danger-800: #991b1b;
+  --color-danger-900: #7f1d1d;
+
+  /* @token { category: 'color', description: 'Informational state colors for neutral notifications and hints' } */
+  /* Info */
+  --color-info-50: #eff6ff;
+  --color-info-100: #dbeafe;
+  --color-info-200: #bfdbfe;
+  --color-info-300: #93c5fd;
+  --color-info-400: #60a5fa;
+  --color-info-500: #3b82f6;
+  --color-info-600: #2563eb;
+  --color-info-700: #1d4ed8;
+  --color-info-800: #1e40af;
+  --color-info-900: #1e3a8a;
+
+  /* @token { category: 'color', description: 'Surface layer colors for card, elevated, overlay, and input backgrounds' } */
+  /* Surface Colors — for layering */
+  --color-surface-card: var(--color-neutral-0);
+  --color-surface-elevated: var(--color-neutral-0);
+  --color-surface-overlay: rgba(15, 23, 42, 0.5);
+  --color-surface-input: var(--color-neutral-0);
+  --color-surface-disabled: var(--color-neutral-100);
+  --color-surface-hover: var(--color-neutral-50);
+  --color-surface-active: var(--color-neutral-100);
+  --color-surface-selected: var(--color-brand-50);
+
+  /* @token { category: 'color', description: 'Interactive state colors for focus rings, borders, and validation states' } */
+  /* State Colors */
+  --color-focus-ring: var(--color-brand-500);
+  --color-focus-ring-offset: var(--color-neutral-0);
+  --color-border-default: var(--color-neutral-200);
+  --color-border-hover: var(--color-neutral-300);
+  --color-border-focus: var(--color-brand-500);
+  --color-border-error: var(--color-danger-500);
+  --color-border-success: var(--color-success-500);
+
+  /* @token { category: 'color', description: 'Text color hierarchy for primary, secondary, tertiary, and semantic text' } */
+  /* Text Colors */
+  --color-text-primary: var(--color-neutral-900);
+  --color-text-secondary: var(--color-neutral-600);
+  --color-text-tertiary: var(--color-neutral-400);
+  --color-text-inverse: var(--color-neutral-0);
+  --color-text-link: var(--color-brand-600);
+  --color-text-link-hover: var(--color-brand-700);
+  --color-text-disabled: var(--color-neutral-400);
+  --color-text-error: var(--color-danger-600);
+  --color-text-success: var(--color-success-600);
+  --color-text-warning: var(--color-warning-700);
+
+  /* -------------------------------------------------------------------------
+     TYPOGRAPHY SCALE
+     ------------------------------------------------------------------------- */
+  
+  /* @token { category: 'typography', description: 'Font families for sans-serif and monospace text' } */
+  /* Font Families */
+  --font-family-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-family-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* @token { category: 'typography', description: 'Fluid font size scale using clamp for responsive typography' } */
+  /* Font Sizes — fluid scale using clamp for responsiveness */
+  --font-size-display: clamp(2.5rem, 5vw + 1rem, 3rem);        /* 40-48px */
+  --font-size-h1: clamp(2rem, 3vw + 1rem, 2.5rem);              /* 32-40px */
+  --font-size-h2: clamp(1.5rem, 2vw + 1rem, 2rem);              /* 24-32px */
+  --font-size-h3: clamp(1.25rem, 1.5vw + 1rem, 1.5rem);         /* 20-24px */
+  --font-size-body-lg: clamp(1.125rem, 1vw + 1rem, 1.25rem);    /* 18-20px */
+  --font-size-body: clamp(1rem, 0.5vw + 0.9rem, 1.125rem);      /* 16-18px */
+  --font-size-body-sm: clamp(0.875rem, 0.3vw + 0.8rem, 1rem);   /* 14-16px */
+  --font-size-caption: clamp(0.75rem, 0.2vw + 0.7rem, 0.875rem); /* 12-14px */
+  --font-size-mono: var(--font-size-body-sm);
+
+  /* @token { category: 'typography', description: 'Line height scale for text readability' } */
+  /* Line Heights */
+  --line-height-tight: 1.1;
+  --line-height-snug: 1.375;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+  --line-height-loose: 2;
+
+  /* @token { category: 'typography', description: 'Font weight scale from normal to bold' } */
+  /* Font Weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* @token { category: 'typography', description: 'Letter spacing adjustments for tight to wide text' } */
+  /* Letter Spacing */
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.02em;
+  --letter-spacing-wider: 0.04em;
+
+  /* @token { category: 'spacing', description: 'Base 4px spacing scale for consistent layout rhythm' } */
+  /* -------------------------------------------------------------------------
+     SPACING SCALE (4px base)
+     ------------------------------------------------------------------------- */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /* @token { category: 'spacing', description: 'Semantic spacing aliases for common use cases' } */
+  /* Semantic spacing aliases */
+  --space-xs: var(--space-1);
+  --space-sm: var(--space-2);
+  --space-md: var(--space-4);
+  --space-lg: var(--space-6);
+  --space-xl: var(--space-8);
+  --space-2xl: var(--space-12);
+  --space-3xl: var(--space-16);
+
+  /* @token { category: 'border-radius', description: 'Border radius scale from none to full for component corners' } */
+  /* -------------------------------------------------------------------------
+     BORDER RADIUS
+     ------------------------------------------------------------------------- */
+  --radius-none: 0;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  /* @token { category: 'shadow', description: 'Elevation shadow scale from level 0 to 4 plus semantic aliases' } */
+  /* -------------------------------------------------------------------------
+     SHADOWS / ELEVATION
+     ------------------------------------------------------------------------- */
+  --shadow-level-0: none;
+  --shadow-level-1: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 1px rgba(15, 23, 42, 0.03);
+  --shadow-level-2: 0 4px 8px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --shadow-level-3: 0 8px 24px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.06);
+  --shadow-level-4: 0 16px 48px rgba(15, 23, 42, 0.16), 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-focus: 0 0 0 3px var(--color-brand-100);
+  --shadow-focus-error: 0 0 0 3px var(--color-danger-100);
+
+  /* @token { category: 'shadow', description: 'Semantic shadow aliases for cards, dropdowns, modals, and toasts' } */
+  /* Semantic shadow aliases */
+  --shadow-card: var(--shadow-level-1);
+  --shadow-elevated: var(--shadow-level-2);
+  --shadow-dropdown: var(--shadow-level-2);
+  --shadow-modal: var(--shadow-level-3);
+  --shadow-overlay: var(--shadow-level-4);
+  --shadow-toast: var(--shadow-level-3);
+
+  /* @token { category: 'animation', description: 'Duration scale for transitions and animations' } */
+  /* -------------------------------------------------------------------------
+     ANIMATION / TRANSITION
+     ------------------------------------------------------------------------- */
+  --duration-instant: 0ms;
+  --duration-fast: 80ms;
+  --duration-normal: 120ms;
+  --duration-slow: 150ms;
+  --duration-slower: 200ms;
+  --duration-slowest: 300ms;
+
+  /* @token { category: 'animation', description: 'Easing functions for natural motion' } */
+  --easing-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --easing-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --easing-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* @token { category: 'animation', description: 'Pre-composed transition presets for common use cases' } */
+  /* Transition presets */
+  --transition-fast: var(--duration-fast) var(--easing-ease-out);
+  --transition-normal: var(--duration-normal) var(--easing-ease-out);
+  --transition-slow: var(--duration-slow) var(--easing-ease-out);
+  --transition-colors: color var(--duration-fast) var(--easing-ease-out),
+                       background-color var(--duration-fast) var(--easing-ease-out),
+                       border-color var(--duration-fast) var(--easing-ease-out),
+                       fill var(--duration-fast) var(--easing-ease-out),
+                       stroke var(--duration-fast) var(--easing-ease-out);
+  --transition-transform: transform var(--duration-fast) var(--easing-ease-out);
+  --transition-shadow: box-shadow var(--duration-normal) var(--easing-ease-out);
+  --transition-all: all var(--duration-normal) var(--easing-ease-out);
+
+  /* @token { category: 'animation', description: 'Keyframe durations for fade, slide, scale, and pulse animations' } */
+  /* Keyframe durations */
+  --duration-fade-in: var(--duration-slower);
+  --duration-fade-out: var(--duration-fast);
+  --duration-slide: var(--duration-slower);
+  --duration-scale: var(--duration-fast);
+  --duration-pulse: 1.5s;
+
+/* @token { category: 'layout', description: 'Z-index layering scale for overlay positioning' } */
+  /* -------------------------------------------------------------------------
+     Z-INDEX SCALE
+     ------------------------------------------------------------------------- */
+  --z-index-base: 0;
+  --z-index-dropdown: 100;
+  --z-index-sticky: 200;
+  --z-index-fixed: 300;
+  --z-index-drawer: 400;
+  --z-index-modal-backdrop: 500;
+  --z-index-modal: 550;
+  --z-index-popover: 600;
+  --z-index-tooltip: 700;
+  --z-index-toast: 800;
+  --z-index-toast-container: 850;
+  --z-index-loading-overlay: 900;
+
+  /* @token { category: 'layout', description: 'Breakpoint values for responsive design (reference only — CSS uses media queries)' } */
+  /* -------------------------------------------------------------------------
+     BREAKPOINTS (for reference in JS — CSS uses media queries directly)
+     ------------------------------------------------------------------------- */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
+  /* @token { category: 'component', description: 'Component-specific design tokens for buttons, inputs, tables, cards, badges, modals, toasts, and layout' } */
+  /* -------------------------------------------------------------------------
+     COMPONENT-SPECIFIC TOKENS
+     ------------------------------------------------------------------------- */
+   
+  /* Buttons */
+  --btn-height-sm: 32px;
+  --btn-height-md: 40px;
+  --btn-height-lg: 48px;
+  --btn-padding-x-sm: var(--space-3);
+  --btn-padding-x-md: var(--space-4);
+  --btn-padding-x-lg: var(--space-6);
+  --btn-font-size-sm: var(--font-size-caption);
+  --btn-font-size-md: var(--font-size-body-sm);
+  --btn-font-size-lg: var(--font-size-body);
+  --btn-font-weight: var(--font-weight-medium);
+  --btn-border-radius: var(--radius-sm);
+
+  /* Inputs */
+  --input-height-sm: 32px;
+  --input-height-md: 40px;
+  --input-height-lg: 48px;
+  --input-padding-x: var(--space-3);
+  --input-padding-y: var(--space-2);
+  --input-font-size: var(--font-size-body-sm);
+  --input-border-width: 1px;
+  --input-border-radius: var(--radius-sm);
+  --input-placeholder-color: var(--color-text-tertiary);
+
+  /* Tables */
+  --table-cell-padding-y: var(--space-2);
+  --table-cell-padding-x: var(--space-3);
+  --table-header-bg: var(--color-neutral-50);
+  --table-row-hover-bg: var(--color-neutral-50);
+  --table-border-color: var(--color-neutral-200);
+  --table-header-font-weight: var(--font-weight-semibold);
+  --table-header-font-size: var(--font-size-caption);
+
+  /* Cards */
+  --card-padding: var(--space-5);
+  --card-border-radius: var(--radius-md);
+  --card-border-width: 1px;
+  --card-border-color: var(--color-border-default);
+  --card-bg: var(--color-surface-card);
+
+  /* Badges */
+  --badge-height: 24px;
+  --badge-padding-x: var(--space-2);
+  --badge-font-size: var(--font-size-caption);
+  --badge-font-weight: var(--font-weight-medium);
+  --badge-border-radius: var(--radius-full);
+
+  /* Modals */
+  --modal-max-width: 560px;
+  --modal-padding: var(--space-6);
+  --modal-border-radius: var(--radius-lg);
+
+  /* Toasts */
+  --toast-min-width: 280px;
+  --toast-max-width: 420px;
+  --toast-padding: var(--space-4);
+  --toast-border-radius: var(--radius-md);
+  --toast-gap: var(--space-2);
+
+  /* Layout */
+  --header-height: 64px;
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 72px;
+  --container-max-width: 1400px;
+  --container-padding: var(--space-5);
+
+  /* @token { category: 'legacy', description: 'Legacy color mappings for gradual migration from old hardcoded values' } */
+  /* -------------------------------------------------------------------------
+     LEGACY COMPATIBILITY (for gradual migration)
+     ------------------------------------------------------------------------- */
+  /* These map to the old hardcoded values for backwards compatibility */
+  --legacy-primary: #2c3e50;
+  --legacy-primary-btn: #3498db;
+  --legacy-primary-btn-hover: #2980b9;
+  --legacy-success: #27ae60;
+  --legacy-success-hover: #219a52;
+  --legacy-danger: #e74c3c;
+  --legacy-danger-hover: #c0392b;
+  --legacy-warning: #f39c12;
+  --legacy-purple: #9b59b6;
+  --legacy-body-bg: #f0f0f0;
+  --legacy-card-bg: #ffffff;
+  --legacy-muted-bg: #f8f9fa;
+  --legacy-text-muted: #555;
+  --legacy-text-placeholder: #999;
+}
+
+/* ==========================================================================
+   DARK MODE (future-proof — not activated yet)
+   ========================================================================== */
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="dark"] {
+    --color-surface-card: var(--color-neutral-800);
+    --color-surface-elevated: var(--color-neutral-800);
+    --color-surface-input: var(--color-neutral-700);
+    --color-surface-disabled: var(--color-neutral-700);
+    --color-surface-hover: var(--color-neutral-700);
+    --color-surface-active: var(--color-neutral-600);
+    --color-surface-selected: var(--color-brand-900);
+    --color-text-primary: var(--color-neutral-50);
+    --color-text-secondary: var(--color-neutral-300);
+    --color-text-tertiary: var(--color-neutral-500);
+    --color-text-inverse: var(--color-neutral-900);
+    --color-border-default: var(--color-neutral-700);
+    --color-border-hover: var(--color-neutral-600);
+    --color-focus-ring-offset: var(--color-neutral-800);
+    --table-header-bg: var(--color-neutral-800);
+    --table-row-hover-bg: var(--color-neutral-700);
+    --table-border-color: var(--color-neutral-700);
+    --card-bg: var(--color-neutral-800);
+    --card-border-color: var(--color-neutral-700);
+  }
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-normal: 0ms;
+    --duration-slow: 0ms;
+    --duration-slower: 0ms;
+    --duration-slowest: 0ms;
+    --duration-fade-in: 0ms;
+    --duration-fade-out: 0ms;
+    --duration-slide: 0ms;
+    --duration-scale: 0ms;
+    --duration-pulse: 0ms;
+  }
+}
+
+/* ==========================================================================
+   HIGH CONTRAST MODE (Windows)
+   ========================================================================== */
+@media (forced-colors: active) {
+  :root {
+    --color-focus-ring: CanvasText;
+    --color-focus-ring-offset: Canvas;
+    --color-border-default: CanvasText;
+    --color-border-hover: CanvasText;
+    --color-border-focus: CanvasText;
+    --color-border-error: CanvasText;
+    --color-border-success: CanvasText;
+    --shadow-focus: 0 0 0 3px CanvasText;
+    --shadow-focus-error: 0 0 0 3px CanvasText;
+    --shadow-card: 0 0 0 1px CanvasText;
+    --shadow-elevated: 0 0 0 1px CanvasText;
+    --shadow-dropdown: 0 0 0 1px CanvasText;
+    --shadow-modal: 0 0 0 2px CanvasText;
+    --shadow-overlay: 0 0 0 2px CanvasText;
+  }
+}
